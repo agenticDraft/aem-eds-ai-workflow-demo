@@ -1,0 +1,16 @@
+.hlx/*
+coverage/*
+logs/*
+node_modules/*
+
+helix-importer-ui
+.DS_Store
+*.bak
+.idea
+.history/
+.playwright-mcp/
+aem-boilerplate/
+
+# Ensure these files are tracked
+!CLAUDE.md
+!AGENTS.md
