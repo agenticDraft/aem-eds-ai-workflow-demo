@@ -72,5 +72,6 @@ claude plugin list | grep aem-edge-delivery-services
 The plugin installs as one unit: **25 skills**, Apache-2.0, © Adobe. The ones this project's
 instructions name are `content-driven-development` (the process every code change starts from),
 plus `aem-cli`, `building-blocks`, `content-modeling`, `block-collection-and-party`,
-`docs-search`, `testing-blocks`, `analyze-and-plan` and `find-test-content`. The rest install
-alongside them and are available, but are not part of this project's documented workflow.
+`docs-search`, `testing-blocks`, `analyze-and-plan`, `find-test-content` and `da-content`. The
+rest install alongside them and are available, but are not part of this project's documented
+workflow.
