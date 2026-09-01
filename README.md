@@ -2,8 +2,14 @@
 AEM EDS demo with AI workflow
 
 ## Environments
+
 - Preview: https://main--aem-eds-ai-workflow-demo--agenticDraft.aem.page/
 - Live: https://main--aem-eds-ai-workflow-demo--agenticDraft.aem.live/
+- Content source (Google Drive):
+  https://drive.google.com/drive/folders/1f0yNL8IysQGG0QNzo7sJg8CcpgORXwWY
+
+AEM Code Sync is enabled on the GitHub repo; pushes to a branch publish to
+`https://{branch}--aem-eds-ai-workflow-demo--agenticDraft.aem.page/`.
 
 ## Documentation
 
@@ -19,21 +25,52 @@ Before using this project, go through the documentation on https://www.aem.live/
 npm i
 ```
 
-## Linting
-
-```sh
-npm run lint
-```
-
-## Local server
-
-```sh
-aem up --forward-browser-logs
-```
+`@adobe/aem-cli` is a devDependency, so this installs it too — no global install needed.
 
 ## Local development
 
-1. Install the [AEM CLI](https://github.com/adobe/helix-cli): `npm install -g @adobe/aem-cli`
-2. Install Chrome extension AEM Sidekick: https://chromewebstore.google.com/detail/aem-sidekick/igkmdomcgoebiipaifhmpfjhbjccggml
-3. Start AEM Proxy: `aem up` (opens your browser at `http://localhost:3000`)
-4. Open this directory in your favorite IDE and start coding :)
+1. Install the Chrome extension [AEM Sidekick](https://chromewebstore.google.com/detail/aem-sidekick/igkmdomcgoebiipaifhmpfjhbjccggml)
+2. Start the dev server: `npm run up` — serves `http://localhost:3000` with auto-reload
+   - `npm run up:draft` serves static files from `drafts/` instead of authored content
+3. Open this directory in your favorite IDE and start coding :)
+
+## Linting
+
+```sh
+npm run lint       # eslint + stylelint
+npm run lint:fix   # auto-fix what can be fixed
+```
+
+Always go through the npm script. `lint:js` loads a project-local ESLint rule via
+`--rulesdir scripts/eslint-rules`; a bare `eslint .` silently skips it.
+
+## Claude Code setup
+
+This project's agent instructions (`AGENTS.md`, `CLAUDE.md`) delegate all Edge Delivery *platform*
+reference to Adobe's first-party skills rather than restating it. Install them once, or the
+agent will hit instructions pointing at skills that do not resolve.
+
+```sh
+claude plugin marketplace add adobe/skills
+claude plugin install aem-edge-delivery-services@adobe-skills
+```
+
+Or from inside a Claude Code session, using the slash command and the interactive picker:
+
+```
+/plugin marketplace add adobe/skills
+/plugin
+```
+
+Verify — the plugin should be listed, and skills should resolve as
+`aem-edge-delivery-services:<name>`:
+
+```sh
+claude plugin list | grep aem-edge-delivery-services
+```
+
+The plugin installs as one unit: **25 skills**, Apache-2.0, © Adobe. The ones this project's
+instructions name are `content-driven-development` (the process every code change starts from),
+plus `aem-cli`, `building-blocks`, `content-modeling`, `block-collection-and-party`,
+`docs-search`, `testing-blocks`, `analyze-and-plan` and `find-test-content`. The rest install
+alongside them and are available, but are not part of this project's documented workflow.
