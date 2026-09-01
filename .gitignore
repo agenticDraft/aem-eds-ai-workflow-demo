@@ -3,14 +3,26 @@ coverage/*
 logs/*
 node_modules/*
 
-helix-importer-ui
+# VSC
 .DS_Store
 *.bak
 .idea
 .history/
 .playwright-mcp/
-aem-boilerplate/
+
+# Custom AEM Boilerplate
+helix-importer-ui
+tools
 
 # Ensure these files are tracked
 !CLAUDE.md
 !AGENTS.md
+
+# Project specific
+docs/
+
+# Secrets — THIS REPO IS PUBLIC. Never remove these lines.
+# Real values live in .env (ignored); .env.example is the committed template.
+.env
+.env.*
+.env.example
