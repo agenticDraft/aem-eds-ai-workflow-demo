@@ -1,0 +1,19 @@
+{
+  "sandbox": {
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "zmarkoni.atlassian.net",
+        "api.atlassian.com",
+        "www.figma.com"
+      ]
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(gh issue *)",
+      "Bash(curl *)"
+    ]
+  }
+}
