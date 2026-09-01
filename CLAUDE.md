@@ -9,8 +9,13 @@ disagree); the standing rules and the full document index are in
 (local-only, gitignored). Read both before changing anything under `.claude/` or `plugins/`, or
 before starting any automation or tooling work.
 
-When working on EDS components, blocks, styles or scripts — and for all commands, project
-structure and house style — see @AGENTS.md
+**Load `AGENTS.md` only when the work is EDS.** Writing or changing blocks, styles, `scripts/`
+or anything served to the site? Read `AGENTS.md` first — it is the house style, the commands and
+the deployment process. Working on the delivery automation (`.claude/`, `plugins/`,
+`docs/implementation-plan/`)? Do **not** read it: the core must name no platform (D28, D34), and
+loading Edge Delivery vocabulary into a session that must not use it works against that rule.
+
+It is no longer auto-imported, so nothing loads it for you.
 
 <!-- This file carries project POLICY plus an INDEX of documents to read on a trigger.
      Reference material — how EDS works, how a tool behaves — belongs in the referenced

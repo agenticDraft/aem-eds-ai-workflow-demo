@@ -96,7 +96,8 @@ site score 100/100/100/100 on Core Web Vitals. Do not work around them.
 Two sources, two jobs — do not merge them:
 
 - **This file is project policy** — what *we* do here: commands, structure, deployment, house
-  style. Loaded into every session, so it stays short.
+  style. Loaded when the work is EDS — not automatically, and never for delivery-automation work
+  (D28, D34) — so it stays short and stays out of sessions that must name no platform.
 - **Adobe's `aem-edge-delivery-services` skills are the platform reference** — how Edge Delivery
   works, generically. First-party and maintained; invoked on demand when writing a block. We
   previously hand-wrote this material as `eds-block-development.md`; it was deleted 2026-09-01
