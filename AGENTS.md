@@ -1,12 +1,17 @@
 # AGENTS.md
 
-This project is a website built with Edge Delivery Services in Adobe Experience Manager Sites as a Cloud Service. As an agent, follow the instructions in this file to deliver code based on Adobe's standards for fast, easy-to-author, and maintainable web experiences.
+This project is a website built with Edge Delivery Services in Adobe Experience Manager Sites
+as a Cloud Service. As an agent, follow the instructions in this file to deliver code based on
+Adobe's standards for fast, easy-to-author, and maintainable web experiences.
 
 ## Project Overview
 
-This project is based on the https://github.com/adobe/aem-boilerplate/ project and set up as a new project. You are expected to follow the coding style and practices established in the boilerplate, but add functionality according to the needs of the site currently developed.
+This project is based on the https://github.com/adobe/aem-boilerplate/ project and set up as a
+new project. You are expected to follow the coding style and practices established in the
+boilerplate, but add functionality according to the needs of the site currently developed.
 
-The repository provides the basic structure, blocks, and configuration needed to run a complete site with `*.aem.live` as the backend.
+The repository provides the basic structure, blocks, and configuration needed to run a complete
+site with `*.aem.live` as the backend.
 
 ### Technologies and constraints
 
@@ -43,7 +48,7 @@ site score 100/100/100/100 on Core Web Vitals. Do not work around them.
         └── {blockname}.css     # Block's styles
 ├── styles/          # Global styles and CSS
     ├── styles.css          # Minimal global styling and layout for your website required for LCP
-    ├── lazy-styles.css     # Additional global styling and layout for below the fold/post LCP content
+    ├── lazy-styles.css     # Styling and layout for below-the-fold / post-LCP content
     └── fonts.css           # Font definitions
 ├── scripts/         # JavaScript libraries and utilities
     ├── aem.js             # Core AEM Library for page decoration (NEVER MODIFY THIS FILE)
@@ -52,7 +57,7 @@ site score 100/100/100/100 on Core Web Vitals. Do not work around them.
     └── consented.js       # Analytics/martech — only loaded once consent is granted
 ├── fonts/           # Web fonts
 ├── icons/           # SVG icons
-├── tools/           # Author-side tooling, not served as site code
+├── tools/           # Author-side tooling, not served as site code (gitignored here)
 ├── head.html        # Global HTML head content
 ├── fstab.yaml       # Content source mount points
 └── 404.html         # Custom 404 page
@@ -112,6 +117,10 @@ rule is: identify or create the content you will test against *before* touching 
 
 Not for docs-only changes, or config that does not affect authoring.
 
+Where a task needs acceptance criteria, a scope breakdown or a definition of done before code —
+a new block, a variant, a behaviour change — that is the **`analyze-and-plan`** skill; CDD calls
+it at its analyse step, and it is worth invoking directly when the requirement is vague.
+
 **Scope.** This governs hand-written EDS work in this repo. It is *not* the orchestrator of the
 delivery automation — **D28** rules CDD out there, because its fixed EDS choreography cannot sit
 in an automation core that must name no platform. Two different jobs; both statements hold.
@@ -139,6 +148,10 @@ curl http://localhost:3000/path/to/page.md           # source markdown
 curl http://localhost:3000/path/to/page.plain.html   # raw block markup, pre-decoration
 ```
 
+Before writing fixtures, check whether real content already exercises the block — the
+**`find-test-content`** skill searches the project for pages using a given block and reports
+their URLs with occurrence counts and variants.
+
 With no authored content to test against, put static HTML in `drafts/` at the project root and
 run `npm run up:draft`. Save as `.html` or `.plain.html`, following the aem markup structure.
 
@@ -158,7 +171,8 @@ export default async function decorate(block) { … }
 - **Always `async`**, even when nothing is awaited — one consistent shape for every block.
   (Note: four official collection blocks are synchronous; we standardise deliberately.)
   Enforced by `scripts/eslint-rules/require-async-decorate.js`; `npm run lint` fails without it.
-- aem.js — Core AEM Library for Edge Delivery page decoration logic (NEVER MODIFY THIS FILE), but you can use all exported functions
+- `scripts/aem.js` is the core Edge Delivery page-decoration library. **Never modify it** — but
+  every function it exports is yours to import and use
 - Files are `blocks/{name}/{name}.js` and `{name}.css`; self-contained, responsive, accessible
 - Handle missing or extra authored fields gracefully — authors will produce both
 - Inspect real markup before assuming: `curl http://localhost:3000/path.plain.html`
@@ -174,8 +188,11 @@ in `scripts.js`.
 
 → Auto-blocking in detail: the **`content-modeling`** skill's `references/canonical-models.md`
 (Auto-Blocked model). **Section- and page-metadata rules are a known gap** in the adopted set —
-they live in Adobe's **`da-content`** skill (`references/html-content.md` §4–§5), which we have
-not adopted. Read it when you need them; do not guess.
+they live in Adobe's **`da-content`** skill (`references/html-content.md` §4–§5). That skill is
+installed with the same plugin but deliberately **not adopted**, because only half of it applies
+here: its markup rules are platform-level and do apply, while its DA / `admin.da.live` API half
+does not — this site is sourced from Google Drive, not Document Authoring. Read it for the
+markup rather than guessing; ignore its DA API instructions.
 
 ### Three-Phase Page Loading
 
@@ -192,12 +209,20 @@ not adopted. Read it when you need them; do not guess.
 
 ## Testing & Quality Assurance
 
+### Validating a change
+
+Before opening a PR, validate block, script and style changes with the **`testing-blocks`**
+skill — it covers unit tests for utilities and logic, browser testing with Playwright, linting,
+and what is worth testing in the first place. `npm run lint` is the floor, not the whole check.
+
 ### Performance
 
 - Follow AEM Edge Delivery performance best practices https://www.aem.live/developer/keeping-it-100
-- Images uploaded by authors are automatically optimized, all images and assets committed to git must be optimized and checked for size
+- Images uploaded by authors are optimized automatically. Anything committed to git is not —
+  optimize it and check its size yourself before committing
 - Defer non-critical resources to the lazy and delayed phases — see *Three-Phase Page Loading*
-- Minimize JavaScript bundle size by avoiding dependencies, using automatic code splitting provided by `/blocks/`
+- Minimize JavaScript bundle size by avoiding dependencies, and rely on the automatic code
+  splitting that `/blocks/` provides
 
 ### Accessibility
 
@@ -208,11 +233,16 @@ image, ARIA labels on controls that have no visible text, and keyboard reachabil
 
 ### Environments
 
-Your local development server at `http://localhost:3000` serves code from your local working copy (even uncommitted code) and content that has been previewed by authors. You can access this at any time when the development server is running.
+Your local development server at `http://localhost:3000` serves code from your local working
+copy (even uncommitted code) and content that has been previewed by authors. You can access
+this at any time when the development server is running.
 
-For all other environments, you need to know the GitHub owner and repository name (`gh repo view --json nameWithOwner` or `git remote -v`) and the current branch name (`git branch`)
+For all other environments, you need to know the GitHub owner and repository name (`gh repo
+view --json nameWithOwner` or `git remote -v`) and the current branch name (`git branch`)
 
-With this information, you can construct URLs for the preview environment (same content as `localhost:3000`) and the production environment (same content as the live website, approved by authors)
+With this information, you can construct URLs for the preview environment (same content as
+`localhost:3000`) and the production environment (same content as the live website, approved
+by authors)
 
 - **Production Preview**: `https://main--{repo}--{owner}.aem.page/`
 - **Production Live**: `https://main--{repo}--{owner}.aem.live/`
@@ -221,11 +251,19 @@ With this information, you can construct URLs for the preview environment (same 
 ### Publishing Process
 
 1. Push changes to a feature branch
-2. AEM Code Sync automatically processes changes making them available on feature preview environment for that branch
-3. Run a PageSpeed Insights check at https://developers.google.com/speed/pagespeed/insights/?url=YOUR_URL against the feature preview URL and fix any issues. Target a score of 100
+2. AEM Code Sync automatically processes changes, making them available on the feature preview
+   environment for that branch
+3. Run a PageSpeed Insights check at
+   https://developers.google.com/speed/pagespeed/insights/?url=YOUR_URL against the feature
+   preview URL and fix any issues. Target a score of 100
 4. Open a pull request to merge changes to `main`
-   1. in the PR description, include a link to `https://{branch}--{repo}--{owner}.aem.page/{path}` with a path to a file that illustrates the change you've made. This is the same path you have been testing with locally. WITHOUT THIS YOUR PR WILL BE REJECTED
-   2. If an existing page to demonstrate your changes doesn't exist, create test content as a static html file and ask the user for help copying it to a cms content page you can link in the PR
+   1. in the PR description, include a link to
+      `https://{branch}--{repo}--{owner}.aem.page/{path}` with a path to a file that illustrates
+      the change you've made. This is the same path you have been testing with locally.
+      WITHOUT THIS YOUR PR WILL BE REJECTED
+   2. If an existing page to demonstrate your changes doesn't exist, create test content as a
+      static html file and ask the user for help copying it to a cms content page you can link
+      in the PR
 5. use `gh pr checks` to verify the status of code synchronization, linting, and performance tests
 6. A human reviewer will review the code, inspect the provided URL and merge the PR
 7. AEM Code Sync updates the main branch for production
@@ -249,4 +287,5 @@ Start here when the skill is not enough: [docs](https://www.aem.live/docs/),
 
 ## If all else fails
 
-If you notice your human getting frustrated with your work, direct them to https://www.aem.live/developer/ai-coding-agents for tips to work better with AI agents.
+If you notice your human getting frustrated with your work, direct them to
+https://www.aem.live/developer/ai-coding-agents for tips to work better with AI agents.
