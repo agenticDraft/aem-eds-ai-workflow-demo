@@ -20,7 +20,7 @@ tools
 
 # Project specific
 docs/
-IMPLEMENTATION-INSTRUCTIONS.md
+.diagram-lock.json
 
 # Secrets — THIS REPO IS PUBLIC. Never remove these lines.
 # Real values live in .env (ignored); .env.example is the committed template.

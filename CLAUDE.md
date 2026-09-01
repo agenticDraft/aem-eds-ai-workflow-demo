@@ -1,10 +1,13 @@
 This project is an Adobe AEM Edge Delivery boilerplate, used only as a DEMO and as the test bed
 for the delivery automation we are building.
 
-**The automation is the point of this repo.** Its design and gap analysis are in
-`docs/implementation-plan/automated-eds-delivery-plan.md`; the standing rules and document index
-for working on it are in `IMPLEMENTATION-INSTRUCTIONS.md` (local-only, gitignored). Read both
-before changing anything under `.claude/`, or before starting any automation or tooling work.
+**The automation is the point of this repo.** It is an agnostic delivery core plus swappable
+packs — this platform is one consumer, not the subject. Interfaces are in
+`docs/implementation-plan/01-core-contracts.md` (the authority when documents
+disagree); the standing rules and the full document index are in
+`docs/implementation-plan/00-instructions.md`
+(local-only, gitignored). Read both before changing anything under `.claude/` or `plugins/`, or
+before starting any automation or tooling work.
 
 When working on EDS components, blocks, styles or scripts — and for all commands, project
 structure and house style — see @AGENTS.md
