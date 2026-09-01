@@ -15,4 +15,13 @@ module.exports = {
     'linebreak-style': ['error', 'unix'], // enforce unix linebreaks
     'no-param-reassign': [2, { props: false }], // allow modifying properties of param
   },
+  overrides: [
+    {
+      // House rule: every block's decorate() is async. Loaded via --rulesdir (see package.json).
+      files: ['blocks/*/*.js'],
+      rules: {
+        'require-async-decorate': 'error',
+      },
+    },
+  ],
 };
