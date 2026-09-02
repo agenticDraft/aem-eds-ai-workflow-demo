@@ -25,6 +25,7 @@ docs/
 # Secrets — THIS REPO IS PUBLIC. Never remove these lines.
 .env
 .claude/settings.local.json
+.claude/artifacts/
 
 # Delivery-automation run artifacts — ephemeral, instance-local, never committed.
 # Spec artifacts under drafts/specs/<ticket>/ are committed on purpose (D4); these are not.
