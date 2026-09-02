@@ -177,6 +177,12 @@ For other environments get owner/repo (`gh repo view --json nameWithOwner`) and 
 
 ## Troubleshooting
 
+Any open question about how EDS behaves — before writing a spec, acceptance criteria, or
+anything else you'll state as fact — fetch the full documentation page, not a summary.
+`WebFetch` pipes content through a small model that can drop or compress details; when a
+specific claim matters, `curl` the raw page (or the source repo) and read it directly. Never
+answer from a page title, a search snippet, or a half-remembered summary.
+
 Search with the `docs-search` skill first — it ranks results and surfaces deprecation warnings.
 Fall back to `site:www.aem.live`. Then: [docs](https://www.aem.live/docs/),
 [Developer Tutorial](https://www.aem.live/developer/tutorial),
