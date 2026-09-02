@@ -1,7 +1,7 @@
 # agentic-core
 
 The agnostic delivery core (Phase 2). Names no tracker, SCM, design tool, browser, language or
-package manager — see `docs/implementation-plan/01-core-contracts.md`.
+package manager — that vocabulary belongs to a pack, never to the core.
 
 This is a scaffold: one placeholder skill (`status`) proves the plugin loads and namespaces
 correctly. Stage runner, envelope contract, config schema and route resolver land in later Phase 2

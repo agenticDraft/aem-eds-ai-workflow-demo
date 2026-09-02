@@ -113,10 +113,16 @@ each adapter drifting from its own copy.
 
 One example file per verdict literal lives in `fixtures/result-envelope/`: `pass.md`, `warn.md`,
 `fail.md`, `question.md`. Each is a realistic stage transcript ending in a valid `## Result`
-block for that verdict — used to exercise the deterministic validator built in the next task.
+block for that verdict. `fixtures/result-envelope/invalid/` holds one fixture per rejection case
+the validator must catch: `unknown-verdict.md`, `multiline-summary.md`, `missing-artifacts.md`,
+`trailing-text.md`.
 
 ## Verification
 
-This task ships no validator — that is a later, dependent task. Until it exists, a fixture is
-verified by hand: the last non-blank block in the file starts with `## Result`, its `verdict:`
-line matches the fixture's filename, and no text follows the block.
+`lib/validate-result-envelope.sh <path>` is the deterministic checker (§13 — no model involved).
+It exits `0` and prints `verdict: <literal>` for a conformant file, `1` with `invalid: <reason>`
+on stderr for a contract violation, `2` for a usage error. Run its test suite with:
+
+```bash
+bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
+```
