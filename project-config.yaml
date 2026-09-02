@@ -1,0 +1,11 @@
+version: 1
+
+commands:
+  lint: "npm run lint"
+  test: ""
+  build: ""
+  serve: "npm run up"
+
+paths:
+  spec_dir: "specs"
+  preview: "http://localhost:3000/preview"
