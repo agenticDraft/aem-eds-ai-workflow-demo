@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# validate-result-envelope.sh — Deterministic conformance check for the result
-# envelope contract (shared/result-envelope.md, adapted from
-# 01-core-contracts.md §3). No model involved, per §13's "deterministic
-# validators" principle: this is the CI floor a stage adapter's ## Result
-# block must clear before anything reads it as a verdict.
+# validate-result-envelope.sh — Deterministic conformance check for the
+# result envelope contract (see shared/result-envelope.md). No model
+# involved: this is the CI floor a stage adapter's ## Result block must
+# clear before anything reads it as a verdict.
 #
 # Checks, each a real failure mode named in the contract's Anti-patterns
 # section:
@@ -49,9 +48,9 @@ consume_list_items() {
   done
 }
 
-# Portable line read (not `mapfile`, a bash-4+ builtin some default system
-# shells predate). The `|| [[ -n "$line" ]]` clause keeps a final line that
-# has no trailing newline.
+# Read the file into an indexed array one line at a time, for maximum
+# portability across shell versions. The `|| [[ -n "$line" ]]` clause keeps
+# a final line that has no trailing newline.
 LINES=()
 while IFS= read -r line || [[ -n "$line" ]]; do
   LINES+=("$line")

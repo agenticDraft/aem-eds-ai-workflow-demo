@@ -2,8 +2,8 @@
 # Tests for validate-result-envelope.sh. Run with:
 #   bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
 #
-# No framework — exits 0 on success, 1 on first failure. Pattern follows
-# dx-core's validate-image.test.sh (assert_exit + synthesised/fixture inputs).
+# No framework — exits 0 on success, 1 on first failure. assert_exit below
+# compares expected vs. actual exit code per case, against fixture inputs.
 
 set -uo pipefail
 
