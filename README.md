@@ -46,14 +46,9 @@ Always go through the npm script. `lint:js` loads a project-local ESLint rule vi
 
 ## Credentials
 
-The delivery automation pipeline needs a tracker credential to read and update work items. Copy
-the template and fill in your own values — never commit real credentials:
-
-```sh
-cp .env.example .env
-```
-
-Then edit `.env` and add your Jira credentials:
+This project's automation never creates or edits your `.env` file — you manage it yourself. Add
+these two lines to a `.env` file at the project root (create one if you don't have it yet;
+`.env.example` shows the same two lines as a reference, but is never read at runtime):
 
 ```
 JIRA_EMAIL=you@example.com
@@ -61,9 +56,9 @@ JIRA_API_TOKEN=your_api_token_here
 ```
 
 Create a token at https://id.atlassian.com/manage-profile/security/api-tokens. `.env` is
-gitignored; `.env.example` is the committed template, so it stays visible to every new clone.
-Every script and skill in the pipeline reads these two variables from the environment — never as
-a command-line argument — so they never appear in `ps -ef`, shell history, or a log.
+gitignored — never commit it. Every script and skill in the pipeline reads these two variables
+from the environment, never as a command-line argument, so they never appear in `ps -ef`, shell
+history, or a log.
 
 ## Claude Code setup
 
