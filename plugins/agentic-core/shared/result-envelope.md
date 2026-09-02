@@ -120,10 +120,3 @@ block for that verdict — used to exercise the deterministic validator built in
 This task ships no validator — that is a later, dependent task. Until it exists, a fixture is
 verified by hand: the last non-blank block in the file starts with `## Result`, its `verdict:`
 line matches the fixture's filename, and no text follows the block.
-
-## Source
-
-Adapted from `dx-aem-flow`'s two return-contract shared files — MIT, © 2025-2026 Dragan
-Filipovic. Upstream ships two contracts with different field names and block positions; this
-project keeps one, positioned last, with a fourth verdict (`question`) neither upstream file
-has.
