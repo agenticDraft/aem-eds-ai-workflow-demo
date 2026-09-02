@@ -47,8 +47,7 @@ Always go through the npm script. `lint:js` loads a project-local ESLint rule vi
 ## Credentials
 
 This project's automation never creates or edits your `.env` file — you manage it yourself. Add
-these two lines to a `.env` file at the project root (create one if you don't have it yet;
-`.env.example` shows the same two lines as a reference, but is never read at runtime):
+these two lines to a `.env` file at the project root (create one if you don't have it yet):
 
 ```
 JIRA_EMAIL=you@example.com
@@ -59,6 +58,24 @@ Create a token at https://id.atlassian.com/manage-profile/security/api-tokens. `
 gitignored — never commit it. Every script and skill in the pipeline reads these two variables
 from the environment, never as a command-line argument, so they never appear in `ps -ef`, shell
 history, or a log.
+
+The pipeline also calls your Atlassian Cloud site directly (`https://<your-site>.atlassian.net`),
+not just `api.atlassian.com`. Since that hostname is specific to your Jira instance, add it to
+`.claude/settings.local.json` (gitignored, personal — never `.claude/settings.json`, which is
+shared):
+
+```json
+{
+  "sandbox": {
+    "network": {
+      "allowedDomains": ["<your-site>.atlassian.net"]
+    }
+  }
+}
+```
+
+Claude Code merges this list with the shared `.claude/settings.json` allowlist, so you don't need
+to touch the committed file.
 
 ## Claude Code setup
 

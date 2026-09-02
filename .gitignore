@@ -23,7 +23,5 @@ docs/
 .diagram-lock.json
 
 # Secrets — THIS REPO IS PUBLIC. Never remove these lines.
-# Real values live in .env (ignored); .env.example is the committed template.
 .env
-.env.*
-!.env.example
+.claude/settings.local.json
