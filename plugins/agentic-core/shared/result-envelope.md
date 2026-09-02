@@ -105,9 +105,9 @@ blocker: packs.tracker is unset in project config
 ## Reference, not restatement
 
 A stage adapter's own text must not copy this shape inline — it references this file with one
-line, e.g. `See shared/result-envelope.md for the required ## Result block.` This is what
-deterministic validator 4 (`01-core-contracts.md` §13) checks: every stage adapter's text
-references the envelope contract, rather than each adapter drifting from its own copy.
+line, e.g. `See shared/result-envelope.md for the required ## Result block.` A deterministic
+validator checks this: every stage adapter's text references the envelope contract, rather than
+each adapter drifting from its own copy.
 
 ## Fixtures
 
@@ -123,6 +123,7 @@ line matches the fixture's filename, and no text follows the block.
 
 ## Source
 
-Adapted from `dx-aem-flow`'s `shared/subagent-contract.md` and `shared/skill-return-contract.md`
-— MIT, © 2025-2026 Dragan Filipovic. Deviations from both are recorded in
-`docs/implementation-plan/06-dx-core-deviations.md`.
+Adapted from `dx-aem-flow`'s two return-contract shared files — MIT, © 2025-2026 Dragan
+Filipovic. Upstream ships two contracts with different field names and block positions; this
+project keeps one, positioned last, with a fourth verdict (`question`) neither upstream file
+has.
