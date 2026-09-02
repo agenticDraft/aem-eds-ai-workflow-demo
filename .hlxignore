@@ -6,3 +6,7 @@ LICENSE
 package.json
 package-lock.json
 test/*
+
+# Run-state files by name, in case a future stage writes them outside drafts/ or a dot-dir.
+run-state.json
+progress.md
