@@ -62,6 +62,12 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/dangling-skill/pack.yaml" 2>&1
 assert_exit "platform dangling-skill rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the missing skill" "implement" "$OUT"
 
+echo "[reject] pack root contains an unfilled template placeholder"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/unfilled-placeholder/pack.yaml" 2>&1); ST=$?
+assert_exit "unfilled-placeholder rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the placeholder" "placeholder" "$OUT"
+assert_contains "reason names the offending file" "implement/SKILL.md" "$OUT"
+
 echo "[accept] a well-formed provider manifest"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/provider-valid/pack.yaml" 2>&1); ST=$?
 assert_exit "provider-valid accepted (exit 0)" 0 $ST "$OUT"

@@ -51,6 +51,18 @@ fail() {
   exit 1
 }
 
+# --- unfilled template placeholder (core contract §13 validator 10) -------
+# A pack generated from a template (core contract §7.1) must contain no
+# unfilled placeholder anywhere under its root — not just in pack.yaml, but
+# in every generated skill file too, since that is where an unanswered
+# interview question would actually leak. The reserved marker is the
+# literal two-character sequence "{{", which never appears in a
+# conformant pack.yaml or SKILL.md.
+PLACEHOLDER_HIT="$(grep -rl '{{' "$PACK_ROOT" 2>/dev/null | head -n 1)"
+if [[ -n "$PLACEHOLDER_HIT" ]]; then
+  fail "unfilled template placeholder in ${PLACEHOLDER_HIT#$PACK_ROOT/}"
+fi
+
 skill_exists() {
   local skill="$1"
   [[ -f "$PACK_ROOT/skills/$skill/SKILL.md" ]]

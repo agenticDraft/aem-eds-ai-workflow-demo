@@ -1,0 +1,6 @@
+version: 1
+pack_name: "acme-storefront"
+unit_of_work_location: "components/, one directory per component"
+definition_of_done: "the component renders with no console errors and its story file is updated"
+stage_conventions: "every component exports a single default function named after its directory"
+verification_gate: "the project's lint and test commands both exit 0"

@@ -122,6 +122,10 @@ unsupported: []
 - A skill name with no `<pack root>/skills/<skill name>/SKILL.md` on disk.
 - A top-level key outside the fixed set for the manifest's `kind`, or one of the required keys
   missing.
+- Any file under the pack root — `pack.yaml` or any `skills/*/SKILL.md` — containing the literal
+  sequence `{{`, the reserved marker for an unfilled template placeholder. A pack generated from a
+  template (core contract §7.1) that still carries one is a failed setup, not a pack with a hole in
+  it (core contract §13 validator 10).
 
 ## Reference, not restatement
 
@@ -135,8 +139,8 @@ for their own contracts.
 well-formed examples, each a small pack root with a matching `skills/` directory.
 `fixtures/pack-manifest/platform-invalid/` and `fixtures/pack-manifest/provider-invalid/` hold one
 fixture directory per rejection case the validator must catch: `unknown-stage-always-autonomous`,
-`unknown-stage-artifact-producer`, `dangling-skill` (platform); `missing-operation`,
-`unknown-operation`, `dangling-skill` (provider).
+`unknown-stage-artifact-producer`, `dangling-skill`, `unfilled-placeholder` (platform);
+`missing-operation`, `unknown-operation`, `dangling-skill` (provider).
 
 ## Verification
 
