@@ -15,8 +15,9 @@
 #   write-detected-config.sh <config-path> <lint> <test> <build> <serve> <spec_dir> <preview>
 #
 # Behavior:
-#   - <config-path> does not exist: creates it with `version: 1` plus the
-#     `commands:` and `paths:` blocks, in that order.
+#   - <config-path> does not exist: creates its parent directory if needed,
+#     then creates it with `version: 1` plus the `commands:` and `paths:`
+#     blocks, in that order.
 #   - <config-path> exists: it must already contain a `commands:` block
 #     (four fixed subkeys) and a `paths:` block (two fixed subkeys) — i.e.
 #     one this script wrote before. Their values are replaced in place;
@@ -81,6 +82,7 @@ EOF
 }
 
 if [[ ! -f "$CONFIG_PATH" ]]; then
+  mkdir -p "$(dirname "$CONFIG_PATH")"
   {
     echo "version: 1"
     echo

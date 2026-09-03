@@ -1,15 +1,15 @@
 ---
-description: Detect this project's build/test/lint/serve commands and where it keeps specs and a local preview, confirm them with you, and write them into project-config.yaml. Re-runnable with keep / re-detect / edit. Covers detection only — choosing packs and seeding routes are separate, not-yet-built steps.
+description: Detect this project's build/test/lint/serve commands and where it keeps specs and a local preview, confirm them with you, and write them into .ai/project-config.yaml. Re-runnable with keep / re-detect / edit. Covers detection only — choosing packs and seeding routes are separate, not-yet-built steps.
 disable-model-invocation: true
 ---
 
-You detect this project's own commands and layout, confirm them with the human, and write them into `project-config.yaml` at the project root. The full shape of that file is defined in `shared/project-config.md` — reference it, never restate it.
+You detect this project's own commands and layout, confirm them with the human, and write them into `.ai/project-config.yaml` at the project root. The full shape of that file is defined in `shared/project-config.md` — reference it, never restate it.
 
 **What this skill does not do yet:** it never writes `packs`, `routes`, or `limits` — those come from steps this plugin does not yet implement. A file written by this skill alone will not pass `shared/lib/validate-project-config.sh` on its own; say so plainly in your final report rather than implying the file is complete.
 
 ## 0. Check for an existing file
 
-Look for `project-config.yaml` at the project root.
+Look for `.ai/project-config.yaml` at the project root.
 
 - **It does not exist:** go to step 1.
 - **It exists and already has `commands:` and `paths:` sections:** show their current values and ask, with `AskUserQuestion`: **keep** (stop here, nothing changes), **re-detect** (go to step 1, run detection fresh, then confirm and overwrite through step 3), or **edit** (skip detection — ask the human directly for each of the six values, then go straight to step 2 with those).
@@ -39,7 +39,8 @@ Run:
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/write-detected-config.sh <config-path> <lint> <test> <build> <serve> <spec_dir> <preview>
 ```
 
-against `project-config.yaml` at the project root, using the confirmed values. Report its output verbatim. If it exits non-zero — a value the human confirmed still violates the contract (for example an empty `spec_dir`) — do not retry with a guessed substitute; go back to step 2 for that field alone.
+against `.ai/project-config.yaml` at the project root, using the confirmed values. The script
+creates `.ai/` itself if it does not exist yet. Report its output verbatim. If it exits non-zero — a value the human confirmed still violates the contract (for example an empty `spec_dir`) — do not retry with a guessed substitute; go back to step 2 for that field alone.
 
 ## 4. Report
 
@@ -54,5 +55,5 @@ State plainly:
 - **Show before write, always.** Nothing reaches disk that was not shown to the human first, verbatim.
 - **Detect first, ask second** — auto-detect everything a command value can be; ask only what genuinely cannot be determined (and always ask for `spec_dir`/`preview` if detection comes up empty).
 - **Never guess a path.** A blank `spec_dir` or `preview` is a contract violation, not a placeholder to fill in later.
-- **This skill's own instructions name no product, platform, language, package manager, or file extension** — only the project being inspected may determine the concrete answer, and that answer is data written to `project-config.yaml`, never a name embedded back into this file.
+- **This skill's own instructions name no product, platform, language, package manager, or file extension** — only the project being inspected may determine the concrete answer, and that answer is data written to `.ai/project-config.yaml`, never a name embedded back into this file.
 - **Idempotent.** Re-running with unchanged values overwrites `commands`/`paths` with the same values; nothing is duplicated.
