@@ -7,6 +7,7 @@ package.json
 package-lock.json
 test/*
 
-# Run-state files by name, in case a future stage writes them outside drafts/ or a dot-dir.
+# Run-state files by name, in case a future stage writes them outside .ai/ or a dot-dir.
+# .ai/ itself is already covered by the .* rule above (D47).
 run-state.json
 progress.md

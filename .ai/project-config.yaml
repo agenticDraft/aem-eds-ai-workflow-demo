@@ -7,5 +7,5 @@ commands:
   serve: "npm run up"
 
 paths:
-  spec_dir: "specs"
+  spec_dir: ".ai/specs"
   preview: "http://localhost:3000/preview"

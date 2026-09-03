@@ -8,7 +8,6 @@ node_modules/*
 *.bak
 .idea
 .history/
-.playwright-mcp/
 
 # Custom AEM Boilerplate
 helix-importer-ui
@@ -23,13 +22,26 @@ docs/
 .diagram-lock.json
 
 # Secrets — THIS REPO IS PUBLIC. Never remove these lines.
-.env
+.ai/credentials
 .claude/settings.local.json
 .claude/artifacts/
 
 # Delivery-automation run artifacts — ephemeral, instance-local, never committed.
-# Spec artifacts under drafts/specs/<ticket>/ are committed on purpose (D4); these are not.
-.claude/logs/
+# .ai/project-config.yaml, .ai/specs/<ticket>/ and .ai/design/ are committed on purpose (D4, D47);
+# these are not.
+.ai/logs/
+.ai/run-state.json
+.ai/progress.md
+.ai/playwright/
 .analytics/
-run-state.json
-progress.md
+
+# Reserved — no folder exists yet; nothing writes here until a task needs it (D47).
+.ai/research/
+.ai/pr-answers/
+.ai/pr-reviews/
+.ai/cache/
+.ai/me.md
+
+# Legacy path, superseded by .ai/playwright/ (D47) — kept ignored in case anything still
+# writes here, or stale local output from before the relocation is still on disk.
+.playwright-mcp/

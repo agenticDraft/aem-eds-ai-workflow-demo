@@ -151,6 +151,18 @@ echo "[usage] wrong argument count"
 OUT=$(bash "$WRITER" "$TMPDIR_TEST/x.yaml" "only-one-value" 2>&1); ST=$?
 assert_exit "wrong arg count -> usage error (exit 2)" 2 $ST "$OUT"
 
+echo "[create] parent directory does not exist yet — script creates it"
+CFG6="$TMPDIR_TEST/nested/dir/config.yaml"
+OUT=$(bash "$WRITER" "$CFG6" "npm run lint" "" "" "" ".ai/specs" "http://localhost:3000/preview" 2>&1); ST=$?
+assert_exit "create under a missing parent directory succeeds (exit 0)" 0 $ST "$OUT"
+if [[ -f "$CFG6" ]]; then
+  PASS=$((PASS + 1))
+  echo "  ok: file exists under the newly created parent directory"
+else
+  FAIL=$((FAIL + 1))
+  echo "  FAIL: file was not created under the newly created parent directory"
+fi
+
 echo "[reject] existing file missing commands:/paths: blocks"
 CFG5="$TMPDIR_TEST/no-blocks.yaml"
 cat > "$CFG5" <<'EOF'
