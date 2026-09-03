@@ -1,5 +1,5 @@
 ---
-description: Fixture skill stub for pack manifest validator tests. Not a real adapter.
+description: A deliberately invalid operation name, present only to exercise the unknown-operation rejection case. Fixture stub for pack manifest validator tests, not a real adapter.
 ---
 
 # bogus

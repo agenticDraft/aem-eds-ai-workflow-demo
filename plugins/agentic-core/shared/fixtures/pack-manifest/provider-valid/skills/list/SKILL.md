@@ -1,5 +1,5 @@
 ---
-description: Fixture skill stub for pack manifest validator tests. Not a real adapter.
+description: Lists the tracker's work-item types (tracker.list_types). Fixture stub for pack manifest validator tests, not a real adapter.
 ---
 
 # list

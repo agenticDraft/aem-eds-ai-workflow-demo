@@ -1,5 +1,5 @@
 ---
-description: Fixture skill stub for pack manifest validator tests. Not a real adapter.
+description: Returns a work item's fields and text (tracker.fetch_item). Fixture stub for pack manifest validator tests, not a real adapter.
 ---
 
 # fetch

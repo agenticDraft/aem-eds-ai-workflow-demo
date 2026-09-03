@@ -1,5 +1,5 @@
 ---
-description: Fixture skill stub for pack manifest validator tests. Not a real adapter.
+description: Fetches the work item through the tracker role, sanitizes its text, and emits the fact record and sanitized spec — the reserved intake stage. Fixture stub for pack manifest validator tests, not a real adapter.
 ---
 
 # intake

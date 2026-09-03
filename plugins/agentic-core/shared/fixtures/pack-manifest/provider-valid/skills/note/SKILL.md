@@ -1,5 +1,5 @@
 ---
-description: Fixture skill stub for pack manifest validator tests. Not a real adapter.
+description: Attaches a note to the work item (tracker.post_note). Fixture stub for pack manifest validator tests, not a real adapter.
 ---
 
 # note

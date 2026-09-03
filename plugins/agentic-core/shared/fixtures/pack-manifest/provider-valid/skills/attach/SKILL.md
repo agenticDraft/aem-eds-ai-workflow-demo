@@ -1,5 +1,5 @@
 ---
-description: Fixture skill stub for pack manifest validator tests. Not a real adapter.
+description: Attaches a file to the work item (tracker.attach_file). Fixture stub for pack manifest validator tests, not a real adapter.
 ---
 
 # attach
