@@ -1,0 +1,7 @@
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+unsupported: []

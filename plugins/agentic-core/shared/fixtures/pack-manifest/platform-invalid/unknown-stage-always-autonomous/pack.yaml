@@ -1,0 +1,6 @@
+kind: platform
+stages:
+  intake: intake
+  deliver: deliver
+always_autonomous: [publish-gate]
+artifacts: []

@@ -1,0 +1,9 @@
+kind: platform
+stages:
+  intake: intake
+  deliver: deliver
+always_autonomous: []
+artifacts:
+  - id: fact-record
+    produced_by: plan-gate
+    path: ".ai/run-context/fact-record.yaml"

@@ -1,0 +1,6 @@
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  bogus_op: bogus
+unsupported: [post_note, attach_file, list_types]
