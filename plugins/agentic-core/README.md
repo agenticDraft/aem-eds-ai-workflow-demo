@@ -3,7 +3,7 @@
 The agnostic delivery core (Phase 2). Names no tracker, SCM, design tool, browser, language or
 package manager — that vocabulary belongs to a pack, never to the core.
 
-This is a scaffold: one placeholder skill (`status`) proves the plugin loads and namespaces
+This is a scaffold: one placeholder skill (`health`) proves the plugin loads and namespaces
 correctly. Stage runner, envelope contract, config schema and route resolver land in later Phase 2
 tasks.
 
@@ -18,7 +18,7 @@ claude --plugin-dir ./plugins/agentic-core
 Then, inside the session:
 
 ```
-/agentic-core:status
+/agentic-core:health
 ```
 
 To load alongside the platform pack once it exists:
