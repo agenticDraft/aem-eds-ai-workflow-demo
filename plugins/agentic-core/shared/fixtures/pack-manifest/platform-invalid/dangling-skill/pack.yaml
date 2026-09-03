@@ -1,0 +1,6 @@
+kind: platform
+stages:
+  intake: intake
+  implement: implement
+always_autonomous: []
+artifacts: []
