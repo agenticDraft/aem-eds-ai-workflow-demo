@@ -7,6 +7,11 @@ description: The project config schema. Every reader of the config validates aga
 Written once by setup, read by everything. Detect → confirm → write; re-runnable with
 keep / re-detect / edit.
 
+## Location
+
+`project-config.yaml` at the project root. Committed — nothing in it is a secret, and every
+teammate and every pack reads the same one file.
+
 ## Format
 
 ```yaml
