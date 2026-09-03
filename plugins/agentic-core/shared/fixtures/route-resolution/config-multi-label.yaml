@@ -1,0 +1,33 @@
+version: 1
+
+packs:
+  platform: example-platform
+  tracker: example-tracker
+  scm: example-scm
+  design: none
+  browser: example-browser
+
+commands:
+  lint: ""
+  test: ""
+  build: ""
+  serve: ""
+
+paths:
+  spec_dir: "specs"
+  preview: "http://localhost:0000/preview"
+
+routes:
+  - id: needs-both-labels
+    when:
+      labels: [backend, urgent]
+    stages: [intake, deliver]
+  - id: multi-type
+    when:
+      item_type: [bug, task]
+    stages: [intake, implement, deliver]
+  default: multi-type
+
+limits:
+  questions_per_run: 0
+  fix_attempts_default: 0
