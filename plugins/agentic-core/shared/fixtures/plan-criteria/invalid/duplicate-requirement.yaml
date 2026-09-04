@@ -1,0 +1,6 @@
+requirements:
+  - req-auth
+  - req-auth
+stages:
+  - id: implement-auth
+    satisfies: [req-auth]

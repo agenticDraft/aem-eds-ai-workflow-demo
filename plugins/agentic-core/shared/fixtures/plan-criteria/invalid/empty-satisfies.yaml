@@ -1,0 +1,7 @@
+requirements:
+  - req-auth
+stages:
+  - id: implement-auth
+    satisfies: [req-auth]
+  - id: unrelated-cleanup
+    satisfies: []
