@@ -1,0 +1,4 @@
+- id: fact-record
+  version: "1.0"
+  produced_by: intake
+  required_content: item_id, item_type, labels, components, design_source, files_named, explicit_route

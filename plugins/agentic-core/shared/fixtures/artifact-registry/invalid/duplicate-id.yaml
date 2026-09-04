@@ -1,0 +1,10 @@
+- id: fact-record
+  version: "1.0"
+  produced_by: intake
+  required_content: item_id, item_type, labels, components, design_source, files_named, explicit_route
+  validation: item_id non-empty; item_type present
+- id: fact-record
+  version: "1.0"
+  produced_by: runner
+  required_content: a duplicate entry, same id as above
+  validation: none — this fixture exists to prove the id collision is caught
