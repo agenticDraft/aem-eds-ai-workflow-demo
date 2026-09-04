@@ -1,0 +1,6 @@
+kind: provider
+role: scm
+operations:
+  create_branch: branch
+  check_status: status
+unsupported: [publish_change]

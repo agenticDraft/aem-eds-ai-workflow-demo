@@ -1,0 +1,29 @@
+version: 1
+
+packs:
+  platform: example-platform
+  tracker: example-tracker
+  scm: example-scm
+  design: none
+  browser: example-browser
+
+commands:
+  lint: "run-lint"
+  test: "run-test"
+  build: "run-build"
+  serve: "run-serve"
+
+paths:
+  spec_dir: "specs"
+  preview: "http://localhost:0000/preview"
+
+routes:
+  - id: standard
+    when:
+      item_type: [task]
+    stages: [intake, implement, deliver]
+  default: standard
+
+limits:
+  questions_per_run: 3
+  fix_attempts_default: 2
