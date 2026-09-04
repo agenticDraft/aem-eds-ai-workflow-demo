@@ -53,7 +53,7 @@ metrics: <key=value pairs>             # optional, any verdict
 verdict: pass
 summary: Fetched the work item, sanitized its text, and wrote the fact record.
 artifacts:
-  - .claude/run-context/fact-record.yaml
+  - .ai/run-context/fact-record.yaml
 next_action: none
 ```
 
@@ -64,7 +64,7 @@ next_action: none
 verdict: warn
 summary: Route resolved to the default row; no signal table entry matched the fact record.
 artifacts:
-  - .claude/run-context/route.yaml
+  - .ai/run-context/route.yaml
 next_action: continue to the first resolved stage
 ```
 

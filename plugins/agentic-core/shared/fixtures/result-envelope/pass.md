@@ -13,5 +13,5 @@ No branch, file write or outbound call happened before this point other than the
 verdict: pass
 summary: Fetched the work item, sanitized its text, and wrote the fact record.
 artifacts:
-  - .claude/run-context/fact-record.yaml
+  - .ai/run-context/fact-record.yaml
 next_action: none

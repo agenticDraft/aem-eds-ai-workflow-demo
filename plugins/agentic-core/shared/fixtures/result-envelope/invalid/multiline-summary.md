@@ -9,5 +9,5 @@ verdict: pass
 summary: Fetched the work item, sanitized its text,
   and wrote the fact record.
 artifacts:
-  - .claude/run-context/fact-record.yaml
+  - .ai/run-context/fact-record.yaml
 next_action: none

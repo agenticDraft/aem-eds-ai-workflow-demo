@@ -12,5 +12,5 @@ itself may be out of date.
 verdict: warn
 summary: Route resolved to the default row; no signal table entry matched the fact record.
 artifacts:
-  - .claude/run-context/route.yaml
+  - .ai/run-context/route.yaml
 next_action: continue to the first resolved stage

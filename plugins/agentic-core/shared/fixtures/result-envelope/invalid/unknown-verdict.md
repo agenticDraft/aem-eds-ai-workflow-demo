@@ -7,5 +7,5 @@ finished cleanly — the defect here is only in how it reported that.
 verdict: success
 summary: Fetched the work item, sanitized its text, and wrote the fact record.
 artifacts:
-  - .claude/run-context/fact-record.yaml
+  - .ai/run-context/fact-record.yaml
 next_action: none
