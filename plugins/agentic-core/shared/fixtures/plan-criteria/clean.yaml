@@ -1,0 +1,8 @@
+requirements:
+  - req-auth
+  - req-logging
+stages:
+  - id: implement-auth
+    satisfies: [req-auth]
+  - id: implement-logging
+    satisfies: [req-logging]
