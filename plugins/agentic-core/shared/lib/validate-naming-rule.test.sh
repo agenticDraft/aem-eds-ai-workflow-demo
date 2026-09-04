@@ -4,10 +4,9 @@
 #
 # No framework — exits 0 on success, 1 on first failure. Confirms: a clean
 # fixture passes; a bare product name fails and names the term and location;
-# this project's own borrowed-material source (dx-aem-flow, dx-core) fails
-# exactly the same way, no exception; the real core (plugins/agentic-core)
-# passes as built; and injecting a product name into a real core file, then
-# reverting it, makes that same check fail and pass again.
+# the real core (plugins/agentic-core) passes as built; and injecting a
+# product name into a real core file, then reverting it, makes that same
+# check fail and pass again.
 
 set -uo pipefail
 
@@ -57,12 +56,6 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/violation" 2>&1); ST=$?
 assert_exit "violation fixture rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the term" "'Jira'" "$OUT"
 assert_contains "reason names the file" "note.md" "$OUT"
-
-echo "[reject] dx-aem-flow and dx-core, this project's own borrowed-material source — no exception"
-OUT=$(bash "$VALIDATOR" "$FIXDIR/bare-dx-terms" 2>&1); ST=$?
-assert_exit "bare-dx-terms rejected (exit 1)" 1 $ST "$OUT"
-assert_contains "reason names dx-aem-flow" "'dx-aem-flow'" "$OUT"
-assert_contains "reason names dx-core" "'dx-core'" "$OUT"
 
 echo "[accept] the real core, as built"
 OUT=$(bash "$VALIDATOR" "$CORE_ROOT" 2>&1); ST=$?

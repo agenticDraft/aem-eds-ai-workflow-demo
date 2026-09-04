@@ -54,9 +54,3 @@ Yarn
 pnpm
 Maven
 Gradle
-
-# Borrowed-material product names — this project's own pattern source.
-# No exception: forbidden here exactly like every other term above, even in
-# an attribution. See shared/naming-rule.md, "No exceptions".
-dx-aem-flow
-dx-core

@@ -1,5 +1,5 @@
 ---
-description: The naming rule made executable — core contract §13 validator 8. What counts as a product, platform or tool name, the denylist that encodes it, and why there is no exception, not even for this project's own borrowed-material source. Every reader checking core source for neutrality runs the validator this file points at, rather than re-deciding the rule by eye.
+description: The naming rule made executable — core contract §13 validator 8. What counts as a product, platform or tool name, the denylist that encodes it, and why no third-party plugin's name — including one this project's own design was adapted from — is ever spelled out anywhere under the core, the denylist itself included. Every reader checking core source for neutrality runs the validator this file points at, rather than re-deciding the rule by eye.
 ---
 
 # Naming rule
@@ -30,15 +30,15 @@ here, even as an example, would be the rule's own text failing its own rule.
 
 ## No exceptions
 
-Two of the denylist's terms name the reference implementation this core's envelope, artifact
-registry and config-once principle were adapted from — this project's own borrowed-material
-source. They get no carve-out. A third-party plugin's name is forbidden under the core exactly
-like any other product, platform or tool name — full stop, not "except in an attribution line" or
-"except as a citation." `00-instructions.md`'s own rule already says why: attribution "lives once,
-centrally" in the gitignored planning record, "not duplicated into every shared file" — which
-means it is never duplicated into a *shipped* file at all. A validator that carved out an
-exception for its own project's borrowed material would be granting one third-party plugin a
-courtesy no other gets, which is worse than no rule.
+This core's envelope, artifact registry and config-once principle were adapted from a reference
+implementation — a third-party Claude Code plugin. That plugin's name is never spelled out
+anywhere under `plugins/agentic-core`, the denylist file included: not as a denylist entry, not in
+a fixture, not in a test assertion, not in an attribution line or a citation. `00-instructions.md`'s
+own rule already says why in general terms: attribution "lives once, centrally" in the gitignored
+planning record, "not duplicated into every shared file" — which means it is never duplicated into
+a *shipped* file at all, in any form, including one written to *prove a denylist entry works*. A
+denylist entry that spelled out the name to forbid it would still be spelling it out; the rule
+holds by never writing the name here, not by writing it and then forbidding it.
 
 ## Scope
 
@@ -60,18 +60,22 @@ the fixture's content in full.
 ## Anti-patterns
 
 - A concrete product, platform or tool name anywhere under the core, in code, comments, docs or
-  test data — no exception, including this project's own borrowed-material source.
+  test data — no exception, including a third-party plugin this project's own design was adapted
+  from.
 - An attribution or citation naming a third-party plugin, added to a shipped file instead of the
   gitignored planning record it already lives in.
+- Adding a real third-party plugin's name to the denylist itself, or to a fixture proving detection
+  of it — spelling the name out to forbid it still spells it out. The general categories already on
+  the denylist (tracker, SCM, design tool, browser, delivery platform, package manager) are what a
+  pack would plausibly name; a specific tool this project's own patterns were adapted from is kept
+  out of the shipped core by never writing it here, not by an entry that names it.
 - A test using a real, ecosystem-specific command string where a neutral placeholder proves the
   same thing without naming a package manager.
 
 ## Fixtures
 
 `fixtures/naming-rule/clean/` names roles only, no violation. `fixtures/naming-rule/violation/`
-names a tracker product directly, and must fail. `fixtures/naming-rule/bare-dx-terms/` names this
-project's own borrowed-material source by its two denylisted terms, and must fail exactly the same
-way — proving there is no special case for it.
+names a tracker product directly, and must fail.
 
 ## Verification
 
