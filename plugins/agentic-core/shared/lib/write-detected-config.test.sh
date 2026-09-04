@@ -64,16 +64,16 @@ echo "=== write-detected-config.sh tests ==="
 
 echo "[create] fresh file gets version + commands + paths, nothing else"
 CFG="$TMPDIR_TEST/fresh.yaml"
-OUT=$(bash "$WRITER" "$CFG" "npm run lint" "npm test" "" "npm start" "specs" "http://localhost:3000/preview" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$CFG" "run lint" "run tests" "" "start server" "specs" "http://localhost:3000/preview" 2>&1); ST=$?
 assert_exit "fresh create succeeds (exit 0)" 0 $ST "$OUT"
 assert_contains "reports the path written" "$CFG" "$OUT"
 EXPECTED_FRESH='version: 1
 
 commands:
-  lint: "npm run lint"
-  test: "npm test"
+  lint: "run lint"
+  test: "run tests"
   build: ""
-  serve: "npm start"
+  serve: "start server"
 
 paths:
   spec_dir: "specs"
@@ -107,16 +107,16 @@ OUT=$(bash "$VALIDATOR" "$COMBINED" 2>&1); ST=$?
 assert_exit "spliced file passes validate-project-config.sh (exit 0)" 0 $ST "$OUT"
 
 echo "[update] re-running on an existing file updates values in place, no duplication"
-OUT=$(bash "$WRITER" "$CFG" "npm run lint:fix" "npm test" "npm run build" "npm start" "specs" "http://localhost:3000/preview" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$CFG" "run lint --fix" "run tests" "run build" "start server" "specs" "http://localhost:3000/preview" 2>&1); ST=$?
 assert_exit "update succeeds (exit 0)" 0 $ST "$OUT"
 assert_contains "reports updated, not written" "updated" "$OUT"
 EXPECTED_UPDATED='version: 1
 
 commands:
-  lint: "npm run lint:fix"
-  test: "npm test"
-  build: "npm run build"
-  serve: "npm start"
+  lint: "run lint --fix"
+  test: "run tests"
+  build: "run build"
+  serve: "start server"
 
 paths:
   spec_dir: "specs"
@@ -144,7 +144,7 @@ assert_contains "reason names preview" "preview" "$OUT"
 
 echo "[reject] a value containing a double quote"
 CFG4="$TMPDIR_TEST/bad-quote.yaml"
-OUT=$(bash "$WRITER" "$CFG4" 'npm run "lint"' "" "" "" "specs" "http://localhost:3000/preview" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$CFG4" 'run "lint"' "" "" "" "specs" "http://localhost:3000/preview" 2>&1); ST=$?
 assert_exit "quote-containing value rejected (exit 1)" 1 $ST "$OUT"
 
 echo "[usage] wrong argument count"
@@ -153,7 +153,7 @@ assert_exit "wrong arg count -> usage error (exit 2)" 2 $ST "$OUT"
 
 echo "[create] parent directory does not exist yet — script creates it"
 CFG6="$TMPDIR_TEST/nested/dir/config.yaml"
-OUT=$(bash "$WRITER" "$CFG6" "npm run lint" "" "" "" ".ai/specs" "http://localhost:3000/preview" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$CFG6" "run lint" "" "" "" ".ai/specs" "http://localhost:3000/preview" 2>&1); ST=$?
 assert_exit "create under a missing parent directory succeeds (exit 0)" 0 $ST "$OUT"
 if [[ -f "$CFG6" ]]; then
   PASS=$((PASS + 1))
