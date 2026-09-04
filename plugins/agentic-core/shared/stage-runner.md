@@ -40,8 +40,8 @@ Every stage produces exactly one of these outcomes:
 | `terminate-contract-violation` | an unresolvable stage id, or an envelope that fails validation | The run ends `failed`. The runner cannot tell what the stage did. |
 
 `verdict: question` is read and reported like any other verdict, but what happens next — asking at
-the stage boundary, autonomous mode's write-back, the per-run budget — belongs to the question
-protocol, a separate contract. This file does not define a decision for it.
+the stage boundary, autonomous mode's write-back, the per-run budget — belongs to
+`question-protocol.md`, a separate contract. This file does not define a decision for it.
 
 ## Anti-patterns
 
