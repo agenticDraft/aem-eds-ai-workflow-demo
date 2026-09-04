@@ -1,0 +1,56 @@
+# Denylist for validate-naming-rule.sh — one term per line, case-sensitive,
+# matched as a whole word/phrase (see shared/naming-rule.md). Blank lines and
+# lines starting with # are ignored.
+#
+# This list targets concrete product, platform and tool names — the ones
+# a pack would name, never the core. It is not a claim of completeness: it
+# grows as new concrete names come up in review, the same way a real
+# denylist grows.
+
+# Tracker products
+Jira
+Linear
+Trello
+Asana
+Azure DevOps
+
+# SCM / code-hosting products
+GitHub
+GitLab
+Bitbucket
+
+# Design tools
+Figma
+Sketch
+
+# Browser engines and browser-automation tools
+Playwright
+Puppeteer
+Selenium
+Cypress
+Chrome
+Chromium
+Firefox
+WebKit
+Safari
+
+# Delivery platforms and CMS products
+Adobe
+AEM
+EDS
+Edge Delivery Services
+Franklin
+Helix
+WordPress
+Drupal
+Contentful
+Sitecore
+Wix
+Webflow
+
+# Package managers and build tools
+npm
+Yarn
+pnpm
+Maven
+Gradle
