@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'plugins/agentic-core/**'
+      - '.github/workflows/validate-agentic-core.yaml'
 
 jobs:
   validate:
