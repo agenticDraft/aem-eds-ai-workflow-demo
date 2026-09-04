@@ -8,16 +8,18 @@
 # carry the banned words as literal data rather than core vocabulary — the
 # denylist file itself, this validator's own test suite, and this
 # validator's own fixtures — for each term in naming-denylist.txt, matched
-# case-sensitively as a whole word or phrase. A hit is dropped only when its
-# own line contains one of the two documented exceptions (shared/naming-rule.md,
-# "Documented exceptions") verbatim.
+# case-sensitively as a whole word or phrase. No exceptions: every term is
+# forbidden everywhere else under the core, including this project's own
+# borrowed-material source — a third-party plugin's name gets no carve-out
+# for appearing "just" in an attribution (see shared/naming-rule.md,
+# "No exceptions").
 #
 # Usage:
 #   validate-naming-rule.sh <path-to-core-root>
 #
 # Exit codes:
-#   0 — no unexempted hit; "valid: naming rule (<n> files scanned, <m> terms checked)"
-#   1 — at least one unexempted hit; one "invalid: '<term>' — <path>:<line>: <content>"
+#   0 — no hit; "valid: naming rule (<n> files scanned, <m> terms checked)"
+#   1 — at least one hit; one "invalid: '<term>' — <path>:<line>: <content>"
 #       per hit on stderr, then a count
 #   2 — usage error: missing argument, directory not found, denylist missing or empty
 
@@ -53,24 +55,6 @@ ROOT="$(cd "$ROOT" && pwd)"
 if [[ -n "$OWN_FIXTURES_DIR" && ( "$ROOT" == "$OWN_FIXTURES_DIR" || "$ROOT" == "$OWN_FIXTURES_DIR"/* ) ]]; then
   OWN_FIXTURES_DIR=""
 fi
-
-# --- documented exceptions (core contract §13) ------------------------------
-# A hit on a line containing one of these literal substrings verbatim is not
-# a violation. Narrow by construction: this exempts the one canonical
-# attribution sentence and the one canonical citation form, never every
-# mention of the term either names.
-EXCEPTIONS=(
-  'dx-aem-flow` — MIT, © 2025-2026 Dragan Filipovic'
-  '06-dx-core-deviations.md'
-)
-
-is_exempt_line() {
-  local line="$1" exc
-  for exc in "${EXCEPTIONS[@]}"; do
-    [[ "$line" == *"$exc"* ]] && return 0
-  done
-  return 1
-}
 
 # --- paths excluded from the scan itself -------------------------------------
 # Not exceptions to a rule violation — these paths carry the denylist's own
@@ -108,7 +92,6 @@ for term in "${TERMS[@]}"; do
   while IFS=: read -r file lineno content; do
     [[ -z "$file" ]] && continue
     is_excluded_path "$file" && continue
-    is_exempt_line "$content" && continue
     VIOLATIONS=$((VIOLATIONS + 1))
     echo "invalid: '$term' — ${file#"$ROOT"/}:$lineno:$content" >&2
   done < <(grep -rnE --exclude-dir=.git -- "$pattern" "$ROOT" 2>/dev/null)

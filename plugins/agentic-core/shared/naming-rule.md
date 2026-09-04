@@ -1,5 +1,5 @@
 ---
-description: The naming rule made executable — core contract §13 validator 8. What counts as a product, platform or tool name, the denylist that encodes it, and the two documented exceptions. Every reader checking core source for neutrality runs the validator this file points at, rather than re-deciding the rule by eye.
+description: The naming rule made executable — core contract §13 validator 8. What counts as a product, platform or tool name, the denylist that encodes it, and why there is no exception, not even for this project's own borrowed-material source. Every reader checking core source for neutrality runs the validator this file points at, rather than re-deciding the rule by eye.
 ---
 
 # Naming rule
@@ -28,17 +28,17 @@ when it comes up. This document does not restate the list — read the file — 
 their own contracts, and for the same reason this document itself follows: naming a real product
 here, even as an example, would be the rule's own text failing its own rule.
 
-## Documented exceptions
+## No exceptions
 
-Core contract §13 declares exactly two, both about naming the reference implementation this core's
-envelope, artifact registry and config-once principle were adapted from:
-
-1. **The attribution line** — `` `dx-aem-flow` — MIT, © 2025-2026 Dragan Filipovic ``, verbatim.
-2. **A citation of the deviations record** — the literal filename `06-dx-core-deviations.md`.
-
-Both are narrow: a line matching one of these two literal strings verbatim is exempt, but any other
-mention of either name outside that exact wording is still a violation. Nothing else is exempt — a
-validator with a growing exception list stops being a check.
+Two of the denylist's terms name the reference implementation this core's envelope, artifact
+registry and config-once principle were adapted from — this project's own borrowed-material
+source. They get no carve-out. A third-party plugin's name is forbidden under the core exactly
+like any other product, platform or tool name — full stop, not "except in an attribution line" or
+"except as a citation." `00-instructions.md`'s own rule already says why: attribution "lives once,
+centrally" in the gitignored planning record, "not duplicated into every shared file" — which
+means it is never duplicated into a *shipped* file at all. A validator that carved out an
+exception for its own project's borrowed material would be granting one third-party plugin a
+courtesy no other gets, which is worse than no rule.
 
 ## Scope
 
@@ -48,8 +48,8 @@ necessarily literal denylist data rather than core vocabulary — the same statu
 item's text has under `external-content-safety.md`, data rather than a directive:
 
 - `lib/naming-denylist.txt` itself — the list has to spell out every term it forbids.
-- `fixtures/naming-rule/` — this validator's own fixtures, which have to contain both violating and
-  exempted text to prove the validator can tell them apart.
+- `fixtures/naming-rule/` — this validator's own fixtures, which have to contain violating text to
+  prove the validator catches it.
 - `lib/validate-naming-rule.test.sh` itself — its assertions have to compare the validator's output
   against the literal term it is expected to name, for the same reason the denylist file does.
 
@@ -60,26 +60,24 @@ the fixture's content in full.
 ## Anti-patterns
 
 - A concrete product, platform or tool name anywhere under the core, in code, comments, docs or
-  test data, outside the two documented exceptions above.
-- A bare mention of either borrowed-material name that is not the exact attribution sentence or the
-  exact citation filename.
+  test data — no exception, including this project's own borrowed-material source.
+- An attribution or citation naming a third-party plugin, added to a shipped file instead of the
+  gitignored planning record it already lives in.
 - A test using a real, ecosystem-specific command string where a neutral placeholder proves the
   same thing without naming a package manager.
 
 ## Fixtures
 
 `fixtures/naming-rule/clean/` names roles only, no violation. `fixtures/naming-rule/violation/`
-names a tracker product directly, and must fail. `fixtures/naming-rule/exception-attribution/` and
-`fixtures/naming-rule/exception-citation/` each carry one of the two documented exceptions verbatim,
-and must pass despite containing a denylisted term. `fixtures/naming-rule/bare-dx-terms/` names both
-borrowed-material terms outside either exception's exact wording, and must fail — proving the
-exceptions are narrow, not a blanket pass for the term.
+names a tracker product directly, and must fail. `fixtures/naming-rule/bare-dx-terms/` names this
+project's own borrowed-material source by its two denylisted terms, and must fail exactly the same
+way — proving there is no special case for it.
 
 ## Verification
 
 `lib/validate-naming-rule.sh <path-to-core-root>` is the deterministic checker — no model involved.
 It exits `0` and prints `valid: naming rule (<n> files scanned, <m> terms checked)` when nothing
-under the given root trips the denylist outside a documented exception; `1` with one
+under the given root trips the denylist; `1` with one
 `invalid: '<term>' — <path>:<line>:<content>` line per hit, then a count, on stderr; `2` for a usage
 error. Run its test suite with:
 

@@ -4,11 +4,10 @@
 #
 # No framework — exits 0 on success, 1 on first failure. Confirms: a clean
 # fixture passes; a bare product name fails and names the term and location;
-# each of the two documented exceptions passes despite containing a
-# denylisted term; the same terms bare, outside either exception's exact
-# wording, still fail; the real core (plugins/agentic-core) passes as built;
-# and injecting a product name into a real core file, then reverting it,
-# makes that same check fail and pass again.
+# this project's own borrowed-material source (dx-aem-flow, dx-core) fails
+# exactly the same way, no exception; the real core (plugins/agentic-core)
+# passes as built; and injecting a product name into a real core file, then
+# reverting it, makes that same check fail and pass again.
 
 set -uo pipefail
 
@@ -59,15 +58,7 @@ assert_exit "violation fixture rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the term" "'Jira'" "$OUT"
 assert_contains "reason names the file" "note.md" "$OUT"
 
-echo "[accept] the canonical attribution sentence, despite naming dx-aem-flow"
-OUT=$(bash "$VALIDATOR" "$FIXDIR/exception-attribution" 2>&1); ST=$?
-assert_exit "exception-attribution accepted (exit 0)" 0 $ST "$OUT"
-
-echo "[accept] the canonical citation of the deviations record"
-OUT=$(bash "$VALIDATOR" "$FIXDIR/exception-citation" 2>&1); ST=$?
-assert_exit "exception-citation accepted (exit 0)" 0 $ST "$OUT"
-
-echo "[reject] dx-aem-flow and dx-core named bare, outside either exception's exact wording"
+echo "[reject] dx-aem-flow and dx-core, this project's own borrowed-material source — no exception"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/bare-dx-terms" 2>&1); ST=$?
 assert_exit "bare-dx-terms rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names dx-aem-flow" "'dx-aem-flow'" "$OUT"
