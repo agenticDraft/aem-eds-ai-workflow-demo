@@ -28,3 +28,8 @@
   produced_by: runner
   required_content: question and answer fields, both verbatim
   validation: both fields non-empty; neither contains a double quote
+- id: analytics
+  version: "1.0"
+  produced_by: runner
+  required_content: peak context and cumulative billed input, kept distinct, plus wall clock, for the run and for each subagent
+  validation: every number traces to a transcript line's own usage object, never model-reported
