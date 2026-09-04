@@ -33,5 +33,7 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/validate-naming-rule.test.sh
       - name: Validate artifact registry
         run: bash plugins/agentic-core/shared/lib/validate-artifact-registry.test.sh
+      - name: Render analytics
+        run: bash plugins/agentic-core/shared/lib/render-analytics.test.sh
       - name: Validate plugin manifest
         run: claude plugin validate plugins/agentic-core --strict

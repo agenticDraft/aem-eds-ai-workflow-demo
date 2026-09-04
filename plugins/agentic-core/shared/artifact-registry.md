@@ -67,10 +67,11 @@ restating the producer vocabulary or field list inline, the same convention `pac
 
 ## The registry itself
 
-`lib/artifact-registry.yaml` is the data — the core's six artifacts as they are actually built:
+`lib/artifact-registry.yaml` is the data — the core's seven artifacts as they are actually built:
 the fact record and sanitized spec (both `intake`), run state, progress and the orchestration
-marker (all `runner`), and the question-answer file the question protocol writes at a stage
-boundary (`runner`). A seventh artifact earns a row here only when a later task actually ships it,
+marker (all `runner`), the question-answer file the question protocol writes at a stage
+boundary (`runner`), and the analytics file rendered from the session transcript at a terminal
+state (`runner`). An eighth artifact earns a row here only when a later task actually ships it,
 never in anticipation of one.
 
 ## Fixtures

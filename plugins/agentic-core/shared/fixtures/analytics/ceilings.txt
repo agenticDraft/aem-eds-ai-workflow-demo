@@ -1,0 +1,2 @@
+intake: 200
+plan: 100

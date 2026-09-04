@@ -1,0 +1,2 @@
+{"type":"user","isSidechain":false,"timestamp":"2026-09-04T10:59:50.000Z","message":{"role":"user","content":"start"}}
+{"type":"assistant","isSidechain":false,"timestamp":"2026-09-04T11:00:00.000Z","message":{"id":"msg_q1","model":"claude-sonnet-5","usage":{"input_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":50}}}
