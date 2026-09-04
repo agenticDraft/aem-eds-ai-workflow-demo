@@ -1,0 +1,37 @@
+name: Validate agentic-core
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/agentic-core/**'
+      - '.github/workflows/validate-agentic-core.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'plugins/agentic-core/**'
+      - '.github/workflows/validate-agentic-core.yaml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate result envelope
+        run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
+      - name: Validate project config
+        run: bash plugins/agentic-core/shared/lib/validate-project-config.test.sh
+      - name: Validate pack manifest
+        run: bash plugins/agentic-core/shared/lib/validate-pack-manifest.test.sh
+      - name: Validate naming rule
+        run: bash plugins/agentic-core/shared/lib/validate-naming-rule.test.sh
+      - name: Validate artifact registry
+        run: bash plugins/agentic-core/shared/lib/validate-artifact-registry.test.sh
+      - name: Validate plugin manifest
+        run: claude plugin validate plugins/agentic-core --strict
