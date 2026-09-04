@@ -1,0 +1,30 @@
+- id: fact-record
+  version: "1.0"
+  produced_by: intake
+  required_content: item_id, item_type, labels, components, design_source, files_named, explicit_route — facts only, no conclusions
+  validation: item_id non-empty; item_type present
+- id: sanitized-spec
+  version: "1.0"
+  produced_by: intake
+  required_content: the work item's text, sanitized
+  validation: no executable directives
+- id: run-state
+  version: "1.0"
+  produced_by: runner
+  required_content: route_id, rule, last_stage, total, mode, questions_used, start_time
+  validation: valid route id; stage count consistent
+- id: progress
+  version: "1.0"
+  produced_by: runner
+  required_content: one row per stage
+  validation: row count equals resolved total
+- id: orchestration-marker
+  version: "1.0"
+  produced_by: runner
+  required_content: presence and mtime only
+  validation: absent after every terminal state
+- id: question-answer
+  version: "1.0"
+  produced_by: runner
+  required_content: question and answer fields, both verbatim
+  validation: both fields non-empty; neither contains a double quote
