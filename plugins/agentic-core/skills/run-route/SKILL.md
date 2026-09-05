@@ -89,11 +89,13 @@ conversation when it completes — do not invoke the next stage until you have c
 envelope and branched on it. This is what makes the loop sequential; nothing about `context: fork`
 itself limits you to one at a time, your own discipline does.
 
-**Name the spawn's `description` after the stage id** (for example `description: "implement"` for
-the `implement` stage) — analytics reads the transcript's own subagent metadata to attribute a run's
-per-stage cost, and it labels a row by whatever `description` a subagent was spawned with (see
-`shared/analytics.md`). A spawn left with a generic or default description makes that row
-unattributable.
+**You cannot label the spawn, and you should not try.** `Skill()` takes the skill and its
+arguments, nothing else — there is no `description` to set. `shared/analytics.md` labels a
+subagent's row by the `description` in its sidecar metadata, and a skill-spawned fork's sidecar has
+none, so a run's per-stage cost rows come back unlabelled. That is a known, recorded gap in
+attribution, not something to work around by reaching for a different spawn mechanism: a correct
+run with unlabelled cost rows is strictly better than a mislabelled one that ran its stages outside
+their declared sandbox.
 
 The subagent's output ends with a `## Result` block — the result envelope (`shared/result-envelope.md`).
 Capture everything from that block onward into `.ai/run-context/envelope-<stage id>.txt`,
