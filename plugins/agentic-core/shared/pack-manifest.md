@@ -60,6 +60,13 @@ Fixed per kind, in order.
 - Every skill name that appears anywhere in the manifest — every value in `stages` — must resolve
   to `<pack root>/skills/<skill name>/SKILL.md`. A skill name with no matching directory is a
   **dangling skill reference**.
+- Every skill named as a value in `stages` must declare isolated execution in its own
+  frontmatter — the literal key is `context: fork`. Every stage runs as an isolated subagent
+  (see `stage-runner.md`); a skill that omits the declaration still resolves and still returns a
+  valid envelope, so nothing about a run visibly fails — what fails silently is the cost model,
+  because that stage's context then accumulates in whichever component drives the route instead of
+  dying with the stage. This check applies only to a platform pack's stage skills, never to a
+  provider pack's operation skills.
 
 ## Field rules — provider
 
@@ -120,6 +127,7 @@ unsupported: []
 - An operation in both `operations` and `unsupported`.
 - A role operation in neither `operations` nor `unsupported`.
 - A skill name with no `<pack root>/skills/<skill name>/SKILL.md` on disk.
+- A stage skill's frontmatter omitting `context: fork`.
 - A top-level key outside the fixed set for the manifest's `kind`, or one of the required keys
   missing.
 - Any file under the pack root — `pack.yaml` or any `skills/*/SKILL.md` — containing the literal
@@ -139,8 +147,8 @@ for their own contracts.
 well-formed examples, each a small pack root with a matching `skills/` directory.
 `fixtures/pack-manifest/platform-invalid/` and `fixtures/pack-manifest/provider-invalid/` hold one
 fixture directory per rejection case the validator must catch: `unknown-stage-always-autonomous`,
-`unknown-stage-artifact-producer`, `dangling-skill`, `unfilled-placeholder` (platform);
-`missing-operation`, `unknown-operation`, `dangling-skill` (provider).
+`unknown-stage-artifact-producer`, `dangling-skill`, `stage-not-isolated`, `unfilled-placeholder`
+(platform); `missing-operation`, `unknown-operation`, `dangling-skill` (provider).
 
 ## Verification
 

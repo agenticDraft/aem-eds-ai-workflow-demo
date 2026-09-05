@@ -62,6 +62,12 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/dangling-skill/pack.yaml" 2>&1
 assert_exit "platform dangling-skill rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the missing skill" "implement" "$OUT"
 
+echo "[reject] platform manifest names a stage skill that does not declare isolated execution"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/stage-not-isolated/pack.yaml" 2>&1); ST=$?
+assert_exit "stage-not-isolated rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the stage" "implement" "$OUT"
+assert_contains "reason names the missing declaration" "context: fork" "$OUT"
+
 echo "[reject] pack root contains an unfilled template placeholder"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/unfilled-placeholder/pack.yaml" 2>&1); ST=$?
 assert_exit "unfilled-placeholder rejected (exit 1)" 1 $ST "$OUT"

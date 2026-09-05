@@ -68,6 +68,34 @@ skill_exists() {
   [[ -f "$PACK_ROOT/skills/$skill/SKILL.md" ]]
 }
 
+# --- stage isolation (core contract §13 validator 11) -----------------------
+# Every skill a platform pack's stages: map names must declare isolated
+# execution in its own frontmatter — the literal key is "context: fork".
+# Checked only for platform stage skills, never for a provider's operation
+# skills, which this validator's provider branch does not touch. Read as a
+# flat scan of the lines between the file's first two "---" delimiters,
+# matching the same lightweight-parse convention run-stage.sh already uses
+# for a pack manifest's own "stages:" map.
+skill_declares_isolated_execution() {
+  local skill="$1"
+  local skill_file="$PACK_ROOT/skills/$skill/SKILL.md"
+  local in_frontmatter=0 line
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == "---" ]]; then
+      if (( in_frontmatter == 0 )); then
+        in_frontmatter=1
+        continue
+      else
+        break
+      fi
+    fi
+    if (( in_frontmatter )) && [[ "$line" =~ ^context:\ *fork\ *$ ]]; then
+      return 0
+    fi
+  done < "$skill_file"
+  return 1
+}
+
 # Read the file into an indexed array one line at a time, stripping blank
 # lines and full-line comments, for maximum portability across shell
 # versions.
@@ -132,6 +160,8 @@ if [[ "$kind" == "platform" ]]; then
   for i in "${!STAGE_IDS[@]}"; do
     skill_exists "${STAGE_SKILLS[$i]}" \
       || fail "stages.${STAGE_IDS[$i]} names a nonexistent skill: '${STAGE_SKILLS[$i]}'"
+    skill_declares_isolated_execution "${STAGE_SKILLS[$i]}" \
+      || fail "stage '${STAGE_IDS[$i]}' skill '${STAGE_SKILLS[$i]}' does not declare isolated execution ('context: fork') in its frontmatter"
   done
 
   # --- always_autonomous -----------------------------------------------------
