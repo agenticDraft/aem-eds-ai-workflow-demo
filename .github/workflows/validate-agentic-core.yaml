@@ -43,5 +43,7 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/check-orchestration-flag.test.sh
       - name: Finalize orchestration flag
         run: bash plugins/agentic-core/shared/lib/finalize-orchestration-flag.test.sh
+      - name: Evaluate skip conditions
+        run: bash plugins/agentic-core/shared/lib/evaluate-skip-conditions.test.sh
       - name: Validate plugin manifest
         run: claude plugin validate plugins/agentic-core --strict

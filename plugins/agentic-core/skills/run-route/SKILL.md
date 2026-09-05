@@ -16,7 +16,7 @@ retry a stage, and never restate a contract inline — every shape and rule belo
 spawn a stage adapter; every other script in this plugin is deterministic and has no model step at
 all (see `shared/stage-runner.md`).
 
-Six contracts govern what follows, each already shipped with its own passing test suite. Read them
+These contracts govern what follows, each already shipped with its own passing test suite. Read them
 if a step below is unclear, but never restate their shapes here: `shared/result-envelope.md`,
 `shared/stage-runner.md`, `shared/progress-output.md`, `shared/run-state.md`,
 `shared/orchestration-flag.md`, `shared/question-protocol.md`, `shared/terminal-states.md`,
@@ -59,21 +59,23 @@ declares `context: fork` in its own frontmatter — checked mechanically by
 `validate-pack-manifest.sh` (core contract §13 rule 11) — meaning it is *written* as a skill meant
 to run in an isolated subagent whose content becomes the subagent's entire prompt.
 
-**Try `Skill(<skill name>)` first.** If the platform pack happens to be loaded this session (for
-example, via its own `--plugin-dir`), this resolves normally and is the intended, direct mechanism.
+**Spawn it with `Skill(<skill name>)`. That is the only way.** `Skill()` resolves a skill this
+session has actually discovered, so **every configured pack must be loaded as a plugin before a
+route can run** — via its own `--plugin-dir`, or installed. A session that has the pack manifest on
+disk but has not loaded the pack cannot run its stages.
 
-**If it reports the skill unknown, spawn it via the general subagent tool instead**, using the
-adapter's own `SKILL.md` body verbatim as the subagent's prompt and its stage id as the spawn's
-`description` (see below) — this is not a workaround so much as the same mechanism `context: fork`
-already describes ("the skill content becomes the prompt that drives the subagent"), reached by a
-different call when the pack's skill is not separately registered as an installed skill in this
-session. Reading the adapter's own `SKILL.md` file to build that prompt is resolving the adapter,
-the same operation `run-stage.sh` already performs against the pack manifest — it is not the kind
-of source-file read the anti-patterns below forbid, which is about a stage's own working files, not
-about a driver locating the adapter it is about to spawn.
+**If `Skill()` reports the skill unknown, that is a contract violation** — the manifest names a
+stage adapter this session cannot resolve, exactly like a stage id the manifest dropped. Go to
+**step 3** with `failed`, and say which pack was not loaded, so the fix is obvious.
 
-Either way, pass the stage's inputs as the invocation's argument text (or, for the fallback path,
-appended after the adapter's `SKILL.md` body), one `key: value` line per input:
+Resist the temptation to read the adapter's `SKILL.md` and paste its body into a general subagent
+instead. It looks equivalent — `context: fork` does say the skill's content becomes the subagent's
+prompt — but only the frontmatter the harness reads makes that true: `allowed-tools`, any
+skill-scoped `hooks:`, and the enforced isolation `validate-pack-manifest.sh` checks for. Pasting
+the body hands the subagent the instructions without the sandbox those instructions assume, and
+does it silently. An unloaded pack is a configuration error to report, not a gap to route around.
+
+Pass the stage's inputs as the invocation's argument text, one `key: value` line per input:
 
 ```
 stage: <stage id>
@@ -146,8 +148,8 @@ Run `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-run-state.sh .ai/run-state.json`.
    ${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-route.sh .ai/project-config.yaml .ai/run-context/fact-record.yaml
    ```
    Write `.ai/run-context/route.yaml` with the three reported fields (`route`, `stages`, `rule`),
-   and write `.ai/route-progress.txt` with one bare stage id per line, in that order — every stage
-   starts unskipped.
+   and write `.ai/route-progress.txt` with one bare stage id per line, in that order. Then apply
+   the platform pack's declared skip conditions to it — see **Skipped stages** below.
 5. `${CLAUDE_PLUGIN_ROOT}/shared/lib/print-progress-line.sh .ai/route-progress.txt intake <verdict> <summary>`
    — read `<total>` from its own output line; do not recompute it separately.
 6. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-run-state.sh .ai/run-state.json <route id> <rule> intake <total> <mode> 0 <now>`,
@@ -173,9 +175,11 @@ Run `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-run-state.sh .ai/run-state.json`.
    ```
    This must report the same `route_id`; if it does not, treat it as a contract violation (project
    config or the fact record changed underneath a run in progress) and go to step 3 with `failed`.
-3. Rewrite `.ai/route-progress.txt` from this stage list, then re-apply `: skipped` to every stage
-   id `.ai/progress.md` already records with status `skipped` — a skip decided before the
-   interruption must survive the rebuild.
+3. Rewrite `.ai/route-progress.txt` from this stage list, then apply the skip conditions to it
+   afresh — see **Skipped stages** below. Nothing about a skip needs to survive the interruption:
+   the conditions are evaluated from what is on disk right now, so the rebuilt file is correct by
+   construction, including for a stage whose precondition appeared between the interruption and the
+   resume.
 4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
    (refresh — the same file `check-orchestration-flag.sh` would otherwise report as absent or
    stale if this run had crashed instead of merely paused).
@@ -184,16 +188,19 @@ Run `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-run-state.sh .ai/run-state.json`.
 ## 2. Drive the remaining stages
 
 For each stage id after your starting point, in `.ai/route-progress.txt` order, until a terminal
-state is reached:
+state is reached. **Re-apply the skip conditions at the top of every iteration** (see **Skipped
+stages** below) — an earlier stage may have just written the file a later stage was waiting on, and
+that stage must un-skip before you reach it.
 
-- **Already marked `: skipped`** (a prior stage's `next_action` requested it — see below):
+- **Marked `: skipped`** after that re-evaluation:
   `write-progress-row.sh .ai/progress.md <stage> skipped`. Do not invoke it, and print no progress
   line for it (`shared/progress-output.md`: a skipped stage has no envelope, so it gets no
   `Stage <n>/<total>` line of its own). Move to the next stage.
 - **Otherwise:**
-  1. Look up the stage's adapter skill name in the platform pack's `stages:` map. Unresolvable
-     (dropped from the manifest since the route was resolved) → go to step 3 with `failed`
-     (contract violation), naming the stage.
+  1. Look up the stage's adapter skill name in the platform pack's `stages:` map. Unresolvable —
+     dropped from the manifest since the route was resolved, or named but not loaded in this
+     session → go to step 3 with `failed` (contract violation), naming the stage and which of the
+     two it was.
   2. Invoke it (see "How a stage adapter is invoked"). Capture its envelope to
      `.ai/run-context/envelope-<stage id>.txt`.
   3. `run-stage.sh <platform pack.yaml> <stage id> .ai/run-context/envelope-<stage id>.txt` → a
@@ -204,10 +211,6 @@ state is reached:
      - `write-run-state.sh .ai/run-state.json <route id> <rule> <stage> <total> <mode> <questions_used> <start_time>`
      - `write-progress-row.sh .ai/progress.md <stage> done`
      - `write-orchestration-flag.sh .ai/run-context/orchestrating.flag` (refresh)
-     - If the envelope's `next_action` matches `skip: <later stage id>` and that stage id appears,
-       unskipped, later in `.ai/route-progress.txt`: rewrite that line as `<stage id>: skipped` —
-       see "Skipping a later stage" below. Do this before printing any further progress line, so the
-       very next line already reflects the shrunk total.
      - If `<stage>` is `deliver`: go to **step 3** with `delivered` — `deliver` is the last stage of
        every route (core contract §4); there is no next stage to advance to.
      - Otherwise, continue the loop at the next stage.
@@ -229,19 +232,29 @@ state is reached:
      - `terminate-failed` (the always-autonomous override) — go to step 3 with `failed`.
   6. **`terminate-failed` / `terminate-contract-violation`:** go to step 3 with `failed`.
 
-### Skipping a later stage
+### Skipped stages
 
-**This convention is this skill's own addition — it is not yet recorded in the core interface
-spec, because no earlier task needed to decide it.** `shared/progress-output.md` already defines
-what a skip *does* to the counter; nothing before this task defined what *causes* one, and
-`phase-2-task-10-done.md` explicitly left that decision "to whichever future skill drives a full
-route" — this one. The mechanism: a stage's result envelope may set
-`next_action: skip: <stage id>` (the envelope contract's `next_action` field is free text — see
-`shared/result-envelope.md` — this is this skill's own reading of it, not a new literal the
-contract fixes). On seeing it, mark that stage id skipped in `.ai/route-progress.txt` before it is
-ever reached. A stage may only skip one still-ahead of it in the route; a stage naming itself, one
-already completed, or one absent from the route is left alone — do not fail the run over it, since
-a malformed `next_action` is advisory, not a contract the envelope must satisfy.
+A skip is declared by the **pack**, not by a running stage: the platform manifest's optional
+`skip_when_missing:` map names, per stage, one path whose absence means that stage has nothing to
+do on this run (`shared/pack-manifest.md`). You never decide a skip yourself, and you never read a
+skip out of an envelope — `shared/result-envelope.md` is explicit that `next_action` is a name, not
+a directive to you.
+
+To apply the conditions, run:
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/evaluate-skip-conditions.sh <platform pack.yaml> .
+```
+
+It prints one `skipped: <stage id>` line per skipped stage, and nothing when none is. Rewrite
+`.ai/route-progress.txt` so that exactly those stage ids read `<stage id>: skipped` and every other
+line is a bare stage id — **exactly those**, because a stage skipped a moment ago un-skips the
+instant its path appears, and the file has to say so. Do this before printing any further progress
+line, so the very next line already reflects the current total.
+
+Nothing here is remembered between calls, and that is the point: the skip state is a function of
+what is on disk, recomputed whenever you need it, which is why an interrupted run can rebuild it
+from scratch and why `shared/progress-output.md` forbids caching a `<total>` across a skip.
 
 ## 3. Terminal state
 
@@ -273,6 +286,8 @@ a malformed `next_action` is advisory, not a contract the envelope must satisfy.
   is a stage's job, inside its own isolated subagent (the read hook above logs, but does not block,
   a lapse here).
 - Retrying a stage that returned `fail`, with or without changed input.
+- Spawning an adapter by pasting its `SKILL.md` body into a general subagent because `Skill()` did
+  not resolve it, or deciding a skip from anything other than `evaluate-skip-conditions.sh`.
 - Calling `finalize-run-state.sh` on `blocked` or `failed` — only `delivered` deletes `run-state.json`.
 - Printing `print-status-table.sh` more than once, or before step 3.
 - Restating any shared contract's shape here instead of referencing its file.

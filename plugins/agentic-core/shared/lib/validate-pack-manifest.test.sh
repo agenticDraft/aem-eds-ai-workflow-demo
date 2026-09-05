@@ -74,6 +74,66 @@ assert_exit "unfilled-placeholder rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the placeholder" "placeholder" "$OUT"
 assert_contains "reason names the offending file" "implement/SKILL.md" "$OUT"
 
+echo "[accept] a platform manifest declaring skip_when_missing"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-valid-skip-conditions/pack.yaml" 2>&1); ST=$?
+assert_exit "platform-valid-skip-conditions accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "reports kind" "platform" "$OUT"
+
+echo "[reject] skip_when_missing binds an unknown stage"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/skip-condition-unknown-stage/pack.yaml" 2>&1); ST=$?
+assert_exit "skip-condition-unknown-stage rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the unknown stage" "publish-gate" "$OUT"
+assert_contains "reason names the key" "skip_when_missing" "$OUT"
+
+# The remaining skip_when_missing rejection cases are shape errors inside the
+# block itself, written inline rather than committed as fixture directories:
+# each needs only a two-line manifest edit, and a fixture directory per case
+# would triple the fixture tree to prove one regex each.
+SKIPTMP="$(mktemp -d "${TMPDIR:-/tmp}/validate-pack-manifest-skip.XXXXXX")"
+trap 'rm -rf "$SKIPTMP"' EXIT
+cp -R "$FIXDIR/platform-valid-skip-conditions/." "$SKIPTMP/"
+
+skip_block_manifest() {
+  {
+    sed '/^skip_when_missing:$/,$d' "$FIXDIR/platform-valid-skip-conditions/pack.yaml"
+    printf '%s\n' "$@"
+  } > "$SKIPTMP/pack.yaml"
+}
+
+echo "[reject] skip_when_missing declares the same stage twice"
+skip_block_manifest "skip_when_missing:" \
+  '  implement: ".ai/one.yaml"' \
+  '  implement: ".ai/two.yaml"'
+OUT=$(bash "$VALIDATOR" "$SKIPTMP/pack.yaml" 2>&1); ST=$?
+assert_exit "duplicate stage rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says twice" "twice" "$OUT"
+
+echo "[reject] skip_when_missing declares a mandatory stage skippable"
+for mandatory in intake deliver; do
+  skip_block_manifest "skip_when_missing:" "  $mandatory: \".ai/absent.yaml\""
+  OUT=$(bash "$VALIDATOR" "$SKIPTMP/pack.yaml" 2>&1); ST=$?
+  assert_exit "'$mandatory' rejected (exit 1)" 1 $ST "$OUT"
+  assert_contains "reason names '$mandatory'" "$mandatory" "$OUT"
+done
+
+echo "[reject] skip_when_missing declares an absolute path"
+skip_block_manifest "skip_when_missing:" '  implement: "/etc/passwd"'
+OUT=$(bash "$VALIDATOR" "$SKIPTMP/pack.yaml" 2>&1); ST=$?
+assert_exit "absolute path rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says absolute" "absolute" "$OUT"
+
+echo "[reject] skip_when_missing is present but empty"
+skip_block_manifest "skip_when_missing:"
+OUT=$(bash "$VALIDATOR" "$SKIPTMP/pack.yaml" 2>&1); ST=$?
+assert_exit "empty block rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says no entries" "no entries" "$OUT"
+
+echo "[reject] a top-level key after skip_when_missing"
+skip_block_manifest "skip_when_missing:" '  implement: ".ai/one.yaml"' "unexpected: true"
+OUT=$(bash "$VALIDATOR" "$SKIPTMP/pack.yaml" 2>&1); ST=$?
+assert_exit "trailing key rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the trailing content" "unexpected" "$OUT"
+
 echo "[accept] a well-formed provider manifest"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/provider-valid/pack.yaml" 2>&1); ST=$?
 assert_exit "provider-valid accepted (exit 0)" 0 $ST "$OUT"

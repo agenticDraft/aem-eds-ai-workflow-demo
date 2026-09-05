@@ -8,9 +8,10 @@
 # `kind`:
 #
 #   platform — `stages` is a non-empty mapping of stage id to skill name;
-#     every entry in `always_autonomous` and every artifact's
-#     `produced_by` names a stage id present in `stages`; every skill
-#     named anywhere resolves to <pack root>/skills/<skill>/SKILL.md.
+#     every entry in `always_autonomous`, every artifact's `produced_by`,
+#     and every key of the optional `skip_when_missing` names a stage id
+#     present in `stages`; every skill named anywhere resolves to
+#     <pack root>/skills/<skill>/SKILL.md.
 #
 #   provider — `role` is one of the four core roles; every key in
 #     `operations` and every entry in `unsupported` is an operation that
@@ -188,8 +189,46 @@ if [[ "$kind" == "platform" ]]; then
     done
   fi
 
+  # --- skip_when_missing (optional) --------------------------------------
+  # The one optional top-level key, and the last. A stage listed here is
+  # skipped on a run where its declared path is absent — the driver's only
+  # source of a skip (shared/pack-manifest.md). Same flat "  <key>: <value>"
+  # shape as `stages:` above, so nothing about the lightweight parse changes.
+  if [[ "${LINES[cursor]:-}" =~ ^skip_when_missing:$ ]]; then
+    cursor=$((cursor + 1))
+    SKIP_STAGES=()
+    while [[ "${LINES[cursor]:-}" =~ ^\ \ ([A-Za-z0-9_-]+):\ (.+)$ ]]; do
+      skip_stage="${BASH_REMATCH[1]}"
+      skip_path="${BASH_REMATCH[2]}"
+      cursor=$((cursor + 1))
+      stage_known "$skip_stage" \
+        || fail "skip_when_missing binds an unknown stage: '$skip_stage'"
+      # Every route begins with intake and ends with deliver (core contract
+      # §4), so neither can be conditional: a route that skipped intake would
+      # have no fact record to resolve itself from, and one that skipped
+      # deliver could never reach the delivered terminal state.
+      if [[ "$skip_stage" == "intake" || "$skip_stage" == "deliver" ]]; then
+        fail "skip_when_missing declares the mandatory stage '$skip_stage' skippable — every route begins with intake and ends with deliver"
+      fi
+      for seen in "${SKIP_STAGES[@]:-}"; do
+        [[ "$seen" == "$skip_stage" ]] \
+          && fail "skip_when_missing declares stage '$skip_stage' twice"
+      done
+      SKIP_STAGES+=("$skip_stage")
+      skip_path="${skip_path%\"}"
+      skip_path="${skip_path#\"}"
+      [[ -z "$skip_path" ]] \
+        && fail "skip_when_missing.$skip_stage has an empty path"
+      [[ "$skip_path" == /* ]] \
+        && fail "skip_when_missing.$skip_stage is an absolute path: '$skip_path' — paths are relative to the project root"
+    done
+    if [[ ${#SKIP_STAGES[@]} -eq 0 ]]; then
+      fail "skip_when_missing is present but has no entries — omit the key instead"
+    fi
+  fi
+
   if (( cursor < n )); then
-    fail "unexpected content after 'artifacts:': '${LINES[cursor]}'"
+    fail "unexpected content after the last platform key: '${LINES[cursor]}'"
   fi
 
   echo "valid: platform"
