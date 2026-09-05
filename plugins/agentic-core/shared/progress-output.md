@@ -11,7 +11,10 @@ file's.
 
 **Never does:** write to disk, decide whether a stage is skipped, or print the status table more
 than once per run. Those decisions belong to whichever skill drives a full route; this contract
-only shapes what gets printed once that decision is made.
+only shapes what gets printed once that decision is made. What *causes* a skip is settled
+elsewhere: a platform pack declares it per stage as `skip_when_missing` (`pack-manifest.md`), and
+`lib/evaluate-skip-conditions.sh` evaluates it against the project. Nothing here needs to know
+that — the caller hands this contract a skip state it has already computed.
 
 ## The per-stage line
 

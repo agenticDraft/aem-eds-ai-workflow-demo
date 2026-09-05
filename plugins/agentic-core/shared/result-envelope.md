@@ -38,7 +38,9 @@ metrics: <key=value pairs>             # optional, any verdict
 - `artifacts` — every file written or updated, so the runner can hand paths to a later stage
   without having read them. Present on every verdict, even as an empty list.
 - `next_action` — a short phrase, or the literal string `"none"`. Never an instruction to the
-  runner — a name, not a directive.
+  runner — a name, not a directive. In particular, a stage cannot steer the route from here: a
+  skipped stage is declared by the pack and evaluated from disk (`pack-manifest.md`'s
+  `skip_when_missing`), never announced by a stage that ran.
 - `question` — the question text. Required when `verdict: question`, absent otherwise.
 - `options` — short option labels for the human or the `tracker` role to choose from. Optional,
   `verdict: question` only.

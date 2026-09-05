@@ -37,5 +37,13 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/check-plan-criteria.test.sh
       - name: Render analytics
         run: bash plugins/agentic-core/shared/lib/render-analytics.test.sh
+      - name: Write orchestration flag
+        run: bash plugins/agentic-core/shared/lib/write-orchestration-flag.test.sh
+      - name: Check orchestration flag
+        run: bash plugins/agentic-core/shared/lib/check-orchestration-flag.test.sh
+      - name: Finalize orchestration flag
+        run: bash plugins/agentic-core/shared/lib/finalize-orchestration-flag.test.sh
+      - name: Evaluate skip conditions
+        run: bash plugins/agentic-core/shared/lib/evaluate-skip-conditions.test.sh
       - name: Validate plugin manifest
         run: claude plugin validate plugins/agentic-core --strict
