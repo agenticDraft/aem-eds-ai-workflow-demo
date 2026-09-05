@@ -33,7 +33,7 @@ fi
 
 STALE_AFTER_SECONDS=7200
 
-MTIME="$(stat -f %m "$STATE_FILE" 2>/dev/null || stat -c %Y "$STATE_FILE" 2>/dev/null)"
+MTIME="$(date -r "$STATE_FILE" +%s 2>/dev/null)"
 if [[ -z "$MTIME" ]]; then
   echo "invalid: could not read mtime of $STATE_FILE" >&2
   exit 1

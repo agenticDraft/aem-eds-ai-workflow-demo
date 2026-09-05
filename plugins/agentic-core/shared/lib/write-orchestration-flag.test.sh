@@ -50,12 +50,12 @@ assert_contains "reports written" "written: $FLAG" "$OUT"
   || { FAIL=$((FAIL + 1)); echo "  FAIL: file must exist after a create"; }
 
 echo "[refresh] flag already exists — mtime moves forward, content untouched"
-OLD_MTIME="$(stat -f %m "$FLAG" 2>/dev/null || stat -c %Y "$FLAG" 2>/dev/null)"
+OLD_MTIME="$(date -r "$FLAG" +%s 2>/dev/null)"
 sleep 1
 OUT=$(bash "$WRITER" "$FLAG" 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"
 assert_contains "reports refreshed" "refreshed: $FLAG" "$OUT"
-NEW_MTIME="$(stat -f %m "$FLAG" 2>/dev/null || stat -c %Y "$FLAG" 2>/dev/null)"
+NEW_MTIME="$(date -r "$FLAG" +%s 2>/dev/null)"
 if (( NEW_MTIME > OLD_MTIME )); then
   PASS=$((PASS + 1)); echo "  ok: mtime moved forward on refresh"
 else

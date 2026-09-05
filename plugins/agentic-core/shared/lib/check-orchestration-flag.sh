@@ -32,7 +32,7 @@ fi
 
 STALE_AFTER_SECONDS=7200
 
-MTIME="$(stat -f %m "$FLAG" 2>/dev/null || stat -c %Y "$FLAG" 2>/dev/null)"
+MTIME="$(date -r "$FLAG" +%s 2>/dev/null)"
 if [[ -z "$MTIME" ]]; then
   echo "status: none"
   exit 0
