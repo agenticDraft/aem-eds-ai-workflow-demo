@@ -79,6 +79,11 @@ shared):
 Claude Code merges this list with the shared `.claude/settings.json` allowlist, so you don't need
 to touch the committed file.
 
+**The `scm` pack (`plugins/github/`) needs no `.ai/credentials` entry.** It authenticates through
+the `gh` CLI's own local credential store instead — run `gh auth login` once on the machine, and
+confirm it with `gh auth status`. This is a per-machine login, not a token this project's
+automation ever reads, creates or holds.
+
 ## Claude Code setup
 
 This project's agent instructions (`AGENTS.md`, `CLAUDE.md`) delegate all Edge Delivery *platform*
