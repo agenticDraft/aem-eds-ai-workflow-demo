@@ -65,8 +65,8 @@ route can run** — via its own `--plugin-dir`, or installed. A session that has
 disk but has not loaded the pack cannot run its stages.
 
 **If `Skill()` reports the skill unknown, that is a contract violation** — the manifest names a
-stage adapter this session cannot resolve, exactly like a stage id the manifest dropped. Go to
-**step 3** with `failed`, and say which pack was not loaded, so the fix is obvious.
+stage adapter this session cannot resolve, exactly like a stage id the manifest dropped. Route to
+**failed**, and say which pack was not loaded, so the fix is obvious.
 
 Resist the temptation to read the adapter's `SKILL.md` and paste its body into a general subagent
 instead. It looks equivalent — `context: fork` does say the skill's content becomes the subagent's
@@ -101,140 +101,7 @@ The subagent's output ends with a `## Result` block — the result envelope (`sh
 Capture everything from that block onward into `.ai/run-context/envelope-<stage id>.txt`,
 overwriting any previous stage's file there. Never parse anything above that block.
 
-## 0. Pre-flight, before anything else exists
-
-Resolve each role's pack path from `.ai/project-config.yaml`'s `packs:` map
-(`.ai/packs/<pack name>/pack.yaml`), then run:
-
-```
-${CLAUDE_PLUGIN_ROOT}/shared/lib/check-preflight.sh .ai/project-config.yaml \
-  platform=<path> tracker=<path> scm=<path> browser=<path> [design=<path>]
-```
-
-If it exits non-zero: no branch, run state, or marker exists yet, so there is nothing to finalize.
-Report `terminal: blocked` immediately, naming exactly what pre-flight's `invalid: <reason>` says is
-missing and that it was never recorded anywhere (core contract §4 — pre-flight failure is one of
-`shared/terminal-states.md`'s `blocked` causes). Stop; do not proceed to step 1.
-
-If it passes, continue.
-
-## 1. Resume or start fresh
-
-Run `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-run-state.sh .ai/run-state.json`.
-
-- **`status: resume`** — a previous run exists inside the 2-hour window. Ask, with
-  `AskUserQuestion`: *"Previous run found at stage {last_stage}/{total} — resume or start fresh?"*
-  using the fields the check reported.
-  - **resume** — go to **1b**.
-  - **start fresh** — treat exactly as `status: none` below, and go to **1a**. (Nothing deletes the
-    old `run-state.json` for you here; overwrite it in 1a the same way a fresh run always does.)
-- **`status: stale-deleted`** — the file was 2 hours old or older and is already removed. Note this
-  plainly in your report, then go to **1a**.
-- **`status: none`** — go to **1a**.
-
-### 1a. Fresh start
-
-1. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-2. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" — `intake` needs no
-   `fact_record`/`route` input yet, since it is what produces the fact record). Capture its
-   envelope to `.ai/run-context/envelope-intake.txt`.
-3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
-   → a decision. `terminate-failed` or `terminate-contract-violation` here means core contract §4's
-   guarantee already held — no branch, file, or route exists — so go straight to **step 3** with
-   `failed`, after removing the marker you just wrote
-   (`finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag`); no run state was ever
-   written, so there is nothing else to finalize.
-4. On `continue`/`continue-warn`: `intake`'s envelope must list the fact record among its
-   `artifacts:` at `.ai/run-context/fact-record.yaml` (`shared/fact-record.md`). Resolve the route:
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-route.sh .ai/project-config.yaml .ai/run-context/fact-record.yaml
-   ```
-   Write `.ai/run-context/route.yaml` with the three reported fields (`route`, `stages`, `rule`),
-   and write `.ai/route-progress.txt` with one bare stage id per line, in that order. Then apply
-   the platform pack's declared skip conditions to it — see **Skipped stages** below.
-5. `${CLAUDE_PLUGIN_ROOT}/shared/lib/print-progress-line.sh .ai/route-progress.txt intake <verdict> <summary>`
-   — read `<total>` from its own output line; do not recompute it separately.
-6. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-run-state.sh .ai/run-state.json <route id> <rule> intake <total> <mode> 0 <now>`,
-   where `<now>` is the output of `date -u +%Y-%m-%dT%H:%M:%SZ` — call it once, right here, and use
-   the same value in every later `write-run-state.sh` call this run (`start_time` is set once and
-   never rewritten, per `shared/run-state.md`). Do not stash it in a file of your own; it is one
-   short value to carry forward in your own working memory for the rest of the run.
-7. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-progress-row.sh .ai/progress.md intake done`
-8. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-   (refresh)
-9. If `intake` returned `verdict: question`, handle it exactly as step 2 describes for any other
-   stage, with `intake` as the asking stage. Otherwise go to **step 2**, starting at the stage after
-   `intake` in `.ai/route-progress.txt`.
-
-### 1b. Resume
-
-1. Read `route_id`, `rule`, `last_stage`, `mode`, `questions_used` from `check-run-state.sh`'s
-   `status: resume` output.
-2. Re-derive the stage list from the fact record already on disk (it was never deleted — only
-   `run-state.json` and the marker are removed on a terminal state):
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-route.sh .ai/project-config.yaml .ai/run-context/fact-record.yaml
-   ```
-   This must report the same `route_id`; if it does not, treat it as a contract violation (project
-   config or the fact record changed underneath a run in progress) and go to step 3 with `failed`.
-3. Rewrite `.ai/route-progress.txt` from this stage list, then apply the skip conditions to it
-   afresh — see **Skipped stages** below. Nothing about a skip needs to survive the interruption:
-   the conditions are evaluated from what is on disk right now, so the rebuilt file is correct by
-   construction, including for a stage whose precondition appeared between the interruption and the
-   resume.
-4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-   (refresh — the same file `check-orchestration-flag.sh` would otherwise report as absent or
-   stale if this run had crashed instead of merely paused).
-5. Go to **step 2**, starting at the stage after `last_stage` in `.ai/route-progress.txt`.
-
-## 2. Drive the remaining stages
-
-For each stage id after your starting point, in `.ai/route-progress.txt` order, until a terminal
-state is reached. **Re-apply the skip conditions at the top of every iteration** (see **Skipped
-stages** below) — an earlier stage may have just written the file a later stage was waiting on, and
-that stage must un-skip before you reach it.
-
-- **Marked `: skipped`** after that re-evaluation:
-  `write-progress-row.sh .ai/progress.md <stage> skipped`. Do not invoke it, and print no progress
-  line for it (`shared/progress-output.md`: a skipped stage has no envelope, so it gets no
-  `Stage <n>/<total>` line of its own). Move to the next stage.
-- **Otherwise:**
-  1. Look up the stage's adapter skill name in the platform pack's `stages:` map. Unresolvable —
-     dropped from the manifest since the route was resolved, or named but not loaded in this
-     session → go to step 3 with `failed` (contract violation), naming the stage and which of the
-     two it was.
-  2. Invoke it (see "How a stage adapter is invoked"). Capture its envelope to
-     `.ai/run-context/envelope-<stage id>.txt`.
-  3. `run-stage.sh <platform pack.yaml> <stage id> .ai/run-context/envelope-<stage id>.txt` → a
-     decision.
-  4. **`continue` / `continue-warn`:**
-     - `print-progress-line.sh .ai/route-progress.txt <stage> <verdict> <summary>` — read the new
-       `<total>` from its output.
-     - `write-run-state.sh .ai/run-state.json <route id> <rule> <stage> <total> <mode> <questions_used> <start_time>`
-     - `write-progress-row.sh .ai/progress.md <stage> done`
-     - `write-orchestration-flag.sh .ai/run-context/orchestrating.flag` (refresh)
-     - If `<stage>` is `deliver`: go to **step 3** with `delivered` — `deliver` is the last stage of
-       every route (core contract §4); there is no next stage to advance to.
-     - Otherwise, continue the loop at the next stage.
-  5. **`question`:**
-     ```
-     ${CLAUDE_PLUGIN_ROOT}/shared/lib/handle-question.sh <platform pack.yaml> <mode> <stage> \
-       .ai/run-context/envelope-<stage id>.txt <questions_used> <questions_cap>
-     ```
-     - `ask` — put the reported `question` (and `options`, if any) to the human with
-       `AskUserQuestion`. Write the answer:
-       `write-question-answer.sh .ai/run-context/question-answer.yaml "<question>" "<answer>"`.
-       Update run state and progress exactly as the `continue` case above (the questions-used
-       counter this script reported is already incremented), then continue the loop at the next
-       stage — the answer's path is included among that stage's inputs. This is not a terminal
-       state.
-     - `terminate-blocked` — go to step 3 with `blocked`. In autonomous mode the script's own
-       `write-blocker:` line is what to post through the `tracker` role's `post_note` operation
-       before reporting; that call belongs here, at this boundary, never inside a stage.
-     - `terminate-failed` (the always-autonomous override) — go to step 3 with `failed`.
-  6. **`terminate-failed` / `terminate-contract-violation`:** go to step 3 with `failed`.
-
-### Skipped stages
+## Skipped stages
 
 A skip is declared by the **pack**, not by a running stage: the platform manifest's optional
 `skip_when_missing:` map names, per stage, one path whose absence means that stage has nothing to
@@ -258,28 +125,325 @@ Nothing here is remembered between calls, and that is the point: the skip state 
 what is on disk, recomputed whenever you need it, which is why an interrupted run can rebuild it
 from scratch and why `shared/progress-output.md` forbids caching a `<total>` across a skip.
 
-## 3. Terminal state
+## Flow
 
-1. **Only on `delivered`:** `finalize-run-state.sh .ai/run-state.json` (deletes it — `blocked` and
-   `failed` leave it in place for a human to inspect, per `shared/run-state.md`; do not call this on
-   those two).
-2. **On all three:** `finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag` — the
-   marker is absent after every terminal state alike, including the failing ones
-   (`shared/orchestration-flag.md`).
-3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh <delivered|blocked|failed> <state-specific args>`
-   (`shared/terminal-states.md`) and report its output verbatim. **Do not call `print-status-table.sh`
-   yourself here** — for `delivered`, `resolve-terminal-state.sh` already renders the status table
-   internally as part of its own output; calling it again would print the table twice, which
-   `shared/progress-output.md` forbids. `blocked` and `failed` carry their own required output
-   instead (what is missing and where it was recorded; the failing stage and its summary) and do
-   not render the table at all.
-   - `delivered <progress-file> <published-location>` — for `<published-location>`, use `deliver`'s
-     own envelope `summary` verbatim. The envelope contract gives the driver no separate
-     "published location" field; the `deliver` stage's one-sentence summary is the only thing every
-     `deliver` adapter is already required to produce, so it is what this skill reports rather than
-     inventing a second channel.
-   - `blocked <missing> <recorded-at>` / `failed <stage-id> <summary>` — as already gathered in
-     step 2's handling of that outcome.
+```dot
+digraph run_route {
+    "Resolve pre-flight" [shape=box];
+    "Pre-flight passed?" [shape=diamond];
+    "Check run-state" [shape=box];
+    "Run-state status?" [shape=diamond];
+    "Resume or start fresh?" [shape=diamond];
+    "Fresh start: write flag, run intake" [shape=box];
+    "Intake decision?" [shape=diamond];
+    "Resolve route" [shape=box];
+    "Record intake stage" [shape=box];
+    "Resume: re-derive route" [shape=box];
+    "Resolved route matches?" [shape=diamond];
+    "Drive next stage" [shape=box];
+    "Re-evaluate skip conditions" [shape=box];
+    "Stage skipped?" [shape=diamond];
+    "Record skipped stage" [shape=box];
+    "Resolve stage adapter" [shape=box];
+    "Adapter resolvable?" [shape=diamond];
+    "Invoke adapter, capture envelope" [shape=box];
+    "Validate envelope" [shape=box];
+    "Envelope decision?" [shape=diamond];
+    "Record stage, refresh flag" [shape=box];
+    "Stage is deliver?" [shape=diamond];
+    "Handle question" [shape=box];
+    "Question decision?" [shape=diamond];
+    "Ask human, record answer" [shape=box];
+    "blocked" [shape=doublecircle];
+    "failed" [shape=doublecircle];
+    "delivered" [shape=doublecircle];
+
+    "Resolve pre-flight" -> "Pre-flight passed?";
+    "Pre-flight passed?" -> "blocked" [label="no"];
+    "Pre-flight passed?" -> "Check run-state" [label="yes"];
+    "Check run-state" -> "Run-state status?";
+    "Run-state status?" -> "Resume or start fresh?" [label="resume (fresh, <2h)"];
+    "Run-state status?" -> "Fresh start: write flag, run intake" [label="none, or stale-deleted"];
+    "Resume or start fresh?" -> "Resume: re-derive route" [label="resume"];
+    "Resume or start fresh?" -> "Fresh start: write flag, run intake" [label="start fresh"];
+    "Fresh start: write flag, run intake" -> "Intake decision?";
+    "Intake decision?" -> "failed" [label="terminate-failed / terminate-contract-violation"];
+    "Intake decision?" -> "Resolve route" [label="continue / continue-warn"];
+    "Resolve route" -> "Record intake stage";
+    "Record intake stage" -> "Handle question" [label="intake asked a question"];
+    "Record intake stage" -> "Drive next stage" [label="no question asked"];
+    "Resume: re-derive route" -> "Resolved route matches?";
+    "Resolved route matches?" -> "failed" [label="no — route or fact record changed"];
+    "Resolved route matches?" -> "Drive next stage" [label="yes"];
+    "Drive next stage" -> "Re-evaluate skip conditions";
+    "Re-evaluate skip conditions" -> "Stage skipped?";
+    "Stage skipped?" -> "Record skipped stage" [label="yes"];
+    "Stage skipped?" -> "Resolve stage adapter" [label="no"];
+    "Record skipped stage" -> "Drive next stage" [label="next stage"];
+    "Resolve stage adapter" -> "Adapter resolvable?";
+    "Adapter resolvable?" -> "failed" [label="no — unresolvable or unloaded"];
+    "Adapter resolvable?" -> "Invoke adapter, capture envelope" [label="yes"];
+    "Invoke adapter, capture envelope" -> "Validate envelope";
+    "Validate envelope" -> "Envelope decision?";
+    "Envelope decision?" -> "Record stage, refresh flag" [label="continue / continue-warn"];
+    "Envelope decision?" -> "Handle question" [label="question"];
+    "Envelope decision?" -> "failed" [label="terminate-failed / terminate-contract-violation"];
+    "Record stage, refresh flag" -> "Stage is deliver?";
+    "Stage is deliver?" -> "delivered" [label="yes"];
+    "Stage is deliver?" -> "Drive next stage" [label="no — next stage"];
+    "Handle question" -> "Question decision?";
+    "Question decision?" -> "Ask human, record answer" [label="ask"];
+    "Question decision?" -> "blocked" [label="terminate-blocked"];
+    "Question decision?" -> "failed" [label="terminate-failed (autonomous override)"];
+    "Ask human, record answer" -> "Record stage, refresh flag";
+}
+```
+
+## Node Details
+
+### Resolve pre-flight
+
+Resolve each role's pack path from `.ai/project-config.yaml`'s `packs:` map
+(`.ai/packs/<pack name>/pack.yaml`), then run:
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/check-preflight.sh .ai/project-config.yaml \
+  platform=<path> tracker=<path> scm=<path> browser=<path> [design=<path>]
+```
+
+### Pre-flight passed?
+
+If it exits non-zero: no branch, run state, or marker exists yet, so there is nothing to finalize.
+Report `terminal: blocked` immediately, naming exactly what pre-flight's `invalid: <reason>` says is
+missing and that it was never recorded anywhere (core contract §4 — pre-flight failure is one of
+`shared/terminal-states.md`'s `blocked` causes). Route to **blocked**; do not proceed.
+
+If it passes, go to **Check run-state**.
+
+### Check run-state
+
+Run `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-run-state.sh .ai/run-state.json`.
+
+### Run-state status?
+
+- **`status: resume`** — a previous run exists inside the 2-hour window. Go to **Resume or start
+  fresh?**.
+- **`status: stale-deleted`** — the file was 2 hours old or older and is already removed. Note this
+  plainly in your report, then go to **Fresh start: write flag, run intake**.
+- **`status: none`** — go to **Fresh start: write flag, run intake**.
+
+### Resume or start fresh?
+
+Ask, with `AskUserQuestion`: *"Previous run found at stage {last_stage}/{total} — resume or start
+fresh?"* using the fields `check-run-state.sh` reported.
+
+- **resume** — go to **Resume: re-derive route**.
+- **start fresh** — treat exactly as `status: none`, and go to **Fresh start: write flag, run
+  intake**. Nothing deletes the old `run-state.json` for you here; overwrite it there the same way
+  a fresh run always does.
+
+### Fresh start: write flag, run intake
+
+1. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
+2. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" — `intake` needs no
+   `fact_record`/`route` input yet, since it is what produces the fact record). Capture its
+   envelope to `.ai/run-context/envelope-intake.txt`.
+3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
+   → go to **Intake decision?**.
+
+### Intake decision?
+
+`terminate-failed` or `terminate-contract-violation` here means core contract §4's guarantee
+already held — no branch, file, or route exists — so route to **failed**, after removing the
+marker you just wrote (`finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag`); no
+run state was ever written, so there is nothing else to finalize.
+
+On `continue`/`continue-warn`: `intake`'s envelope must list the fact record among its
+`artifacts:` at `.ai/run-context/fact-record.yaml` (`shared/fact-record.md`). Go to **Resolve
+route**.
+
+### Resolve route
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-route.sh .ai/project-config.yaml .ai/run-context/fact-record.yaml
+```
+
+Write `.ai/run-context/route.yaml` with the three reported fields (`route`, `stages`, `rule`),
+written once and never rewritten. Write `.ai/route-progress.txt` with one bare stage id per line,
+in that order. Apply the platform pack's declared skip conditions to it — see **Skipped stages**
+above. Then go to **Record intake stage**.
+
+### Record intake stage
+
+1. `${CLAUDE_PLUGIN_ROOT}/shared/lib/print-progress-line.sh .ai/route-progress.txt intake <verdict> <summary>`
+   — read `<total>` from its own output line; do not recompute it separately.
+2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-run-state.sh .ai/run-state.json <route id> <rule> intake <total> <mode> 0 <now>`,
+   where `<now>` is the output of `date -u +%Y-%m-%dT%H:%M:%SZ` — call it once, right here, and use
+   the same value in every later `write-run-state.sh` call this run (`start_time` is set once and
+   never rewritten, per `shared/run-state.md`). Do not stash it in a file of your own; it is one
+   short value to carry forward in your own working memory for the rest of the run.
+3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-progress-row.sh .ai/progress.md intake done`
+4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
+   (refresh)
+
+If `intake` returned `verdict: question`, go to **Handle question**, with `intake` as the asking
+stage. Otherwise go to **Drive next stage**, starting at the stage after `intake` in
+`.ai/route-progress.txt`.
+
+### Resume: re-derive route
+
+1. Read `route_id`, `rule`, `last_stage`, `mode`, `questions_used` from `check-run-state.sh`'s
+   `status: resume` output.
+2. Re-derive the stage list from the fact record already on disk (it was never deleted — only
+   `run-state.json` and the marker are removed on a terminal state):
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-route.sh .ai/project-config.yaml .ai/run-context/fact-record.yaml
+   ```
+
+Go to **Resolved route matches?**.
+
+### Resolved route matches?
+
+This must report the same `route_id`; if it does not, treat it as a contract violation (project
+config or the fact record changed underneath a run in progress) and route to **failed**.
+
+If it does: rewrite `.ai/route-progress.txt` from this stage list, then apply the skip conditions
+to it afresh — see **Skipped stages** above. Nothing about a skip needs to survive the
+interruption: the conditions are evaluated from what is on disk right now, so the rebuilt file is
+correct by construction, including for a stage whose precondition appeared between the
+interruption and the resume. Then `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh
+.ai/run-context/orchestrating.flag` (refresh — the same file `check-orchestration-flag.sh` would
+otherwise report as absent or stale if this run had crashed instead of merely paused). Go to
+**Drive next stage**, starting at the stage after `last_stage` in `.ai/route-progress.txt`.
+
+### Drive next stage
+
+For each stage id after your starting point, in `.ai/route-progress.txt` order, until a terminal
+state is reached: go to **Re-evaluate skip conditions**. This cannot run out of stages without
+first reaching **delivered** — `deliver` is always the last stage of every route (core contract
+§4).
+
+### Re-evaluate skip conditions
+
+**Re-apply the skip conditions at the top of every iteration** (see **Skipped stages** above) — an
+earlier stage may have just written the file a later stage was waiting on, and that stage must
+un-skip before you reach it. Go to **Stage skipped?**.
+
+### Stage skipped?
+
+**Marked `: skipped`** after this re-evaluation → go to **Record skipped stage**.
+
+**Otherwise** → go to **Resolve stage adapter**.
+
+### Record skipped stage
+
+`write-progress-row.sh .ai/progress.md <stage> skipped`. Do not invoke it, and print no progress
+line for it (`shared/progress-output.md`: a skipped stage has no envelope, so it gets no `Stage
+<n>/<total>` line of its own). Go back to **Drive next stage**, at the next stage.
+
+### Resolve stage adapter
+
+Look up the stage's adapter skill name in the platform pack's `stages:` map. Go to **Adapter
+resolvable?**.
+
+### Adapter resolvable?
+
+**Unresolvable** — dropped from the manifest since the route was resolved, or named but not loaded
+in this session → route to **failed** (contract violation), naming the stage and which of the two
+it was.
+
+**Resolvable** → go to **Invoke adapter, capture envelope**.
+
+### Invoke adapter, capture envelope
+
+Invoke it (see "How a stage adapter is invoked" above). Capture its envelope to
+`.ai/run-context/envelope-<stage id>.txt`. Go to **Validate envelope**.
+
+### Validate envelope
+
+`run-stage.sh <platform pack.yaml> <stage id> .ai/run-context/envelope-<stage id>.txt` → go to
+**Envelope decision?**.
+
+### Envelope decision?
+
+**`continue` / `continue-warn`** → go to **Record stage, refresh flag**.
+
+**`question`** → go to **Handle question**.
+
+**`terminate-failed` / `terminate-contract-violation`** → route to **failed**.
+
+### Record stage, refresh flag
+
+- `print-progress-line.sh .ai/route-progress.txt <stage> <verdict> <summary>` — read the new
+  `<total>` from its output.
+- `write-run-state.sh .ai/run-state.json <route id> <rule> <stage> <total> <mode> <questions_used> <start_time>`
+- `write-progress-row.sh .ai/progress.md <stage> done`
+- `write-orchestration-flag.sh .ai/run-context/orchestrating.flag` (refresh)
+
+Go to **Stage is deliver?**.
+
+### Stage is deliver?
+
+If `<stage>` is `deliver`: route to **delivered** — `deliver` is the last stage of every route
+(core contract §4); there is no next stage to advance to.
+
+Otherwise, go back to **Drive next stage**, at the next stage.
+
+### Handle question
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/handle-question.sh <platform pack.yaml> <mode> <stage> \
+  .ai/run-context/envelope-<stage id>.txt <questions_used> <questions_cap>
+```
+
+Go to **Question decision?**.
+
+### Question decision?
+
+**`ask`** → go to **Ask human, record answer**.
+
+**`terminate-blocked`** → route to **blocked**. In autonomous mode the script's own
+`write-blocker:` line is what to post through the `tracker` role's `post_note` operation before
+reporting; that call belongs here, at this boundary, never inside a stage.
+
+**`terminate-failed`** (the always-autonomous override) → route to **failed**.
+
+### Ask human, record answer
+
+Put the reported `question` (and `options`, if any) to the human with `AskUserQuestion`. Write the
+answer: `write-question-answer.sh .ai/run-context/question-answer.yaml "<question>" "<answer>"`.
+Go to **Record stage, refresh flag** — the questions-used counter this script reported is already
+incremented, and the answer's path is included among the next stage's inputs. This is not a
+terminal state.
+
+### blocked
+
+1. `finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag` — the marker is absent
+   after every terminal state alike.
+2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh blocked <missing> <recorded-at>`
+   (`shared/terminal-states.md`) and report its output verbatim. `run-state.json` is **not**
+   deleted — left in place for a human to inspect (`shared/run-state.md`).
+
+### failed
+
+1. `finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag` — the marker is absent
+   after every terminal state alike.
+2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh failed <stage-id> <summary>`
+   (`shared/terminal-states.md`) and report its output verbatim. `run-state.json` is **not**
+   deleted — left in place for a human to inspect (`shared/run-state.md`).
+
+### delivered
+
+1. `finalize-run-state.sh .ai/run-state.json` (deletes it — the only terminal state that does).
+2. `finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag`.
+3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh delivered <progress-file>
+   <published-location>` (`shared/terminal-states.md`) and report its output verbatim. For
+   `<published-location>`, use `deliver`'s own envelope `summary` verbatim — the envelope contract
+   gives the driver no separate "published location" field, so the `deliver` stage's one-sentence
+   summary is what this skill reports rather than inventing a second channel. **Do not call
+   `print-status-table.sh` yourself here** — `resolve-terminal-state.sh` already renders the status
+   table internally for `delivered`; calling it again would print the table twice, which
+   `shared/progress-output.md` forbids.
 
 ## Anti-patterns
 
@@ -291,5 +455,5 @@ from scratch and why `shared/progress-output.md` forbids caching a `<total>` acr
 - Spawning an adapter by pasting its `SKILL.md` body into a general subagent because `Skill()` did
   not resolve it, or deciding a skip from anything other than `evaluate-skip-conditions.sh`.
 - Calling `finalize-run-state.sh` on `blocked` or `failed` — only `delivered` deletes `run-state.json`.
-- Printing `print-status-table.sh` more than once, or before step 3.
+- Printing `print-status-table.sh` more than once, or before the run reaches `delivered`.
 - Restating any shared contract's shape here instead of referencing its file.
