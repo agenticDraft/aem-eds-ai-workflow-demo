@@ -47,16 +47,17 @@ Always go through the npm script. `lint:js` loads a project-local ESLint rule vi
 ## Credentials
 
 This project's automation never creates or edits your `.ai/credentials` file — you manage it
-yourself. Add these two lines to a `.ai/credentials` file at the project root (create one if you
+yourself. Add these three lines to a `.ai/credentials` file at the project root (create one if you
 don't have it yet):
 
 ```
+JIRA_SITE=your-site.atlassian.net
 JIRA_EMAIL=you@example.com
 JIRA_API_TOKEN=your_api_token_here
 ```
 
 Create a token at https://id.atlassian.com/manage-profile/security/api-tokens. `.ai/credentials`
-is gitignored — never commit it. Every script and skill in the pipeline reads these two variables
+is gitignored — never commit it. Every script and skill in the pipeline reads these three variables
 from the environment, never as a command-line argument, so they never appear in `ps -ef`, shell
 history, or a log.
 
