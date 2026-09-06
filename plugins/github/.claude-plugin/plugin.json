@@ -1,0 +1,10 @@
+{
+  "name": "github",
+  "displayName": "GitHub SCM Provider",
+  "description": "Provider pack for the scm role: create_branch, publish_change, check_status against a real GitHub repository over the gh CLI.",
+  "version": "0.1.0",
+  "author": {
+    "name": "agenticDraft"
+  },
+  "dependencies": ["agentic-core"]
+}
