@@ -39,6 +39,18 @@ if [[ -z "${JIRA_SITE:-}" || -z "${JIRA_EMAIL:-}" || -z "${JIRA_API_TOKEN:-}" ]]
   envelope_fail "JIRA_SITE, JIRA_EMAIL or JIRA_API_TOKEN is not set in the environment."
 fi
 
+# ITEM_ID and JIRA_SITE are interpolated into a curl -K config block below.
+# A value containing a newline could inject an extra config line (a second
+# `url =`, a forged `header =`, even a `user =` pointed at an attacker's
+# host) — the item key is tracker-sourced text and must be validated as
+# data before it reaches curl's config parser, never trusted as shape-safe.
+if [[ ! "$ITEM_ID" =~ ^[A-Za-z][A-Za-z0-9_]*-[0-9]+$ ]]; then
+  envelope_fail "the given item_id does not match the Jira key grammar (e.g. ABC-123)."
+fi
+if [[ ! "$JIRA_SITE" =~ ^[A-Za-z0-9.-]+$ ]]; then
+  envelope_fail "JIRA_SITE is not a bare hostname."
+fi
+
 OUT_DIR=".ai/tracker"
 mkdir -p "$OUT_DIR"
 OUT_FILE="${OUT_DIR}/attach-file-${ITEM_ID}-response.json"
