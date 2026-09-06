@@ -1,5 +1,9 @@
 version: 1
 
+packs:
+  tracker: jira
+  scm: github
+
 commands:
   lint: "npm run lint"
   test: ""
