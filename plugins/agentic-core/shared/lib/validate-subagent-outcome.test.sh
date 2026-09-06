@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Tests for validate-result-envelope.sh. Run with:
-#   bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
+# Tests for validate-subagent-outcome.sh. Run with:
+#   bash plugins/agentic-core/shared/lib/validate-subagent-outcome.test.sh
 #
 # No framework — exits 0 on success, 1 on first failure. assert_exit below
 # compares expected vs. actual exit code per case, against fixture inputs.
@@ -8,8 +8,8 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VALIDATOR="$SCRIPT_DIR/validate-result-envelope.sh"
-FIXDIR="$SCRIPT_DIR/../fixtures/result-envelope"
+VALIDATOR="$SCRIPT_DIR/validate-subagent-outcome.sh"
+FIXDIR="$SCRIPT_DIR/../fixtures/subagent-outcome"
 
 PASS=0
 FAIL=0
@@ -40,19 +40,24 @@ assert_contains() {
   fi
 }
 
-echo "=== validate-result-envelope.sh tests ==="
+echo "=== validate-subagent-outcome.sh tests ==="
 
-echo "[accept] the four Phase 2 / Task 2 fixtures"
-for verdict in pass warn fail question; do
-  OUT=$(bash "$VALIDATOR" "$FIXDIR/$verdict.md" 2>&1); ST=$?
-  assert_exit "$verdict.md accepted (exit 0)" 0 $ST "$OUT"
-  assert_contains "$verdict.md reports its own verdict" "verdict: $verdict" "$OUT"
+echo "[accept] the three status fixtures"
+for status in success warning failure; do
+  OUT=$(bash "$VALIDATOR" "$FIXDIR/$status.md" 2>&1); ST=$?
+  assert_exit "$status.md accepted (exit 0)" 0 $ST "$OUT"
+  assert_contains "$status.md reports its own status" "status: $status" "$OUT"
 done
 
-echo "[reject] unknown verdict literal"
-OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/unknown-verdict.md" 2>&1); ST=$?
-assert_exit "unknown verdict rejected (exit 1)" 1 $ST "$OUT"
-assert_contains "reason names the bad literal" "success" "$OUT"
+echo "[reject] unknown status literal"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/unknown-status.md" 2>&1); ST=$?
+assert_exit "unknown status rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the bad literal" "done" "$OUT"
+
+echo "[reject] a result-envelope verdict used as this contract's status"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/outer-literal.md" 2>&1); ST=$?
+assert_exit "outer literal rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names it as a result-envelope verdict" "result-envelope verdict" "$OUT"
 
 echo "[reject] multi-line summary"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/multiline-summary.md" 2>&1); ST=$?
@@ -66,9 +71,13 @@ echo "[reject] text after the block"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/trailing-text.md" 2>&1); ST=$?
 assert_exit "trailing text rejected (exit 1)" 1 $ST "$OUT"
 
-echo "[reject] a subagent-outcome status used as this contract's verdict"
-OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/inner-literal.md" 2>&1); ST=$?
-assert_exit "inner literal rejected (exit 1)" 1 $ST "$OUT"
+echo "[reject] status: failure with no blocker"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/missing-blocker.md" 2>&1); ST=$?
+assert_exit "missing blocker rejected (exit 1)" 1 $ST "$OUT"
+
+echo "[reject] blocker present without status: failure"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/blocker-without-failure.md" 2>&1); ST=$?
+assert_exit "unearned blocker rejected (exit 1)" 1 $ST "$OUT"
 
 echo "[usage] no argument"
 OUT=$(bash "$VALIDATOR" 2>&1); ST=$?

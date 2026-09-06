@@ -8,6 +8,12 @@ Every stage adapter and every provider operation **ends** its output with this b
 the last thing emitted. Anything above it is for a human debugging that stage — the runner reads
 only the block.
 
+**This block governs one tier only: an adapter returning to the runner.** A stage adapter that
+dispatches subagents of its own uses a second, separate contract for what those return to it —
+see `subagent-outcome.md`. The two share no status literal, so a block from the wrong tier read as
+if it were the other one is a contract violation rather than a value that happens to match a
+branch.
+
 ## Format
 
 ```markdown

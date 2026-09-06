@@ -25,6 +25,8 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
       - name: Validate result envelope
         run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
+      - name: Validate subagent outcome
+        run: bash plugins/agentic-core/shared/lib/validate-subagent-outcome.test.sh
       - name: Validate project config
         run: bash plugins/agentic-core/shared/lib/validate-project-config.test.sh
       - name: Validate pack manifest
