@@ -49,9 +49,21 @@ OUT_DIR=".ai/scm"
 mkdir -p "$OUT_DIR"
 OUT_FILE="${OUT_DIR}/check-status-${BRANCH//\//_}.json"
 
-RAW="$(gh pr checks "$BRANCH" --json name,state,bucket,link 2>/dev/null)"
+# `gh pr checks` accepts `<number> | <url> | <branch>` as one ambiguous
+# positional selector, and a purely-numeric BRANCH (which git's own ref
+# grammar allows, e.g. "31") resolves as a PR *number* rather than a branch,
+# silently returning another pull request's checks. Resolved live and fixed
+# same session: PR_NUMBER is looked up first via `--head`, an exact-match
+# flag with no such ambiguity, and only that trusted number is ever handed
+# to `gh pr checks`.
+PR_NUMBER="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty' 2>/dev/null)"
+if [[ -z "$PR_NUMBER" ]]; then
+  envelope_fail "no open pull request found for branch ${BRANCH}."
+fi
+
+RAW="$(gh pr checks "$PR_NUMBER" --json name,state,bucket,link 2>/dev/null)"
 if ! printf '%s' "$RAW" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null; then
-  envelope_fail "no checks could be retrieved for branch ${BRANCH} (no open pull request, or a gh error)."
+  envelope_fail "no checks could be retrieved for branch ${BRANCH} (pull request #${PR_NUMBER}, or a gh error)."
 fi
 
 printf '%s' "$RAW" > "$OUT_FILE"

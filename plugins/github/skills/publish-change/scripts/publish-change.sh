@@ -79,9 +79,19 @@ OUT_DIR=".ai/scm"
 mkdir -p "$OUT_DIR"
 OUT_FILE="${OUT_DIR}/publish-change-${BRANCH//\//_}.json"
 
-EXISTING_URL="$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url // empty' 2>/dev/null)"
-if [[ -n "$EXISTING_URL" ]]; then
-  gh pr view "$BRANCH" --json number,url,state,baseRefName > "$OUT_FILE" 2>/dev/null
+# `gh pr view` takes the same ambiguous `<number> | <url> | <branch>`
+# positional selector `gh pr checks` does, and a purely-numeric BRANCH
+# (which git's own ref grammar allows) resolves as a PR number, not this
+# branch — silently writing a different, unrelated pull request's data into
+# this operation's own artifact file. `gh pr list --head` has no such
+# ambiguity (exact match only), so every `gh pr view` call below is made
+# against a PR *number* already resolved through it, never against BRANCH
+# directly.
+EXISTING="$(gh pr list --head "$BRANCH" --state open --json number,url --jq '.[0] // empty' 2>/dev/null)"
+if [[ -n "$EXISTING" ]]; then
+  EXISTING_NUMBER="$(printf '%s' "$EXISTING" | python3 -c 'import json,sys; print(json.load(sys.stdin)["number"])')"
+  EXISTING_URL="$(printf '%s' "$EXISTING" | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')"
+  gh pr view "$EXISTING_NUMBER" --json number,url,state,baseRefName > "$OUT_FILE" 2>/dev/null
   cat <<RESULT
 ## Result
 verdict: pass
@@ -99,13 +109,18 @@ if [[ $PR_EXIT -ne 0 ]]; then
   envelope_fail "gh pr create failed (exit ${PR_EXIT}) for branch ${BRANCH}."
 fi
 
-gh pr view "$BRANCH" --json number,url,state,baseRefName > "$OUT_FILE" 2>/dev/null
+NEW_NUMBER="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty' 2>/dev/null)"
+ARTIFACTS_BLOCK="artifacts: []"
+if [[ -n "$NEW_NUMBER" ]]; then
+  gh pr view "$NEW_NUMBER" --json number,url,state,baseRefName > "$OUT_FILE" 2>/dev/null
+  ARTIFACTS_BLOCK="artifacts:
+  - ${OUT_FILE}"
+fi
 
 cat <<RESULT
 ## Result
 verdict: pass
 summary: Opened a pull request for ${BRANCH} against ${BASE}: ${PR_URL}.
-artifacts:
-  - ${OUT_FILE}
+${ARTIFACTS_BLOCK}
 next_action: none
 RESULT
