@@ -1,0 +1,10 @@
+{
+  "name": "jira",
+  "displayName": "Jira Tracker Provider",
+  "description": "Provider pack for the tracker role: fetch_item, post_note, attach_file, list_types against a real Jira Cloud site over its REST API.",
+  "version": "0.1.0",
+  "author": {
+    "name": "agenticDraft"
+  },
+  "dependencies": ["agentic-core"]
+}

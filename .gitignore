@@ -33,6 +33,7 @@ docs/
 .ai/run-state.json
 .ai/progress.md
 .ai/playwright/
+.ai/tracker/
 .analytics/
 
 # Reserved — no folder exists yet; nothing writes here until a task needs it (D47).
