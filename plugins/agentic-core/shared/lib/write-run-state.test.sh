@@ -67,7 +67,7 @@ OLD_TS=$(( $(date +%s) - 10000 ))
 touch -t "$(date -r "$OLD_TS" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$OLD_TS" +%Y%m%d%H%M.%S)" "$STATE"
 OUT=$(bash "$WRITER" "$STATE" standard "default: standard" deliver 6 interactive 1 "2026-09-04T10:00:00Z" 2>&1); ST=$?
 assert_exit "rewrite succeeds (exit 0)" 0 $ST "$OUT"
-NEW_MTIME=$(stat -f %m "$STATE" 2>/dev/null || stat -c %Y "$STATE")
+NEW_MTIME=$(date -r "$STATE" +%s 2>/dev/null)
 NOW=$(date +%s)
 AGE=$(( NOW - NEW_MTIME ))
 if (( AGE < 60 )); then

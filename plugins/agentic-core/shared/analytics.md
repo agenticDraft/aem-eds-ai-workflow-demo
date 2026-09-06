@@ -20,8 +20,16 @@ Two kinds of file, both already written by the harness with no extra instrumenta
   `.type == "assistant"`, `.message.usage` is present, and `.isSidechain == false`.
 - **A subagent transcript** — one JSON object per line, same shape as above but without the
   `isSidechain` filter (a subagent's own file holds only its own turns). Each subagent transcript
-  has a sibling `.meta.json` file carrying at least `description` and `agentType`; `description` is
-  the label a subagent's row is reported under.
+  has a sibling `.meta.json` file carrying at least `agentType`; when a `description` is present it
+  is the label that subagent's row is reported under.
+
+  **`description` is not always present, and that is a known gap, not a defect in a transcript.**
+  It appears for a subagent spawned through the general subagent tool, which takes a `description`
+  argument. A subagent spawned by invoking a skill declared `context: fork` has no such argument to
+  pass, and its sidecar carries only `agentType` and `spawnDepth` — verified against a real run, not
+  assumed. Such a row is reported unlabelled rather than dropped, so the run's totals stay correct
+  even when the per-stage attribution is not available. Deciding how to recover that attribution is
+  open work; it is deliberately not solved by inference here, for the reason stated above.
 
 A subagent transcript's file and its sidecar live at `<session-transcript-path-without-.jsonl>/subagents/agent-*.jsonl` and the matching `agent-*.meta.json`. A session with no such directory has zero subagents — not an error.
 

@@ -1,0 +1,12 @@
+kind: platform
+stages:
+  intake: intake
+  implement: implement
+  deliver: deliver
+always_autonomous: [deliver]
+artifacts:
+  - id: fact-record
+    produced_by: intake
+    path: ".ai/run-context/fact-record.yaml"
+skip_when_missing:
+  publish-gate: ".ai/run-context/gate-input.yaml"
