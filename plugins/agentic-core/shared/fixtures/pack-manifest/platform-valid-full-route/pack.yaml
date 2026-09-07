@@ -1,0 +1,55 @@
+kind: platform
+stages:
+  - id: intake
+    skill: intake
+  - id: readiness
+    skill: readiness
+  - id: extract
+    skill: extract
+    when:
+      - { design_source: true }
+      - { design_mentioned: true }
+  - id: conventions
+    skill: conventions
+  - id: serve
+    skill: serve
+  - id: baseline
+    skill: baseline
+    when:
+      - { components: present }
+  - id: prototype
+    skill: prototype
+    when:
+      - { design_source: true }
+      - { design_mentioned: true }
+  - id: verify-design
+    skill: verify-design
+    when:
+      - { design_source: true }
+      - { design_mentioned: true }
+  - id: plan
+    skill: plan
+  - id: plan-gate
+    skill: plan-gate
+  - id: implement
+    skill: implement
+    fix_attempts: 3
+  - id: verify
+    skill: verify
+  - id: lint
+    skill: lint
+    fix_attempts: 3
+  - id: publish-gate
+    skill: publish-gate
+  - id: deliver
+    skill: deliver
+always_autonomous: [deliver]
+readiness_criteria:
+  task:
+    require: [has_description, has_acceptance_criteria]
+  bug:
+    require: [has_description, has_reproduction_steps]
+artifacts:
+  - id: fact-record
+    produced_by: intake
+    path: ".ai/run-context/fact-record.yaml"

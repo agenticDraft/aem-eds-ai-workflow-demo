@@ -5,12 +5,25 @@
 # answers with a human; this script only places them in the fixed shape.
 #
 # The generated pack always declares the canonical stage set already used
-# as the worked example in both shared/pack-manifest.md and
-# shared/project-config.md — intake, implement, publish-gate, deliver — so
-# it pairs directly with that "standard" route. `always_autonomous` and
+# as the worked example in shared/pack-manifest.md — intake, implement,
+# publish-gate, deliver — every one of them always-on, and ships the matching
+# route.dot the manifest contract requires. `always_autonomous` and
 # `artifacts` are written empty: neither is one of the four interview
 # categories in §7.1 step 3, and inventing either here would be inventing a
 # convention nobody was asked about.
+#
+# No generated stage carries a `when:`. A condition is a claim about which
+# work items need which stage, and nothing in the interview asks that; a
+# guessed condition would silently drop a stage from every run that did not
+# match it.
+#
+# `readiness_criteria` is the one place this script must write something it
+# was not told, because a pack declaring none would fail every item it was
+# given. Each item type the caller names gets the weakest criterion that is
+# still a criterion — the item has a description — as a floor for a pack
+# author to tighten, exactly like the stub adapters this script writes for a
+# human to replace. The item types themselves are never guessed: they are
+# asked of the tracker and passed in.
 #
 # Only the two non-reserved stages (implement, publish-gate) carry
 # interpolated answers — intake and deliver are reserved stages with a
@@ -20,20 +33,23 @@
 #
 # Usage:
 #   generate-pack.sh <pack-root> <unit_of_work_location> <definition_of_done> \
-#     <stage_conventions> <verification_gate>
+#     <stage_conventions> <verification_gate> <item-types>
+#
+# <item-types> is a comma-separated list of the tracker's own work-item type
+# names, one readiness_criteria entry each.
 #
 # Exit codes:
 #   0 — success; "written: <pack-root>" or "updated: <pack-root>" on stdout
 #   1 — contract violation: an empty answer, an answer containing a
-#       newline, or an answer containing the reserved placeholder marker
+#       newline, an answer containing the reserved placeholder marker
 #       "{{" (which would defeat validate-pack-manifest.sh's placeholder
-#       check for an unrelated reason)
+#       check for an unrelated reason), or an empty item-type list
 #   2 — usage error: wrong argument count
 
 set -uo pipefail
 
-if [[ $# -ne 5 ]]; then
-  echo "usage: generate-pack.sh <pack-root> <unit_of_work_location> <definition_of_done> <stage_conventions> <verification_gate>" >&2
+if [[ $# -ne 6 ]]; then
+  echo "usage: generate-pack.sh <pack-root> <unit_of_work_location> <definition_of_done> <stage_conventions> <verification_gate> <item-types>" >&2
   exit 2
 fi
 
@@ -42,6 +58,7 @@ UNIT_OF_WORK_LOCATION="$2"
 DEFINITION_OF_DONE="$3"
 STAGE_CONVENTIONS="$4"
 VERIFICATION_GATE="$5"
+ITEM_TYPES_RAW="$6"
 
 fail() {
   echo "invalid: $1" >&2
@@ -56,6 +73,19 @@ for pair in "unit_of_work_location:$UNIT_OF_WORK_LOCATION" "definition_of_done:$
   [[ "$value" == *'{{'* ]] && fail "$key contains the reserved placeholder marker '{{'"
 done
 
+ITEM_TYPES=()
+IFS=',' read -ra RAW_TYPES <<< "$ITEM_TYPES_RAW"
+for t in "${RAW_TYPES[@]:-}"; do
+  t="${t#"${t%%[![:space:]]*}"}"
+  t="${t%"${t##*[![:space:]]}"}"
+  [[ -z "$t" ]] && continue
+  [[ "$t" =~ ^[A-Za-z0-9_.-]+$ ]] \
+    || fail "item type '$t' is not a plain name; ask the tracker for its own type names"
+  ITEM_TYPES+=("$t")
+done
+[[ ${#ITEM_TYPES[@]} -eq 0 ]] \
+  && fail "no item types given; a pack with no readiness_criteria would fail every item it was given"
+
 EXISTED=0
 [[ -f "$PACK_ROOT/pack.yaml" ]] && EXISTED=1
 
@@ -64,12 +94,35 @@ mkdir -p "$PACK_ROOT/skills/intake" "$PACK_ROOT/skills/implement" "$PACK_ROOT/sk
 cat <<'EOF' > "$PACK_ROOT/pack.yaml"
 kind: platform
 stages:
-  intake: intake
-  implement: implement
-  publish-gate: publish-gate
-  deliver: deliver
+  - id: intake
+    skill: intake
+  - id: implement
+    skill: implement
+  - id: publish-gate
+    skill: publish-gate
+  - id: deliver
+    skill: deliver
 always_autonomous: []
-artifacts: []
+readiness_criteria:
+EOF
+
+for t in "${ITEM_TYPES[@]}"; do
+  printf '  %s:\n    require: [has_description]\n' "$t" >> "$PACK_ROOT/pack.yaml"
+done
+
+printf 'artifacts: []\n' >> "$PACK_ROOT/pack.yaml"
+
+cat <<'EOF' > "$PACK_ROOT/route.dot"
+digraph route {
+    "intake"       [shape=box];
+    "implement"    [shape=box];
+    "publish-gate" [shape=box];
+    "deliver"      [shape=box];
+
+    "intake"       -> "implement";
+    "implement"    -> "publish-gate";
+    "publish-gate" -> "deliver";
+}
 EOF
 
 cat <<'EOF' > "$PACK_ROOT/skills/intake/SKILL.md"

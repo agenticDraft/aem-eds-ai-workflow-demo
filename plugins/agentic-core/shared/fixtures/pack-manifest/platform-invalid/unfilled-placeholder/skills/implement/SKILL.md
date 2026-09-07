@@ -1,7 +1,8 @@
 ---
-description: Fixture stub for pack manifest validator tests, not a real adapter. Deliberately left with an unfilled template placeholder to exercise the validator's placeholder check.
+description: Fixture stub for the implement stage, used by pack manifest validator tests. Not a real adapter.
+context: fork
 ---
 
 # implement
 
-Fixture stub. A change is done when {{DEFINITION_OF_DONE}}.
+Fixture stub. Existence is all the validator checks.

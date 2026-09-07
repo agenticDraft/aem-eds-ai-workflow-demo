@@ -1,0 +1,25 @@
+kind: platform
+stages:
+  - id: intake
+    skill: intake
+  - id: extract
+    skill: extract
+    when:
+      - { design_source: true }
+      - { design_mentioned: true }
+  - id: implement
+    skill: implement
+    fix_attempts: 3
+  - id: deliver
+    skill: deliver
+always_autonomous: [deliver]
+readiness_criteria:
+  task:
+    require: [has_description, has_acceptance_criteria]
+artifacts:
+  - id: fact-record
+    produced_by: intake
+    path: ".ai/run-context/fact-record.yaml"
+  - id: change-summary
+    produced_by: implement
+    path: ".ai/run-context/change-summary.md"

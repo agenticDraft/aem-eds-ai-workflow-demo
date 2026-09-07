@@ -1,9 +1,15 @@
 kind: platform
 stages:
-  intake: intake
-  implement: implement
-  deliver: deliver
+  - id: intake
+    skill: intake
+  - id: implement
+    skill: implement
+  - id: deliver
+    skill: deliver
 always_autonomous: [deliver]
+readiness_criteria:
+  task:
+    require: [has_description, has_acceptance_criteria]
 artifacts:
   - id: fact-record
     produced_by: intake

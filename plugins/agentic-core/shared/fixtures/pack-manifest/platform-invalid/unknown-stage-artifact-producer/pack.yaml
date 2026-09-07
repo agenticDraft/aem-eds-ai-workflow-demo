@@ -1,9 +1,16 @@
 kind: platform
 stages:
-  intake: intake
-  deliver: deliver
-always_autonomous: []
+  - id: intake
+    skill: intake
+  - id: implement
+    skill: implement
+  - id: deliver
+    skill: deliver
+always_autonomous: [deliver]
+readiness_criteria:
+  task:
+    require: [has_description]
 artifacts:
-  - id: fact-record
-    produced_by: plan-gate
-    path: ".ai/run-context/fact-record.yaml"
+  - id: prototype
+    produced_by: prototype
+    path: ".ai/run-context/prototype.html"

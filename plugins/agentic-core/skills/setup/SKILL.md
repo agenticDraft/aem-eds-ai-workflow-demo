@@ -78,12 +78,14 @@ Before anything touches disk, list the pack name and the four convention answers
 Run, in order:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/shared/lib/generate-pack.sh <pack-root> <unit_of_work_location> <definition_of_done> <stage_conventions> <verification_gate>
+${CLAUDE_PLUGIN_ROOT}/shared/lib/generate-pack.sh <pack-root> <unit_of_work_location> <definition_of_done> <stage_conventions> <verification_gate> <item-types>
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/write-convention-record.sh <conventions-path> <pack_name> <unit_of_work_location> <definition_of_done> <stage_conventions> <verification_gate>
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/validate-pack-manifest.sh <pack-root>/pack.yaml
 ```
 
 using `.ai/packs/<pack name>/` as `<pack-root>` and `.ai/project-conventions.yaml` as `<conventions-path>`. The manifest validator's `valid: platform` is required before you report success — if the generator, the writer, or the validator exits non-zero, do not retry with a guessed substitute; go back to step 6 for the field the error names. Report every script's output verbatim.
+
+`<item-types>` is a comma-separated list of the tracker's own work-item type names. The generated pack declares one readiness criterion per type, and a pack declaring none would refuse every item it was given. **Never guess this list**: ask the configured tracker pack for it through its `list_types` operation, and if that operation is unsupported or fails, say so and ask the human for the type names rather than inventing a plausible set. Each generated criterion is the weakest one that is still a criterion — the item has a description — and is a floor for the pack author to tighten, exactly like the stub adapters this step writes.
 
 ## 8. Report
 

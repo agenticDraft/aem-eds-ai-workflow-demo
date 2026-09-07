@@ -1,5 +1,6 @@
 ---
-description: Fetches the work item through the tracker role, sanitizes its text, and emits the fact record and sanitized spec — the reserved intake stage. Fixture stub for pack manifest validator tests, not a real adapter.
+description: Fixture stub for the intake stage, used by pack manifest validator tests. Not a real adapter.
+context: fork
 ---
 
 # intake

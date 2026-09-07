@@ -76,11 +76,10 @@ OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \
 assert_exit "pack not installed rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names not installed" "not installed" "$OUT"
 
-echo "[reject] a route uses a stage the platform pack does not declare"
-OUT=$(bash "$CHECK" "$FIXDIR/config-unknown-stage.yaml" \
-  "platform=$PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER" 2>&1); ST=$?
-assert_exit "unknown stage rejected (exit 1)" 1 $ST "$OUT"
-assert_contains "reason names the unresolved stage" "plan-gate" "$OUT"
+# The case that stood here — a project config naming a stage the platform pack
+# does not declare — is unrepresentable now that config describes no stages at
+# all, so it is removed rather than rewritten against an input that cannot be
+# constructed.
 
 echo "[reject] a configured pack declares a required operation unsupported"
 OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \

@@ -10,6 +10,12 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WRITER="$SCRIPT_DIR/write-run-state.sh"
 
+# The ninth argument is evaluate-stage-conditions.sh's output. This suite covers
+# the state file, so one skipped stage is enough to prove the record is carried
+# through unaltered; the evaluator has its own suite.
+COND="$(mktemp "${TMPDIR:-/tmp}/run-state-conditions.XXXXXX")"
+printf 'run: intake\nskipped: extract — design_source=true OR design_mentioned=true\nrun: deliver\n' > "$COND"
+
 PASS=0
 FAIL=0
 
@@ -40,13 +46,13 @@ assert_contains() {
 }
 
 TMPDIR_TEST="$(mktemp -d "${TMPDIR:-/tmp}/write-run-state-test.XXXXXX")"
-trap 'rm -rf "$TMPDIR_TEST"' EXIT
+trap 'rm -rf "$TMPDIR_TEST" "$COND"' EXIT
 
 echo "=== write-run-state.sh tests ==="
 
-echo "[create] fresh file gets all seven fields"
+echo "[create] fresh file gets every field"
 STATE="$TMPDIR_TEST/run-state.json"
-OUT=$(bash "$WRITER" "$STATE" standard "default: standard" implement 6 interactive 0 "2026-09-04T10:00:00Z" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$STATE" standard "default: standard" implement 6 interactive 0 "2026-09-04T10:00:00Z" "$COND" 2>&1); ST=$?
 assert_exit "fresh create succeeds (exit 0)" 0 $ST "$OUT"
 assert_contains "reports the path written" "$STATE" "$OUT"
 for pair in '"route_id": "standard"' '"rule": "default: standard"' '"last_stage": "implement"' \
@@ -55,9 +61,29 @@ for pair in '"route_id": "standard"' '"rule": "default: standard"' '"last_stage"
   assert_contains "file contains $pair" "$pair" "$(cat "$STATE")"
 done
 
+echo "[skipped] the conditions file's skipped stages are recorded with their condition"
+assert_contains "names the skipped stage" '"stage": "extract"' "$(cat "$STATE")"
+assert_contains "records the condition verbatim" \
+  '"condition": "design_source=true OR design_mentioned=true"' "$(cat "$STATE")"
+if grep -q '"stage": "intake"' "$STATE"; then
+  FAIL=$((FAIL + 1)); echo "  FAIL: a stage that ran must not appear in skipped"
+else
+  PASS=$((PASS + 1)); echo "  ok: a stage that ran does not appear in skipped"
+fi
+
+echo "[skipped] a run with nothing skipped writes an empty array, not an absent key"
+NOSKIP="$TMPDIR_TEST/noskip-conditions.txt"
+printf 'run: intake\nrun: deliver\n' > "$NOSKIP"
+bash "$WRITER" "$TMPDIR_TEST/noskip.json" standard "default: standard" deliver 2 interactive 0 "2026-09-04T10:00:00Z" "$NOSKIP" >/dev/null
+assert_contains "empty array is present" '"skipped": []' "$(cat "$TMPDIR_TEST/noskip.json")"
+
+echo "[usage] the conditions file does not exist"
+OUT=$(bash "$WRITER" "$TMPDIR_TEST/x.json" standard "default: standard" implement 6 interactive 0 "2026-09-04T10:00:00Z" "$TMPDIR_TEST/absent.txt" 2>&1); ST=$?
+assert_exit "missing conditions file -> usage error (exit 2)" 2 $ST "$OUT"
+
 echo "[create] parent directory does not exist yet — script creates it"
 NESTED="$TMPDIR_TEST/nested/dir/run-state.json"
-OUT=$(bash "$WRITER" "$NESTED" standard "default: standard" intake 6 interactive 0 "2026-09-04T10:00:00Z" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$NESTED" standard "default: standard" intake 6 interactive 0 "2026-09-04T10:00:00Z" "$COND" 2>&1); ST=$?
 assert_exit "create under a missing parent directory succeeds (exit 0)" 0 $ST "$OUT"
 [[ -f "$NESTED" ]] && { PASS=$((PASS + 1)); echo "  ok: file exists under the newly created parent directory"; } \
   || { FAIL=$((FAIL + 1)); echo "  FAIL: file was not created"; }
@@ -65,7 +91,7 @@ assert_exit "create under a missing parent directory succeeds (exit 0)" 0 $ST "$
 echo "[refresh] rewriting an existing file updates its mtime"
 OLD_TS=$(( $(date +%s) - 10000 ))
 touch -t "$(date -r "$OLD_TS" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$OLD_TS" +%Y%m%d%H%M.%S)" "$STATE"
-OUT=$(bash "$WRITER" "$STATE" standard "default: standard" deliver 6 interactive 1 "2026-09-04T10:00:00Z" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$STATE" standard "default: standard" deliver 6 interactive 1 "2026-09-04T10:00:00Z" "$COND" 2>&1); ST=$?
 assert_exit "rewrite succeeds (exit 0)" 0 $ST "$OUT"
 NEW_MTIME=$(date -r "$STATE" +%s 2>/dev/null)
 NOW=$(date +%s)
@@ -77,22 +103,22 @@ else
 fi
 
 echo "[reject] total is not an integer"
-OUT=$(bash "$WRITER" "$TMPDIR_TEST/bad-total.json" standard "default: standard" implement six interactive 0 "2026-09-04T10:00:00Z" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$TMPDIR_TEST/bad-total.json" standard "default: standard" implement six interactive 0 "2026-09-04T10:00:00Z" "$COND" 2>&1); ST=$?
 assert_exit "non-integer total rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names total" "total" "$OUT"
 
 echo "[reject] questions_used is not an integer"
-OUT=$(bash "$WRITER" "$TMPDIR_TEST/bad-questions.json" standard "default: standard" implement 6 interactive zero "2026-09-04T10:00:00Z" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$TMPDIR_TEST/bad-questions.json" standard "default: standard" implement 6 interactive zero "2026-09-04T10:00:00Z" "$COND" 2>&1); ST=$?
 assert_exit "non-integer questions_used rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names questions_used" "questions_used" "$OUT"
 
 echo "[reject] mode outside interactive|autonomous"
-OUT=$(bash "$WRITER" "$TMPDIR_TEST/bad-mode.json" standard "default: standard" implement 6 curious 0 "2026-09-04T10:00:00Z" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$TMPDIR_TEST/bad-mode.json" standard "default: standard" implement 6 curious 0 "2026-09-04T10:00:00Z" "$COND" 2>&1); ST=$?
 assert_exit "unknown mode rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names mode" "mode" "$OUT"
 
 echo "[reject] a string field containing a double quote"
-OUT=$(bash "$WRITER" "$TMPDIR_TEST/bad-quote.json" 'standard"' "default: standard" implement 6 interactive 0 "2026-09-04T10:00:00Z" 2>&1); ST=$?
+OUT=$(bash "$WRITER" "$TMPDIR_TEST/bad-quote.json" 'standard"' "default: standard" implement 6 interactive 0 "2026-09-04T10:00:00Z" "$COND" 2>&1); ST=$?
 assert_exit "quote-containing value rejected (exit 1)" 1 $ST "$OUT"
 
 echo "[usage] wrong argument count"

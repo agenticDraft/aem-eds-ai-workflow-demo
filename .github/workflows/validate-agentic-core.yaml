@@ -45,8 +45,12 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/check-orchestration-flag.test.sh
       - name: Finalize orchestration flag
         run: bash plugins/agentic-core/shared/lib/finalize-orchestration-flag.test.sh
-      - name: Evaluate skip conditions
-        run: bash plugins/agentic-core/shared/lib/evaluate-skip-conditions.test.sh
+      - name: Evaluate stage conditions
+        run: bash plugins/agentic-core/shared/lib/evaluate-stage-conditions.test.sh
+      - name: Write run state
+        run: bash plugins/agentic-core/shared/lib/write-run-state.test.sh
+      - name: Generate pack
+        run: bash plugins/agentic-core/shared/lib/generate-pack.test.sh
       - name: Validate contracts (skill-authoring)
         run: bash plugins/agentic-core/shared/lib/validate-contracts.test.sh
       - name: Validate plugin manifest

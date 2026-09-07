@@ -1,0 +1,10 @@
+digraph route {
+    "intake"    [shape=box];
+    "extract"   [shape=box, style=dashed];
+    "implement" [shape=box];
+    "deliver"   [shape=box];
+
+    "intake"    -> "extract"   [label="design_source=true OR design_mentioned=true"];
+    "extract"   -> "implement";
+    "implement" -> "deliver";
+}
