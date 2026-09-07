@@ -35,6 +35,7 @@ docs/
 .ai/playwright/
 .ai/tracker/
 .ai/scm/
+.ai/figma/
 .analytics/
 
 # Reserved — no folder exists yet; nothing writes here until a task needs it (D47).

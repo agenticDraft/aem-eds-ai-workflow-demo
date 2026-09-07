@@ -84,6 +84,13 @@ the `gh` CLI's own local credential store instead — run `gh auth login` once o
 confirm it with `gh auth status`. This is a per-machine login, not a token this project's
 automation ever reads, creates or holds.
 
+**The `design` pack (`plugins/figma/`) also needs no `.ai/credentials` entry.** It calls the
+Figma MCP server through the official `figma` Claude Code plugin instead. Install it once
+(`claude plugin install figma@claude-plugins-official` or via `/plugin`) and complete its OAuth
+flow in a Claude Code session — the plugin's own `authenticate` tool opens a browser link for you
+to approve. This means the operation only runs inside a session where that plugin is installed
+and already authenticated, unlike the `tracker`/`scm` packs, which run unattended.
+
 ## Claude Code setup
 
 This project's agent instructions (`AGENTS.md`, `CLAUDE.md`) delegate all Edge Delivery *platform*
