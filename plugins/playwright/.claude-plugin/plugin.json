@@ -1,0 +1,10 @@
+{
+  "name": "playwright",
+  "displayName": "Playwright Browser Provider",
+  "description": "Provider pack for the browser role: render, capture, measure against a real headless Chromium browser via the playwright npm library, run standalone with no MCP tool call.",
+  "version": "0.1.0",
+  "author": {
+    "name": "agenticDraft"
+  },
+  "dependencies": ["agentic-core"]
+}
