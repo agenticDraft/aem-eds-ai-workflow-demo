@@ -25,8 +25,6 @@ has_description: true | false
 has_acceptance_criteria: true | false
 has_reproduction_url: true | false
 has_reproduction_steps: true | false
-
-explicit_route: <route id> | null
 ```
 
 ## Field rules
@@ -42,8 +40,6 @@ explicit_route: <route id> | null
 - `has_description`, `has_acceptance_criteria`, `has_reproduction_url`, `has_reproduction_steps` —
   whether the item carries each. `true` or `false`. Consumed by the `readiness` gate's declared
   criteria.
-- `explicit_route` — retained for one more task; nothing resolves a route any more. Do not add a
-  condition or a criterion that names it.
 
 **`design_source` and `design_mentioned` are two different questions**, and the pair is what makes
 four cases separable. Present-and-wanted and neither-nor are the easy ones. **Wanted but absent** —
@@ -92,8 +88,6 @@ has_description: true
 has_acceptance_criteria: true
 has_reproduction_url: false
 has_reproduction_steps: false
-
-explicit_route: null
 ```
 
 ## Anti-patterns

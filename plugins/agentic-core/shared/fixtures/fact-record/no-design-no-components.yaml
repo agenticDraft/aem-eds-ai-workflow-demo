@@ -11,5 +11,3 @@ has_description: true
 has_acceptance_criteria: true
 has_reproduction_url: false
 has_reproduction_steps: false
-
-explicit_route: null

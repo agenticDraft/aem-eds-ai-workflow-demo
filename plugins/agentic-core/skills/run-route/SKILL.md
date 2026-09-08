@@ -54,7 +54,7 @@ input.**
 
 ## How a stage adapter is invoked
 
-Every stage id in the resolved route names a skill in the platform pack's `stages:` map
+Every stage id in the platform pack's `stages:` list names a skill
 (`shared/pack-manifest.md`), at `<platform pack root>/skills/<skill name>/SKILL.md`. That file
 declares `context: fork` in its own frontmatter — checked mechanically by
 `validate-pack-manifest.sh` (core contract §13 rule 11) — meaning it is *written* as a skill meant
@@ -279,7 +279,7 @@ stages** above. Then go to **Record intake stage**.
 
 1. `${CLAUDE_PLUGIN_ROOT}/shared/lib/print-progress-line.sh .ai/route-progress.txt intake <verdict> <summary>`
    — read `<total>` from its own output line; do not recompute it separately.
-2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-run-state.sh .ai/run-state.json <pack name> stage-list intake <total> <mode> 0 <now> .ai/run-context/stage-conditions.txt`,
+2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-run-state.sh .ai/run-state.json intake <total> <mode> 0 <now> .ai/run-context/stage-conditions.txt`,
    where `<now>` is the output of `date -u +%Y-%m-%dT%H:%M:%SZ` — call it once, right here, and use
    the same value in every later `write-run-state.sh` call this run (`start_time` is set once and
    never rewritten, per `shared/run-state.md`). Do not stash it in a file of your own; it is one
@@ -374,7 +374,7 @@ Invoke it (see "How a stage adapter is invoked" above). Capture its envelope to
 
 - `print-progress-line.sh .ai/route-progress.txt <stage> <verdict> <summary>` — read the new
   `<total>` from its output.
-- `write-run-state.sh .ai/run-state.json <pack name> stage-list <stage> <total> <mode> <questions_used> <start_time> .ai/run-context/stage-conditions.txt`
+- `write-run-state.sh .ai/run-state.json <stage> <total> <mode> <questions_used> <start_time> .ai/run-context/stage-conditions.txt`
 - `write-progress-row.sh .ai/progress.md <stage> done`
 - `write-orchestration-flag.sh .ai/run-context/orchestrating.flag` (refresh)
 

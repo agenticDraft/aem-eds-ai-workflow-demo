@@ -96,7 +96,7 @@ paths:
   preview: "http://localhost:3000/preview"'
 assert_file_equals "packs: block inserted right after version, rest untouched" "$EXPECTED_INSERTED" "$CFG"
 
-echo "[cross-check] tracker/scm inserted next to platform/design/browser (added by hand) plus routes/limits passes validate-project-config.sh"
+echo "[cross-check] tracker/scm inserted next to platform/design/browser (added by hand) plus limits passes validate-project-config.sh"
 COMBINED="$TMPDIR_TEST/combined.yaml"
 {
   sed -n '/^version:/,/^packs:$/p' "$CFG" | sed '$d'
@@ -107,11 +107,6 @@ COMBINED="$TMPDIR_TEST/combined.yaml"
   echo "  browser: example-browser"
   echo
   sed -n '/^commands:$/,$p' "$CFG"
-  echo
-  echo "routes:"
-  echo "  - id: standard"
-  echo "    stages: [intake, deliver]"
-  echo "  default: standard"
   echo
   echo "limits:"
   echo "  questions_per_run: 3"
