@@ -1,0 +1,10 @@
+{
+  "name": "eds",
+  "displayName": "Edge Delivery Platform Pack",
+  "description": "Platform pack for an Edge Delivery project: binds every stage of the default route to this platform's own conventions, calling the tracker, scm, design and browser provider packs where each stage needs them.",
+  "version": "0.1.0",
+  "author": {
+    "name": "agenticDraft"
+  },
+  "dependencies": ["agentic-core"]
+}

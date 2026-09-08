@@ -1,0 +1,52 @@
+kind: platform
+stages:
+  - id: intake
+    skill: eds-intake
+  - id: readiness
+    skill: eds-readiness
+  - id: extract
+    skill: eds-extract
+    when:
+      - { design_source: true }
+      - { design_mentioned: true }
+  - id: conventions
+    skill: eds-conventions
+  - id: serve
+    skill: eds-serve
+  - id: baseline
+    skill: eds-baseline
+    when:
+      - { components: present }
+  - id: prototype
+    skill: eds-prototype
+    when:
+      - { design_source: true }
+      - { design_mentioned: true }
+  - id: verify-design
+    skill: eds-verify-design
+    when:
+      - { design_source: true }
+      - { design_mentioned: true }
+    fix_attempts: 2
+  - id: plan
+    skill: eds-plan
+  - id: plan-gate
+    skill: eds-plan-gate
+  - id: implement
+    skill: eds-implement
+  - id: verify
+    skill: eds-verify
+  - id: lint
+    skill: eds-lint
+    fix_attempts: 3
+  - id: publish-gate
+    skill: eds-publish-gate
+  - id: deliver
+    skill: eds-deliver
+always_autonomous: []
+readiness_criteria:
+  story:
+    require: [has_description, has_acceptance_criteria]
+  bug:
+    require: [has_description, has_reproduction_url, has_reproduction_steps]
+artifacts: []

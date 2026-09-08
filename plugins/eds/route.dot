@@ -1,0 +1,32 @@
+digraph route {
+    "intake"        [shape=box];
+    "readiness"     [shape=box];
+    "extract"       [shape=box, style=dashed];
+    "conventions"   [shape=box];
+    "serve"         [shape=box];
+    "baseline"      [shape=box, style=dashed];
+    "prototype"     [shape=box, style=dashed];
+    "verify-design" [shape=box, style=dashed];
+    "plan"          [shape=box];
+    "plan-gate"     [shape=box];
+    "implement"     [shape=box];
+    "verify"        [shape=box];
+    "lint"          [shape=box];
+    "publish-gate"  [shape=box];
+    "deliver"       [shape=box];
+
+    "intake"        -> "readiness";
+    "readiness"     -> "extract"       [label="design_source=true OR design_mentioned=true"];
+    "extract"       -> "conventions";
+    "conventions"   -> "serve";
+    "serve"         -> "baseline"      [label="components=present"];
+    "baseline"      -> "prototype"     [label="design_source=true OR design_mentioned=true"];
+    "prototype"     -> "verify-design" [label="design_source=true OR design_mentioned=true"];
+    "verify-design" -> "plan";
+    "plan"          -> "plan-gate";
+    "plan-gate"     -> "implement";
+    "implement"     -> "verify";
+    "verify"        -> "lint";
+    "lint"          -> "publish-gate";
+    "publish-gate"  -> "deliver";
+}
