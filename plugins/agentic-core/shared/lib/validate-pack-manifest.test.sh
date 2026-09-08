@@ -249,6 +249,36 @@ OUT=$(bash "$VALIDATOR" "$TMP/pack.yaml" 2>&1); ST=$?
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason says it carries no condition" "carries no 'when:'" "$OUT"
 
+echo "[reject] a stray duplicate edge into the same stage"
+cp -R "$FIXDIR/platform-valid/." "$TMP/"
+{
+  cat "$FIXDIR/platform-valid/route.dot" | grep -v '^}$'
+  printf '    "intake" -> "deliver";\n}\n'
+} > "$TMP/route.dot"
+OUT=$(bash "$VALIDATOR" "$TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the doubly-targeted stage" "more than one edge points into 'deliver'" "$OUT"
+
+echo "[accept] route.dot whose final line (a conditional edge's label) has no trailing newline"
+cp -R "$FIXDIR/platform-valid-conditions/." "$TMP/"
+# Reorders the edges so the labeled edge into the conditional stage 'extract'
+# is the last line of the file, with the trailing newline stripped — an
+# editor that does not add one, or a hand-authored file, produces exactly
+# this shape.
+REORDERED='digraph route {
+    "intake"    [shape=box];
+    "extract"   [shape=box, style=dashed];
+    "implement" [shape=box];
+    "deliver"   [shape=box];
+
+    "extract"   -> "implement";
+    "implement" -> "deliver";
+    "intake"    -> "extract"   [label="design_source=true OR design_mentioned=true"];'
+printf '%s' "$REORDERED" > "$TMP/route.dot"
+OUT=$(bash "$VALIDATOR" "$TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "still valid (exit 0)" 0 $ST "$OUT"
+assert_contains "no line dropped from EOF" "valid: platform" "$OUT"
+
 # --- drift guards -----------------------------------------------------------
 # The validator hardcodes the fact-record field list the way it hardcodes each
 # role's operations. These two cases are what stop that copy silently drifting

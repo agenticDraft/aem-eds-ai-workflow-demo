@@ -11,12 +11,12 @@
 #      role=path argument naming a pack.yaml that validates as the right
 #      kind for that role.
 #   2. every declared role operation is available: every stage id named in
-#      the platform pack's own manifest is valid (the
-#      route a work item will actually take is not known this early — this
-#      runs before intake, which is what resolves it — so every route in
-#      config is checked, not only the one that eventually fires), and every
-#      operation core contract §6 declares for a configured provider role is
-#      implemented rather than declared unsupported.
+#      any configured route resolves in the platform pack's own stage list
+#      (the route a work item will actually take is not known this early —
+#      this runs before intake, which is what would resolve one — so every
+#      route in config is checked, not only the one that eventually fires),
+#      and every operation core contract §6 declares for a configured
+#      provider role is implemented rather than declared unsupported.
 #
 # Usage:
 #   check-preflight.sh <project-config path> <role>=<path-to-pack.yaml> [...]
@@ -146,13 +146,60 @@ for role in "${PROVIDER_ROLES[@]}"; do
     || fail "pack installed for role '$role' declares role '$manifest_role' instead: $path"
 done
 
-# A check that once lived here — cross-checking the stage ids a project config
-# named against the platform manifest's own — has no successor and is gone
-# rather than reimplemented. Config no longer describes stages at all: the
-# platform pack owns one stage list, and each stage's condition filters it. A
-# name that does not resolve is now impossible by construction rather than
-# caught here, and everything about that list's own shape is already checked by
-# validate-pack-manifest.sh above.
+# --- check 2a: every route's stages resolve in the platform manifest --------
+# `routes:` still lives in project config until Task 27 removes it (D42 moved
+# the *canonical* stage list into the pack; the route table itself is a
+# separate, later removal). Until then a route can still name a stage id the
+# platform pack does not declare, and nothing else catches that — the pack's
+# own list is checked for shape by validate-pack-manifest.sh above, but never
+# cross-referenced against what a route in config actually asks for.
+extract_platform_stage_ids() {
+  awk '
+    /^stages:$/ { grabbing=1; next }
+    grabbing && /^[A-Za-z_]/ { exit }
+    grabbing && /^  - id: / {
+      line=$0
+      sub(/^  - id: /, "", line)
+      print line
+    }
+  ' "$1"
+}
+
+PLATFORM_STAGES=()
+while IFS= read -r stage_id; do
+  [[ -n "$stage_id" ]] && PLATFORM_STAGES+=("$stage_id")
+done < <(extract_platform_stage_ids "$PLATFORM_PATH")
+
+stage_known() {
+  local id="$1"
+  for existing in "${PLATFORM_STAGES[@]}"; do
+    [[ "$existing" == "$id" ]] && return 0
+  done
+  return 1
+}
+
+extract_route_stage_refs() {
+  awk '
+    /^  - id: / { route=$0; sub(/^  - id: /, "", route); next }
+    /^    stages: \[/ {
+      line=$0
+      sub(/^    stages: \[/, "", line)
+      sub(/\]$/, "", line)
+      n = split(line, ids, ",")
+      for (i = 1; i <= n; i++) {
+        s = ids[i]
+        gsub(/^[ \t]+|[ \t]+$/, "", s)
+        if (s != "") print route " " s
+      }
+    }
+  ' "$1"
+}
+
+while IFS=' ' read -r route_id stage_id; do
+  [[ -z "$stage_id" ]] && continue
+  stage_known "$stage_id" \
+    || fail "route '$route_id' uses stage '$stage_id' with no entry in the platform pack's stage list"
+done < <(extract_route_stage_refs "$CONFIG")
 
 # --- check 2b: every configured role's operations are all implemented ------
 for role in "${PROVIDER_ROLES[@]}"; do

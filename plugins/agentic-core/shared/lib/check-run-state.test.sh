@@ -78,8 +78,21 @@ assert_contains "reports rule" "rule: default: standard" "$OUT"
 assert_contains "reports mode" "mode: interactive" "$OUT"
 assert_contains "reports questions_used" "questions_used: 1" "$OUT"
 assert_contains "reports start_time" "start_time: 2026-09-04T10:00:00Z" "$OUT"
+assert_contains "reports skipped (empty)" "skipped: []" "$OUT"
 [[ -f "$FRESH" ]] && { PASS=$((PASS + 1)); echo "  ok: a resumable file is not deleted"; } \
   || { FAIL=$((FAIL + 1)); echo "  FAIL: a resumable file must survive the check"; }
+
+echo "[resume] a state file with skipped stages recorded"
+SKIP_COND="$(mktemp "${TMPDIR:-/tmp}/run-state-conditions.XXXXXX")"
+printf 'run: intake\nskipped: extract — design_source=true OR design_mentioned=true\nrun: deliver\n' > "$SKIP_COND"
+SKIPPED_STATE="$TMPDIR_TEST/skipped.json"
+bash "$WRITER" "$SKIPPED_STATE" standard "default: standard" implement 6 interactive 1 "2026-09-04T10:00:00Z" "$SKIP_COND" >/dev/null
+backdate "$SKIPPED_STATE" 3600
+OUT=$(bash "$CHECKER" "$SKIPPED_STATE" 2>&1); ST=$?
+assert_exit "exits 0" 0 $ST "$OUT"
+assert_contains "reports the skipped stage and its condition" \
+  'skipped: [ { "stage": "extract", "condition": "design_source=true OR design_mentioned=true" } ]' "$OUT"
+rm -f "$SKIP_COND"
 
 echo "[resume] just under the 2-hour boundary (7199s)"
 BOUNDARY="$TMPDIR_TEST/boundary-fresh.json"

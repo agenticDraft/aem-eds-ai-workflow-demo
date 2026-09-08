@@ -343,7 +343,7 @@ if [[ "$kind" == "platform" ]]; then
   # digraph.
   DOT_NODES=()
   DOT_DASHED=()
-  while IFS= read -r line; do
+  while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" =~ ^[[:space:]]*\"([^\"]+)\"[[:space:]]*\[([^]]*)\] ]] || continue
     node="${BASH_REMATCH[1]}"
     attrs="${BASH_REMATCH[2]}"
@@ -363,7 +363,7 @@ if [[ "$kind" == "platform" ]]; then
   # Edge labels, keyed by the edge's target node.
   EDGE_TARGETS=()
   EDGE_LABELS=()
-  while IFS= read -r line; do
+  while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" =~ \"([^\"]+)\"[[:space:]]*-\>[[:space:]]*\"([^\"]+)\" ]] || continue
     target="${BASH_REMATCH[2]}"
     label=""
@@ -371,6 +371,21 @@ if [[ "$kind" == "platform" ]]; then
     EDGE_TARGETS+=("$target")
     EDGE_LABELS+=("$label")
   done < "$DOT"
+
+  # Exactly one edge may point into any stage node — "no bypass edges"
+  # (shared/pack-manifest.md) means each stage after the first has one path
+  # in. A second edge into the same target is a copy/paste leftover or a
+  # second, contradictory rendering of the same condition; checked before
+  # label_into so a stray duplicate is caught even when the first-seen edge's
+  # label happens to match.
+  for target in "${EDGE_TARGETS[@]:-}"; do
+    [[ -z "$target" ]] && continue
+    count=0
+    for t in "${EDGE_TARGETS[@]}"; do
+      [[ "$t" == "$target" ]] && count=$((count + 1))
+    done
+    (( count > 1 )) && fail "route.dot: more than one edge points into '$target'"
+  done
 
   label_into() {
     local want="$1" i

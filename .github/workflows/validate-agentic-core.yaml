@@ -49,6 +49,12 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/evaluate-stage-conditions.test.sh
       - name: Write run state
         run: bash plugins/agentic-core/shared/lib/write-run-state.test.sh
+      - name: Check run state
+        run: bash plugins/agentic-core/shared/lib/check-run-state.test.sh
+      - name: Check preflight
+        run: bash plugins/agentic-core/shared/lib/check-preflight.test.sh
+      - name: Run stage
+        run: bash plugins/agentic-core/shared/lib/run-stage.test.sh
       - name: Generate pack
         run: bash plugins/agentic-core/shared/lib/generate-pack.test.sh
       - name: Validate contracts (skill-authoring)

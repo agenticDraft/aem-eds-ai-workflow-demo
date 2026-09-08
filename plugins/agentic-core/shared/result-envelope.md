@@ -70,10 +70,10 @@ next_action: none
 ```markdown
 ## Result
 verdict: warn
-summary: Route resolved to the default row; no signal table entry matched the fact record.
+summary: Implemented the change; one pre-existing style warning remains, unrelated to this change.
 artifacts:
-  - .ai/run-context/route.yaml
-next_action: continue to the first resolved stage
+  - .ai/run-context/change-summary.md
+next_action: none
 ```
 
 ## Example — fail
