@@ -12,6 +12,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECKER="$SCRIPT_DIR/check-run-state.sh"
 WRITER="$SCRIPT_DIR/write-run-state.sh"
 
+# The ninth argument is evaluate-stage-conditions.sh's output; this suite only
+# needs a well-formed one, since what it exercises is the staleness window.
+COND="$(mktemp "${TMPDIR:-/tmp}/run-state-conditions.XXXXXX")"
+printf 'run: intake\nrun: deliver\n' > "$COND"
+
 PASS=0
 FAIL=0
 
@@ -42,7 +47,7 @@ assert_contains() {
 }
 
 TMPDIR_TEST="$(mktemp -d "${TMPDIR:-/tmp}/check-run-state-test.XXXXXX")"
-trap 'rm -rf "$TMPDIR_TEST"' EXIT
+trap 'rm -rf "$TMPDIR_TEST" "$COND"' EXIT
 
 backdate() {
   local file="$1" seconds_ago="$2"
@@ -61,7 +66,7 @@ assert_contains "reports status: none" "status: none" "$OUT"
 
 echo "[resume] a state file well within the 2-hour window"
 FRESH="$TMPDIR_TEST/fresh.json"
-bash "$WRITER" "$FRESH" standard "default: standard" implement 6 interactive 1 "2026-09-04T10:00:00Z" >/dev/null
+bash "$WRITER" "$FRESH" standard "default: standard" implement 6 interactive 1 "2026-09-04T10:00:00Z" "$COND" >/dev/null
 backdate "$FRESH" 3600   # 1 hour old
 OUT=$(bash "$CHECKER" "$FRESH" 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"
@@ -73,12 +78,25 @@ assert_contains "reports rule" "rule: default: standard" "$OUT"
 assert_contains "reports mode" "mode: interactive" "$OUT"
 assert_contains "reports questions_used" "questions_used: 1" "$OUT"
 assert_contains "reports start_time" "start_time: 2026-09-04T10:00:00Z" "$OUT"
+assert_contains "reports skipped (empty)" "skipped: []" "$OUT"
 [[ -f "$FRESH" ]] && { PASS=$((PASS + 1)); echo "  ok: a resumable file is not deleted"; } \
   || { FAIL=$((FAIL + 1)); echo "  FAIL: a resumable file must survive the check"; }
 
+echo "[resume] a state file with skipped stages recorded"
+SKIP_COND="$(mktemp "${TMPDIR:-/tmp}/run-state-conditions.XXXXXX")"
+printf 'run: intake\nskipped: extract — design_source=true OR design_mentioned=true\nrun: deliver\n' > "$SKIP_COND"
+SKIPPED_STATE="$TMPDIR_TEST/skipped.json"
+bash "$WRITER" "$SKIPPED_STATE" standard "default: standard" implement 6 interactive 1 "2026-09-04T10:00:00Z" "$SKIP_COND" >/dev/null
+backdate "$SKIPPED_STATE" 3600
+OUT=$(bash "$CHECKER" "$SKIPPED_STATE" 2>&1); ST=$?
+assert_exit "exits 0" 0 $ST "$OUT"
+assert_contains "reports the skipped stage and its condition" \
+  'skipped: [ { "stage": "extract", "condition": "design_source=true OR design_mentioned=true" } ]' "$OUT"
+rm -f "$SKIP_COND"
+
 echo "[resume] just under the 2-hour boundary (7199s)"
 BOUNDARY="$TMPDIR_TEST/boundary-fresh.json"
-bash "$WRITER" "$BOUNDARY" standard "default: standard" implement 6 interactive 0 "2026-09-04T10:00:00Z" >/dev/null
+bash "$WRITER" "$BOUNDARY" standard "default: standard" implement 6 interactive 0 "2026-09-04T10:00:00Z" "$COND" >/dev/null
 backdate "$BOUNDARY" 7199
 OUT=$(bash "$CHECKER" "$BOUNDARY" 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"
@@ -86,7 +104,7 @@ assert_contains "7199s old still resumes" "status: resume" "$OUT"
 
 echo "[stale] a state file at or past the 2-hour window is deleted"
 STALE="$TMPDIR_TEST/stale.json"
-bash "$WRITER" "$STALE" standard "default: standard" plan 6 interactive 0 "2026-09-04T06:00:00Z" >/dev/null
+bash "$WRITER" "$STALE" standard "default: standard" plan 6 interactive 0 "2026-09-04T06:00:00Z" "$COND" >/dev/null
 backdate "$STALE" 7200   # exactly 2 hours old
 OUT=$(bash "$CHECKER" "$STALE" 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"
@@ -96,7 +114,7 @@ assert_contains "reports status: stale-deleted" "status: stale-deleted" "$OUT"
 
 echo "[stale] well past the window (3 hours)"
 OLDER="$TMPDIR_TEST/older.json"
-bash "$WRITER" "$OLDER" standard "default: standard" plan 6 interactive 0 "2026-09-04T06:00:00Z" >/dev/null
+bash "$WRITER" "$OLDER" standard "default: standard" plan 6 interactive 0 "2026-09-04T06:00:00Z" "$COND" >/dev/null
 backdate "$OLDER" 10800
 OUT=$(bash "$CHECKER" "$OLDER" 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"

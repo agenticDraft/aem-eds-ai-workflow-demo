@@ -1,0 +1,8 @@
+digraph route {
+    "intake"  [shape=box];
+    "deploy"  [shape=box];
+    "deliver" [shape=box];
+
+    "intake" -> "deploy";
+    "deploy" -> "deliver";
+}

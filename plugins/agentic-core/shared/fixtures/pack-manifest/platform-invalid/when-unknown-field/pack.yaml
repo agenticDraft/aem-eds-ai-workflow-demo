@@ -1,0 +1,15 @@
+kind: platform
+stages:
+  - id: intake
+    skill: intake
+  - id: extract
+    skill: extract
+    when:
+      - { design_requested: true }
+  - id: deliver
+    skill: deliver
+always_autonomous: [deliver]
+readiness_criteria:
+  task:
+    require: [has_description, has_acceptance_criteria]
+artifacts: []

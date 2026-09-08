@@ -1,16 +1,11 @@
-# Stage: route resolution
+# Stage: implement
 
-Evaluated the fact record against the configured route table, top to bottom. Every `when` block
-was checked; none of them matched on every key present, so no row fired.
-
-Fell through to `routes.default`, which the config schema requires every route table to declare.
-This is not an error — a route table with no matching row is exactly what `default` is for — but
-it is worth surfacing, since a route table that never matches any real row is a sign the table
-itself may be out of date.
+Applied the change the plan called for and ran the project's own checks against it. Everything
+required passed; one non-blocking finding is worth carrying forward rather than silently dropping.
 
 ## Result
 verdict: warn
-summary: Route resolved to the default row; no signal table entry matched the fact record.
+summary: Implemented the change; one pre-existing style warning remains, unrelated to this change.
 artifacts:
-  - .ai/run-context/route.yaml
-next_action: continue to the first resolved stage
+  - .ai/run-context/change-summary.md
+next_action: none

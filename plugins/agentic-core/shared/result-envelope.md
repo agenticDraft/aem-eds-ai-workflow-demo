@@ -45,8 +45,8 @@ metrics: <key=value pairs>             # optional, any verdict
   without having read them. Present on every verdict, even as an empty list.
 - `next_action` — a short phrase, or the literal string `"none"`. Never an instruction to the
   runner — a name, not a directive. In particular, a stage cannot steer the route from here: a
-  skipped stage is declared by the pack and evaluated from disk (`pack-manifest.md`'s
-  `skip_when_missing`), never announced by a stage that ran.
+  skipped stage is declared by the pack as that stage's `when:` condition and evaluated against the
+  fact record (`pack-manifest.md`), never announced by a stage that ran.
 - `question` — the question text. Required when `verdict: question`, absent otherwise.
 - `options` — short option labels for the human or the `tracker` role to choose from. Optional,
   `verdict: question` only.
@@ -70,10 +70,10 @@ next_action: none
 ```markdown
 ## Result
 verdict: warn
-summary: Route resolved to the default row; no signal table entry matched the fact record.
+summary: Implemented the change; one pre-existing style warning remains, unrelated to this change.
 artifacts:
-  - .ai/run-context/route.yaml
-next_action: continue to the first resolved stage
+  - .ai/run-context/change-summary.md
+next_action: none
 ```
 
 ## Example — fail
@@ -81,7 +81,7 @@ next_action: continue to the first resolved stage
 ```markdown
 ## Result
 verdict: fail
-summary: The work item's declared route id does not exist in the configured route table.
+summary: The item's type has no declared readiness criteria, so this pack cannot judge whether it can be worked.
 artifacts: []
 next_action: none
 ```
@@ -91,14 +91,14 @@ next_action: none
 ```markdown
 ## Result
 verdict: question
-summary: Two config values are required before the route can be resolved and neither is set.
+summary: The item's only design reference is an attached image, which could be the intended state or the defect.
 artifacts: []
 next_action: none
-question: Which pack should own the tracker role for this project?
+question: Which attachment is the design reference for this change?
 options:
-  - Use the pack already declared for scm
-  - List available tracker packs
-blocker: packs.tracker is unset in project config
+  - The first attachment
+  - The second attachment
+blocker: An image-only design source cannot be identified as reference or evidence without a human
 ```
 
 ## Anti-patterns

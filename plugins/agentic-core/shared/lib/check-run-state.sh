@@ -10,9 +10,9 @@
 #   check-run-state.sh <state-file>
 #
 # Exit codes:
-#   0 — "status: none" (no file), "status: resume" followed by the seven
-#       fields (mtime under 2 hours), or "status: stale-deleted" after
-#       removing the file (mtime 2 hours or older)
+#   0 — "status: none" (no file), "status: resume" followed by the eight
+#       fields, `skipped` last (mtime under 2 hours), or "status: stale-deleted"
+#       after removing the file (mtime 2 hours or older)
 #   1 — contract violation: file exists but is not a state file this script
 #       recognizes; "invalid: <reason>" on stderr
 #   2 — usage error (missing argument)
@@ -70,7 +70,25 @@ MODE="$(field mode)" || true
 QUESTIONS_USED="$(field questions_used)" || true
 START_TIME="$(field start_time)" || true
 
-for pair in "route_id:$ROUTE_ID" "last_stage:$LAST_STAGE" "total:$TOTAL"; do
+# "skipped" is a JSON array, not a single-line "key": value pair, so it needs
+# its own extraction: collect every line from the "skipped": [ marker up to
+# and including the line closing that array (write-run-state.sh always emits
+# it, "[]" when nothing was skipped — see shared/run-state.md), and join them
+# into the one-line-per-field shape every other field here already uses.
+SKIPPED=""
+while IFS= read -r line || [[ -n "$line" ]]; do
+  if [[ -z "$SKIPPED" ]]; then
+    [[ "$line" =~ ^[[:space:]]*\"skipped\":\ (.*)$ ]] || continue
+    SKIPPED="${BASH_REMATCH[1]}"
+  else
+    trimmed="${line#"${line%%[![:space:]]*}"}"
+    SKIPPED+=" $trimmed"
+  fi
+  [[ "$SKIPPED" == *']'* ]] && break
+done < "$STATE_FILE"
+SKIPPED="${SKIPPED%,}"
+
+for pair in "route_id:$ROUTE_ID" "last_stage:$LAST_STAGE" "total:$TOTAL" "skipped:$SKIPPED"; do
   key="${pair%%:*}"
   value="${pair#*:}"
   [[ -z "$value" ]] && { echo "invalid: malformed state file — missing '$key' in $STATE_FILE" >&2; exit 1; }
@@ -84,4 +102,5 @@ echo "total: $TOTAL"
 echo "mode: $MODE"
 echo "questions_used: $QUESTIONS_USED"
 echo "start_time: $START_TIME"
+echo "skipped: $SKIPPED"
 exit 0

@@ -1,6 +1,13 @@
 kind: platform
 stages:
-  intake: intake
-  deliver: deliver
+  - id: intake
+    skill: intake
+  - id: implement
+    skill: implement
+  - id: deliver
+    skill: deliver
 always_autonomous: [publish-gate]
+readiness_criteria:
+  task:
+    require: [has_description]
 artifacts: []

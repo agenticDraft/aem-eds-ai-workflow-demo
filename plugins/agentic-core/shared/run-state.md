@@ -10,7 +10,8 @@ only what is written to disk and when it is deleted.
 
 **Never does:** print the per-stage line or the status table (`progress-output.md`'s job), decide
 *why* a stage is skipped, or retry a stage. Those decisions belong to whichever skill drives a full
-route.
+route. It **records** a skip and the condition behind it; it never evaluates one — that is
+`evaluate-stage-conditions.sh`'s job, against the fact record.
 
 ## `run-state.json`
 
@@ -19,23 +20,31 @@ One object, rewritten in full after every stage:
 ```json
 {
   "route_id": "standard",
-  "rule": "default: standard",
+  "rule": "stage-list",
   "last_stage": "implement",
-  "total": 6,
+  "total": 11,
   "mode": "interactive",
   "questions_used": 0,
-  "start_time": "2026-09-04T10:00:00Z"
+  "start_time": "2026-09-04T10:00:00Z",
+  "skipped": [
+    { "stage": "extract", "condition": "design_source=true OR design_mentioned=true" },
+    { "stage": "baseline", "condition": "components=present" }
+  ]
 }
 ```
 
-- `route_id` — the id `resolve-route.sh` resolved.
-- `rule` — the resolution rule that fired (`resolve-route.sh`'s own `rule:` line, verbatim).
+- `route_id`, `rule` — retained for one more task and not read by anything that branches. Nothing
+  selects a route any more: the platform pack owns one stage list and each stage filters itself.
 - `last_stage` — the id of the last stage that completed.
-- `total` — the current total stage count (the recomputed-on-skip total core contract §9 defines,
-  same value `print-progress-line.sh` would report).
-- `mode` — `interactive` or `autonomous` (core contract §8).
+- `total` — the stage count the run will actually run: the declared list less every stage its
+  condition skipped, the same value `print-progress-line.sh` would report.
+- `mode` — `interactive` or `autonomous`.
 - `questions_used` — the per-run question count so far.
 - `start_time` — when the run began, set once and never rewritten.
+- `skipped` — one entry per stage a condition skipped, each naming the stage and the **canonical
+  rendering of the condition that skipped it** (`pack-manifest.md`). Written as an empty array when
+  nothing was skipped, never omitted. The entries are `evaluate-stage-conditions.sh`'s own output,
+  carried through unaltered rather than restated, so the file cannot disagree with the evaluator.
 
 ## `progress.md`
 
@@ -85,7 +94,9 @@ whose mtime git does not preserve meaningfully.
 ## Verification
 
 `lib/write-run-state.sh <state-file> <route-id> <rule> <last-stage> <total> <mode>
-<questions-used> <start-time>` writes the object above, creating the parent directory if needed.
+<questions-used> <start-time> <conditions-file>` writes the object above, creating the parent
+directory if needed. `<conditions-file>` is `evaluate-stage-conditions.sh`'s output; its `skipped:`
+lines become the `skipped` array, and a file with none yields `[]`.
 
 `lib/check-run-state.sh <state-file>` prints `status: none` (no file), `status: resume` plus the
 seven fields (mtime under 2 hours), or `status: stale-deleted` after removing the file (mtime 2

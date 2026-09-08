@@ -1,20 +1,24 @@
-# Stage: route resolution
+# Stage: readiness
 
-The fact record has no `explicit_route`, so resolution moved to the signal table. Every row in
-`routes` was checked; each `when` block names `packs.tracker` as a match key, and project config
-has no `packs.tracker` value at all — the field is absent, not merely empty.
+Read the fact record. `design_source` is true and the only reference the item carries is an
+attached image; no resolvable design reference is present.
 
-Rather than guess a pack, this stage finished everything that does not depend on the answer —
-the fact record is already written and valid — and stops here, per §8: a stage that cannot
-resolve something runs to completion and returns `question` rather than suspending.
+An attached image is ambiguous by nature — a screenshot of a defect and a mockup of the intended
+state are structurally identical, and nothing in the item distinguishes them. Comparing an
+implementation against a screenshot of the bug it was meant to fix is the failure this question
+prevents, and nothing downstream would catch it: the verification stage would report a clean match
+against the wrong target.
+
+Everything that did not depend on the answer is finished, so this stage runs to completion and
+raises the question at its own boundary rather than suspending.
 
 ## Result
 verdict: question
-summary: Route resolution needs packs.tracker and project config does not set it.
+summary: The item's only design reference is an attached image, which could be the intended state or the defect.
 artifacts: []
 next_action: none
-question: Which pack should own the tracker role for this project?
+question: Which attachment is the design reference for this change?
 options:
-  - Use the pack already declared for scm
-  - List available tracker packs
-blocker: packs.tracker is unset in project config
+  - The first attachment
+  - The second attachment
+blocker: An image-only design source cannot be identified as reference or evidence without a human

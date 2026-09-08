@@ -1,0 +1,13 @@
+kind: platform
+stages:
+  - id: intake
+    skill: intake
+  - id: deploy
+    skill: deploy
+  - id: deliver
+    skill: deliver
+always_autonomous: [deliver]
+readiness_criteria:
+  task:
+    require: [has_description, has_acceptance_criteria]
+artifacts: []

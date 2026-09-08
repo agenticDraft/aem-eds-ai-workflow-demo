@@ -11,12 +11,12 @@
 #      role=path argument naming a pack.yaml that validates as the right
 #      kind for that role.
 #   2. every declared role operation is available: every stage id named in
-#      any configured route resolves in the platform pack's stages map (the
-#      route a work item will actually take is not known this early — this
-#      runs before intake, which is what resolves it — so every route in
-#      config is checked, not only the one that eventually fires), and every
-#      operation core contract §6 declares for a configured provider role is
-#      implemented rather than declared unsupported.
+#      any configured route resolves in the platform pack's own stage list
+#      (the route a work item will actually take is not known this early —
+#      this runs before intake, which is what would resolve one — so every
+#      route in config is checked, not only the one that eventually fires),
+#      and every operation core contract §6 declares for a configured
+#      provider role is implemented rather than declared unsupported.
 #
 # Usage:
 #   check-preflight.sh <project-config path> <role>=<path-to-pack.yaml> [...]
@@ -147,14 +147,19 @@ for role in "${PROVIDER_ROLES[@]}"; do
 done
 
 # --- check 2a: every route's stages resolve in the platform manifest --------
-extract_platform_stages() {
+# `routes:` still lives in project config until Task 27 removes it (D42 moved
+# the *canonical* stage list into the pack; the route table itself is a
+# separate, later removal). Until then a route can still name a stage id the
+# platform pack does not declare, and nothing else catches that — the pack's
+# own list is checked for shape by validate-pack-manifest.sh above, but never
+# cross-referenced against what a route in config actually asks for.
+extract_platform_stage_ids() {
   awk '
     /^stages:$/ { grabbing=1; next }
     grabbing && /^[A-Za-z_]/ { exit }
-    grabbing && /^  [A-Za-z0-9_-]+:/ {
+    grabbing && /^  - id: / {
       line=$0
-      sub(/^  /, "", line)
-      sub(/:.*/, "", line)
+      sub(/^  - id: /, "", line)
       print line
     }
   ' "$1"
@@ -163,7 +168,7 @@ extract_platform_stages() {
 PLATFORM_STAGES=()
 while IFS= read -r stage_id; do
   [[ -n "$stage_id" ]] && PLATFORM_STAGES+=("$stage_id")
-done < <(extract_platform_stages "$PLATFORM_PATH")
+done < <(extract_platform_stage_ids "$PLATFORM_PATH")
 
 stage_known() {
   local id="$1"
@@ -193,7 +198,7 @@ extract_route_stage_refs() {
 while IFS=' ' read -r route_id stage_id; do
   [[ -z "$stage_id" ]] && continue
   stage_known "$stage_id" \
-    || fail "route '$route_id' uses stage '$stage_id' with no entry in the platform pack's stages map"
+    || fail "route '$route_id' uses stage '$stage_id' with no entry in the platform pack's stage list"
 done < <(extract_route_stage_refs "$CONFIG")
 
 # --- check 2b: every configured role's operations are all implemented ------

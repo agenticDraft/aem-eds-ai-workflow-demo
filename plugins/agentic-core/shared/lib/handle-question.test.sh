@@ -47,9 +47,9 @@ echo "[ask] interactive mode, budget available, non-always-autonomous stage"
 OUT=$(bash "$HANDLER" "$PACKFIX" interactive intake "$ENVFIX/question.md" 0 1 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"
 assert_contains "decides to ask" "decision: ask" "$OUT"
-assert_contains "carries the question text" "question: Which pack should own the tracker role for this project?" "$OUT"
-assert_contains "carries the first option" "  - Use the pack already declared for scm" "$OUT"
-assert_contains "carries the second option" "  - List available tracker packs" "$OUT"
+assert_contains "carries the question text" "question: Which attachment is the design reference for this change?" "$OUT"
+assert_contains "carries the first option" "  - The first attachment" "$OUT"
+assert_contains "carries the second option" "  - The second attachment" "$OUT"
 assert_contains "reports the incremented budget" "questions_used: 1" "$OUT"
 
 echo "[terminate-blocked] interactive mode, budget exhausted"
@@ -62,7 +62,7 @@ echo "[terminate-blocked] autonomous mode writes the blocker back, never asks"
 OUT=$(bash "$HANDLER" "$PACKFIX" autonomous intake "$ENVFIX/question.md" 0 5 2>&1); ST=$?
 assert_exit "exits 4" 4 $ST "$OUT"
 assert_contains "decides to terminate as blocked" "decision: terminate-blocked" "$OUT"
-assert_contains "carries the blocker to write back" "write-blocker: packs.tracker is unset in project config" "$OUT"
+assert_contains "carries the blocker to write back" "write-blocker: An image-only design source cannot be identified as reference or evidence without a human" "$OUT"
 if [[ "$OUT" == *"decision: ask"* ]]; then
   FAIL=$((FAIL + 1))
   echo "  FAIL: autonomous mode must never ask"

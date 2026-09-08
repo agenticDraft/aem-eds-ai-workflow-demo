@@ -21,7 +21,7 @@ routes:
   - id: standard
     when:
       item_type: [task]
-    stages: [intake, plan-gate, implement, deliver]
+    stages: [intake, plan-gate, deliver]
   default: standard
 
 limits:

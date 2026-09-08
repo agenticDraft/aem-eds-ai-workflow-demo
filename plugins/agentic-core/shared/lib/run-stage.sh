@@ -51,32 +51,40 @@ contract_violation() {
 }
 
 # --- resolve the adapter: <stage id> -> skill name, from the manifest's
-# 'stages:' map. Reads the manifest as a flat line scan rather than the full
-# validate-pack-manifest.sh shape check — a manifest this script is handed
-# is assumed already valid (the same "assumed already validated" precedent
-# resolve-route.sh sets for its project-config argument); this script only
-# needs the one mapping.
+# 'stages:' list. Reads the manifest as a flat line scan rather than the full
+# validate-pack-manifest.sh shape check — a manifest this script is handed is
+# assumed already valid; this script only needs the one mapping. A stage entry
+# is '  - id: <stage id>' followed by '    skill: <skill name>', with the
+# optional 'when:' and 'fix_attempts:' keys skipped over.
 ADAPTER=""
 in_stages=0
+current_id=""
 while IFS= read -r line || [[ -n "$line" ]]; do
   if [[ "$line" == "stages:" ]]; then
     in_stages=1
     continue
   fi
   if (( in_stages )); then
-    if [[ "$line" =~ ^\ \ ([A-Za-z0-9_-]+):\ (.+)$ ]]; then
-      if [[ "${BASH_REMATCH[1]}" == "$STAGE_ID" ]]; then
-        ADAPTER="${BASH_REMATCH[2]}"
+    if [[ "$line" =~ ^\ \ -\ id:\ (.+)$ ]]; then
+      current_id="${BASH_REMATCH[1]}"
+      continue
+    fi
+    if [[ "$line" =~ ^\ \ \ \ skill:\ (.+)$ ]]; then
+      if [[ "$current_id" == "$STAGE_ID" ]]; then
+        ADAPTER="${BASH_REMATCH[1]}"
         break
       fi
       continue
     fi
-    break # first non-'  id: skill' line ends the stages: map
+    # Any other indented line belongs to the entry being read; a line at
+    # column 0 is the next top-level key and ends the list.
+    [[ "$line" =~ ^\  ]] && continue
+    break
   fi
 done < "$PACK"
 
 if [[ -z "$ADAPTER" ]]; then
-  contract_violation "stage '$STAGE_ID' has no adapter in ${PACK}'s stages map"
+  contract_violation "stage '$STAGE_ID' has no adapter in ${PACK}'s stage list"
 fi
 
 echo "adapter: $ADAPTER"

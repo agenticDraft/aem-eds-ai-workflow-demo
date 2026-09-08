@@ -76,11 +76,11 @@ OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \
 assert_exit "pack not installed rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names not installed" "not installed" "$OUT"
 
-echo "[reject] a route uses a stage the platform pack does not declare"
+echo "[reject] a route names a stage the platform pack does not declare"
 OUT=$(bash "$CHECK" "$FIXDIR/config-unknown-stage.yaml" \
   "platform=$PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER" 2>&1); ST=$?
 assert_exit "unknown stage rejected (exit 1)" 1 $ST "$OUT"
-assert_contains "reason names the unresolved stage" "plan-gate" "$OUT"
+assert_contains "reason names the route and the stage" "route 'standard' uses stage 'plan-gate'" "$OUT"
 
 echo "[reject] a configured pack declares a required operation unsupported"
 OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \

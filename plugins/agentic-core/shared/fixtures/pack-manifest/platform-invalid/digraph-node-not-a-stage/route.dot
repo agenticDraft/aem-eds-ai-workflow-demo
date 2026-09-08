@@ -1,0 +1,10 @@
+digraph route {
+    "intake"    [shape=box];
+    "implement" [shape=box];
+    "lint"      [shape=box];
+    "deliver"   [shape=box];
+
+    "intake"    -> "implement";
+    "implement" -> "lint";
+    "lint"      -> "deliver";
+}

@@ -12,8 +12,8 @@ file's.
 **Never does:** write to disk, decide whether a stage is skipped, or print the status table more
 than once per run. Those decisions belong to whichever skill drives a full route; this contract
 only shapes what gets printed once that decision is made. What *causes* a skip is settled
-elsewhere: a platform pack declares it per stage as `skip_when_missing` (`pack-manifest.md`), and
-`lib/evaluate-skip-conditions.sh` evaluates it against the project. Nothing here needs to know
+elsewhere: a platform pack declares each stage's `when:` condition (`pack-manifest.md`), and
+`lib/evaluate-stage-conditions.sh` evaluates it against the fact record. Nothing here needs to know
 that — the caller hands this contract a skip state it has already computed.
 
 ## The per-stage line
@@ -25,12 +25,15 @@ Stage <n>/<total>: <stage id> — <verdict> · <summary>
 `<verdict>` is one of the four result-envelope literals — `pass | warn | fail | question` — see
 `result-envelope.md`. `<summary>` is that same envelope's `summary` field, quoted verbatim.
 
-**`<total>` is the count of stages the route will actually run, not the count originally
-resolved.** A stage the caller has determined will be skipped is excluded from both `<total>` and
-from `<n>`'s count of preceding stages — recomputed fresh on every call from the route's current
-skip state, never cached across calls. This is what keeps the counter from going stale: nothing
-remembers yesterday's total, so a skip decided between two stages is reflected in the very next
-line, not retroactively.
+**`<total>` is the count of stages the route will actually run, not the count declared.** A stage
+the caller has determined will be skipped is excluded from both `<total>` and from `<n>`'s count of
+preceding stages — computed fresh on every call from the route's current skip state, never cached
+across calls.
+
+Conditions are evaluated once, against a fact record that is written once and never rewritten, so
+a stage's skip state cannot change part way through a run. Computing the total per call rather than
+caching it therefore costs nothing and keeps this formatter free of state it would otherwise have
+to be trusted to invalidate.
 
 **A skipped stage does not itself get a `Stage <n>/<total>` line.** It has no result envelope —
 the adapter never ran — so there is no verdict or summary to report through this format. Whether a

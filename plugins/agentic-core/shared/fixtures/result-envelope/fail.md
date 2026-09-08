@@ -1,15 +1,14 @@
-# Stage: route resolution
+# Stage: readiness
 
-The fact record carries `explicit_route: <unregistered-route-id>`. Per the spec, an explicit
-route wins over the signal table and is never second-guessed by a model.
+Read the fact record and looked up `readiness_criteria` for this item's `item_type`. The pack
+declares criteria for two types; this item's type is not one of them.
 
-Looked up `<unregistered-route-id>` in `routes` in the project config. No entry with that id
-exists — the route table has three rows and a default, none matching it. This is a contract
-violation, not an ambiguity a question could resolve: the work item names a route the project
-config does not have.
+An undeclared type is a failure, not a fall-through: applying another type's rules would answer a
+question nobody asked, and guessing that the item is ready would put an unreviewed item into the
+rest of the run. The pack author has to declare the type before an item of it can be worked.
 
 ## Result
 verdict: fail
-summary: The work item's declared route id does not exist in the configured route table.
+summary: The item's type has no declared readiness criteria, so this pack cannot judge whether it can be worked.
 artifacts: []
 next_action: none
