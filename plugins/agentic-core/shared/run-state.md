@@ -19,8 +19,6 @@ One object, rewritten in full after every stage:
 
 ```json
 {
-  "route_id": "standard",
-  "rule": "stage-list",
   "last_stage": "implement",
   "total": 11,
   "mode": "interactive",
@@ -33,8 +31,6 @@ One object, rewritten in full after every stage:
 }
 ```
 
-- `route_id`, `rule` — retained for one more task and not read by anything that branches. Nothing
-  selects a route any more: the platform pack owns one stage list and each stage filters itself.
 - `last_stage` — the id of the last stage that completed.
 - `total` — the stage count the run will actually run: the declared list less every stage its
   condition skipped, the same value `print-progress-line.sh` would report.
@@ -93,13 +89,13 @@ whose mtime git does not preserve meaningfully.
 
 ## Verification
 
-`lib/write-run-state.sh <state-file> <route-id> <rule> <last-stage> <total> <mode>
-<questions-used> <start-time> <conditions-file>` writes the object above, creating the parent
-directory if needed. `<conditions-file>` is `evaluate-stage-conditions.sh`'s output; its `skipped:`
-lines become the `skipped` array, and a file with none yields `[]`.
+`lib/write-run-state.sh <state-file> <last-stage> <total> <mode> <questions-used> <start-time>
+<conditions-file>` writes the object above, creating the parent directory if needed.
+`<conditions-file>` is `evaluate-stage-conditions.sh`'s output; its `skipped:` lines become the
+`skipped` array, and a file with none yields `[]`.
 
 `lib/check-run-state.sh <state-file>` prints `status: none` (no file), `status: resume` plus the
-seven fields (mtime under 2 hours), or `status: stale-deleted` after removing the file (mtime 2
+six fields (mtime under 2 hours), or `status: stale-deleted` after removing the file (mtime 2
 hours or older).
 
 `lib/finalize-run-state.sh <state-file>` deletes the file (`status: deleted`) or reports

@@ -10,7 +10,7 @@
 #   check-run-state.sh <state-file>
 #
 # Exit codes:
-#   0 — "status: none" (no file), "status: resume" followed by the eight
+#   0 — "status: none" (no file), "status: resume" followed by the six
 #       fields, `skipped` last (mtime under 2 hours), or "status: stale-deleted"
 #       after removing the file (mtime 2 hours or older)
 #   1 — contract violation: file exists but is not a state file this script
@@ -62,8 +62,6 @@ field() {
   return 1
 }
 
-ROUTE_ID="$(field route_id)" || true
-RULE="$(field rule)" || true
 LAST_STAGE="$(field last_stage)" || true
 TOTAL="$(field total)" || true
 MODE="$(field mode)" || true
@@ -88,15 +86,13 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 done < "$STATE_FILE"
 SKIPPED="${SKIPPED%,}"
 
-for pair in "route_id:$ROUTE_ID" "last_stage:$LAST_STAGE" "total:$TOTAL" "skipped:$SKIPPED"; do
+for pair in "last_stage:$LAST_STAGE" "total:$TOTAL" "skipped:$SKIPPED"; do
   key="${pair%%:*}"
   value="${pair#*:}"
   [[ -z "$value" ]] && { echo "invalid: malformed state file — missing '$key' in $STATE_FILE" >&2; exit 1; }
 done
 
 echo "status: resume"
-echo "route_id: $ROUTE_ID"
-echo "rule: $RULE"
 echo "last_stage: $LAST_STAGE"
 echo "total: $TOTAL"
 echo "mode: $MODE"

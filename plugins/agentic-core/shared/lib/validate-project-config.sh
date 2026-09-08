@@ -4,11 +4,9 @@
 # involved: this is the CI floor a config file must clear before anything
 # reads it.
 #
-# Checks the fixed shape shared/project-config.md defines: the six
+# Checks the fixed shape shared/project-config.md defines: the five
 # top-level keys, in order, and nothing else; packs, commands, paths and
-# limits as flat sub-mappings with fixed keys; routes as a sequence of
-# entries (each an id, an optional when block, and a stages list) followed
-# by a default that names one of those ids.
+# limits as flat sub-mappings with fixed keys.
 #
 # Usage:
 #   validate-project-config.sh <path>
@@ -79,7 +77,7 @@ top_level_key() {
 }
 
 # --- top-level key set, in order ------------------------------------------
-EXPECTED_TOP_LEVEL=(version packs commands paths routes limits)
+EXPECTED_TOP_LEVEL=(version packs commands paths limits)
 
 top_level_key
 found=0
@@ -124,54 +122,6 @@ for subkey in spec_dir preview; do
   require_line "^  ${subkey}: \"(.*)\"\$" "'${subkey}: \"<value>\"' under paths"
   [[ -z "$MATCH" ]] && fail "paths.${subkey} is empty"
 done
-
-# --- routes ------------------------------------------------------------
-require_line '^routes:$' "'routes:'"
-
-ROUTE_IDS=()
-while [[ "${LINES[cursor]:-}" =~ ^\ \ -\ id:\ (.+)$ ]]; do
-  route_id="${BASH_REMATCH[1]}"
-  [[ -z "$route_id" ]] && fail "a route has an empty id"
-  for existing in "${ROUTE_IDS[@]:-}"; do
-    [[ "$existing" == "$route_id" ]] && fail "duplicate route id: '$route_id'"
-  done
-  ROUTE_IDS+=("$route_id")
-  cursor=$((cursor + 1))
-
-  if [[ "${LINES[cursor]:-}" == "    when:" ]]; then
-    cursor=$((cursor + 1))
-    [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ \ \ item_type:\ \[.*\]$ ]] && cursor=$((cursor + 1))
-    [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ \ \ labels:\ \[.*\]$ ]] && cursor=$((cursor + 1))
-    [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ \ \ design_source:\ (true|false)$ ]] && cursor=$((cursor + 1))
-  fi
-
-  if [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ stages:\ \[(.+)\]$ ]]; then
-    stages="${BASH_REMATCH[1]}"
-    [[ -z "${stages//[[:space:]]/}" ]] && fail "route '$route_id' has an empty stages list"
-    cursor=$((cursor + 1))
-  else
-    fail "route '$route_id' is missing its 'stages:' list"
-  fi
-done
-
-if [[ ${#ROUTE_IDS[@]} -eq 0 ]]; then
-  fail "route table has no routes"
-fi
-
-if [[ "${LINES[cursor]:-}" =~ ^\ \ default:\ (.+)$ ]]; then
-  default_route="${BASH_REMATCH[1]}"
-  cursor=$((cursor + 1))
-else
-  fail "route table has no default"
-fi
-
-matched=0
-for existing in "${ROUTE_IDS[@]}"; do
-  [[ "$existing" == "$default_route" ]] && matched=1
-done
-if [[ "$matched" -eq 0 ]]; then
-  fail "default route '$default_route' is not in the route table"
-fi
 
 # --- limits ------------------------------------------------------------
 require_line '^limits:$' "'limits:'"

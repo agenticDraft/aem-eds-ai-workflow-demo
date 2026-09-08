@@ -1,7 +1,7 @@
 - id: fact-record
   version: "1.0"
   produced_by: intake
-  required_content: item_id, item_type, labels, components, design_source, files_named, explicit_route
+  required_content: item_id, item_type, labels, components, design_source, files_named
   validation: item_id non-empty; item_type present
 - id: change-summary
   version: "1.0"
@@ -21,5 +21,5 @@
 - id: run-state
   version: "1.0"
   produced_by: runner
-  required_content: route_id, rule, last_stage, total, mode, questions_used, start_time
-  validation: valid route id; stage count consistent
+  required_content: last_stage, total, mode, questions_used, start_time
+  validation: stage count consistent

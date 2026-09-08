@@ -11,7 +11,7 @@
 # always the evaluator's own output rather than a caller's restatement of it.
 #
 # Usage:
-#   write-run-state.sh <state-file> <route-id> <rule> <last-stage> <total> <mode> <questions-used> <start-time> <conditions-file>
+#   write-run-state.sh <state-file> <last-stage> <total> <mode> <questions-used> <start-time> <conditions-file>
 #
 # <conditions-file> is evaluate-stage-conditions.sh's output. Its "skipped:"
 # lines become the state file's "skipped" array; a file with none yields an
@@ -26,20 +26,18 @@
 
 set -uo pipefail
 
-if [[ $# -ne 9 ]]; then
-  echo "usage: write-run-state.sh <state-file> <route-id> <rule> <last-stage> <total> <mode> <questions-used> <start-time> <conditions-file>" >&2
+if [[ $# -ne 7 ]]; then
+  echo "usage: write-run-state.sh <state-file> <last-stage> <total> <mode> <questions-used> <start-time> <conditions-file>" >&2
   exit 2
 fi
 
 STATE_FILE="$1"
-ROUTE_ID="$2"
-RULE="$3"
-LAST_STAGE="$4"
-TOTAL="$5"
-MODE="$6"
-QUESTIONS_USED="$7"
-START_TIME="$8"
-CONDITIONS_FILE="$9"
+LAST_STAGE="$2"
+TOTAL="$3"
+MODE="$4"
+QUESTIONS_USED="$5"
+START_TIME="$6"
+CONDITIONS_FILE="$7"
 
 fail() {
   echo "invalid: $1" >&2
@@ -51,7 +49,7 @@ if [[ ! -f "$CONDITIONS_FILE" ]]; then
   exit 2
 fi
 
-for pair in "route_id:$ROUTE_ID" "rule:$RULE" "last_stage:$LAST_STAGE" "start_time:$START_TIME"; do
+for pair in "last_stage:$LAST_STAGE" "start_time:$START_TIME"; do
   key="${pair%%:*}"
   value="${pair#*:}"
   [[ "$value" == *'"'* ]] && fail "$key value contains a double quote, which would corrupt the quoted-string shape"
@@ -89,8 +87,6 @@ mkdir -p "$(dirname "$STATE_FILE")"
 
 cat > "$STATE_FILE" <<EOF
 {
-  "route_id": "$ROUTE_ID",
-  "rule": "$RULE",
   "last_stage": "$LAST_STAGE",
   "total": $TOTAL,
   "mode": "$MODE",

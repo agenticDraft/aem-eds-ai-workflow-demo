@@ -3,7 +3,7 @@
 #   bash plugins/agentic-core/shared/lib/run-stage.test.sh
 #
 # No framework — assert_exit/assert_contains follow the same pattern as
-# resolve-route.test.sh and validate-pack-manifest.test.sh.
+# validate-pack-manifest.test.sh.
 
 set -uo pipefail
 

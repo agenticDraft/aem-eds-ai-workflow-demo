@@ -1,11 +1,11 @@
 ---
-description: Detect this project's build/test/lint/serve commands and where it keeps specs and a local preview, propose marketplace plugins that plausibly match the detected stack as knowledge sources (never installed), confirm the detected values with you, and write them into .ai/project-config.yaml. Then interview you for what detection cannot determine — where the units of work live, what makes a change done, stage conventions, the verification gate — and generate a platform pack plus its convention record from your answers. Then detect this project's git remote, scan installed provider packs for a plausible match to the tracker and scm roles, confirm a choice with you, and write packs.tracker/packs.scm. Re-runnable with keep / re-detect / edit at each stage. Never writes routes or limits, never chooses packs.design or packs.browser (no installed pack exists for either role yet), and never collects or writes a credential.
+description: Detect this project's build/test/lint/serve commands and where it keeps specs and a local preview, propose marketplace plugins that plausibly match the detected stack as knowledge sources (never installed), confirm the detected values with you, and write them into .ai/project-config.yaml. Then interview you for what detection cannot determine — where the units of work live, what makes a change done, stage conventions, the verification gate — and generate a platform pack plus its convention record from your answers. Then detect this project's git remote, scan installed provider packs for a plausible match to the tracker and scm roles, confirm a choice with you, and write packs.tracker/packs.scm. Re-runnable with keep / re-detect / edit at each stage. Never writes limits, never chooses packs.design or packs.browser (no installed pack exists for either role yet), and never collects or writes a credential.
 disable-model-invocation: true
 ---
 
 You detect this project's own commands and layout, propose third-party plugins that might serve as knowledge sources for it, confirm the detected values with the human, and write them into `.ai/project-config.yaml` at the project root. Then you interview the human for what detection cannot determine, and generate a platform pack — plus the written record of the interview's answers — from a template. Then you detect this project's git remote, scan the provider packs already installed alongside this core, propose which one plausibly serves the `tracker` and `scm` roles, confirm with the human, and write `packs.tracker` / `packs.scm`. The full shapes of these files are defined in `shared/project-config.md`, `shared/pack-manifest.md` and `shared/convention-record.md` — reference them, never restate them.
 
-**What this skill does not do yet:** it never writes `packs.design`, `packs.browser`, `routes`, or `limits` in `.ai/project-config.yaml` — no provider pack is installed yet for either role, and seeding routes from a live tracker query is a separate, not-yet-built step. A file written by this skill alone will not pass `shared/lib/validate-project-config.sh` until those land too; say so plainly in your final report rather than implying the file is complete. It also never writes `packs.platform` into that file — the generated pack's name lives in `.ai/project-conventions.yaml` for now, and gets wired into `packs.platform` by whichever future step first writes `packs` completely. It never asks for, collects, or writes a credential of any kind — a provider pack's own README states what it needs and where to get it.
+**What this skill does not do yet:** it never writes `packs.design`, `packs.browser`, or `limits` in `.ai/project-config.yaml` — no provider pack is installed yet for either role, and `limits` is a human decision this skill never makes for you. A file written by this skill alone will not pass `shared/lib/validate-project-config.sh` until those land too; say so plainly in your final report rather than implying the file is complete. It also never writes `packs.platform` into that file — the generated pack's name lives in `.ai/project-conventions.yaml` for now, and gets wired into `packs.platform` by whichever future step first writes `packs` completely. It never asks for, collects, or writes a credential of any kind — a provider pack's own README states what it needs and where to get it.
 
 ## 0. Check for an existing file
 
@@ -75,7 +75,12 @@ Ask each with `AskUserQuestion`, offering a couple of plausible options where yo
 
 Before anything touches disk, list the pack name and the four convention answers exactly as they will be written, and ask the human to confirm them or say what to change, the same way step 3 confirms the detected values. Do not proceed until they explicitly accept the set as shown.
 
-Run, in order:
+Before running the generator, resolve `<item-types>` — a comma-separated list of the tracker's own work-item type names. The generated pack declares one readiness criterion per type, and a pack declaring none would refuse every item it was given, so **never guess this list**:
+
+- If `.ai/project-config.yaml` already carries a non-empty `packs.tracker` value, resolve that pack's `pack.yaml` the same way step 10 below resolves one — a `pack.yaml` at the root of an installed sibling plugin directory (a sibling of `${CLAUDE_PLUGIN_ROOT}`), declaring `kind: provider` and `role: tracker`. Read its `operations:` mapping for a `list_types` entry. If present, spawn the skill it names with `Skill(<skill name>)` and read its result envelope; take the item type names it reports as `<item-types>`.
+- If `packs.tracker` is not yet set in project config, the pack declares `list_types` in its `unsupported:` list instead of `operations:`, or the invocation's envelope reports anything but `pass`/`warn`, do not retry with a guessed substitute: say so plainly and ask the human for the item type names directly, with `AskUserQuestion`.
+
+Then run, in order:
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/generate-pack.sh <pack-root> <unit_of_work_location> <definition_of_done> <stage_conventions> <verification_gate> <item-types>
@@ -85,8 +90,6 @@ ${CLAUDE_PLUGIN_ROOT}/shared/lib/validate-pack-manifest.sh <pack-root>/pack.yaml
 
 using `.ai/packs/<pack name>/` as `<pack-root>` and `.ai/project-conventions.yaml` as `<conventions-path>`. The manifest validator's `valid: platform` is required before you report success — if the generator, the writer, or the validator exits non-zero, do not retry with a guessed substitute; go back to step 6 for the field the error names. Report every script's output verbatim.
 
-`<item-types>` is a comma-separated list of the tracker's own work-item type names. The generated pack declares one readiness criterion per type, and a pack declaring none would refuse every item it was given. **Never guess this list**: ask the configured tracker pack for it through its `list_types` operation, and if that operation is unsupported or fails, say so and ask the human for the type names rather than inventing a plausible set. Each generated criterion is the weakest one that is still a criterion — the item has a description — and is a floor for the pack author to tighten, exactly like the stub adapters this step writes.
-
 ## 8. Report
 
 State plainly:
@@ -94,7 +97,7 @@ State plainly:
 - the project-config path written or updated, whether it was a fresh file or an update, and the six values written into it
 - the proposed knowledge sources from step 2, if any, each labeled as a knowledge source and not a pack — or that the scan found no plausible match, or could not run
 - the pack path and convention-record path written or updated, whether fresh or an update, and the manifest validator's result
-- that `packs.platform`, `packs.design`, `packs.browser`, `routes`, and `limits` are still not part of `.ai/project-config.yaml` at this point (steps 9-13 below add `packs.tracker`/`packs.scm`; the rest still needs another step), so it will not pass the full config validator on its own
+- that `packs.platform`, `packs.design`, `packs.browser`, and `limits` are still not part of `.ai/project-config.yaml` at this point (steps 9-13 below add `packs.tracker`/`packs.scm`; the rest still needs another step), so it will not pass the full config validator on its own
 - that `intake`, `implement`, `publish-gate`, and `deliver` in the generated pack are stubs — each says so in its own body — and need a real adapter before the pack runs in any route
 
 ## 9. Check for an existing provider-pack selection
@@ -138,7 +141,7 @@ State plainly:
 - the project-config path updated, and the `tracker`/`scm` values written into it — or, if the write did not run, which role blocked it and why (no installed candidate, or the human chose to leave it unresolved)
 - which installed provider packs were scanned and considered for each role, including any the human was asked to choose between
 - that no credential was asked for, collected, or written at any point in steps 9-13 — point at the chosen pack's own README for what it needs and where to get it
-- that `packs.platform`, `packs.design`, `packs.browser`, `routes`, and `limits` are still not part of `.ai/project-config.yaml`, so it will not pass the full config validator on its own
+- that `packs.platform`, `packs.design`, `packs.browser`, and `limits` are still not part of `.ai/project-config.yaml`, so it will not pass the full config validator on its own
 
 ## Rules
 

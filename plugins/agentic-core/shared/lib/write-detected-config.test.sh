@@ -94,11 +94,6 @@ COMBINED="$TMPDIR_TEST/combined.yaml"
   echo
   sed -n '/^commands:$/,$p' "$CFG"
   echo
-  echo "routes:"
-  echo "  - id: standard"
-  echo "    stages: [intake, deliver]"
-  echo "  default: standard"
-  echo
   echo "limits:"
   echo "  questions_per_run: 3"
   echo "  fix_attempts_default: 2"

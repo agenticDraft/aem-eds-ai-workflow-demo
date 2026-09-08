@@ -47,11 +47,6 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/valid.yaml" 2>&1); ST=$?
 assert_exit "valid.yaml accepted (exit 0)" 0 $ST "$OUT"
 assert_contains "reports valid" "valid" "$OUT"
 
-echo "[reject] route table with no default"
-OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/no-default-route.yaml" 2>&1); ST=$?
-assert_exit "no-default-route.yaml rejected (exit 1)" 1 $ST "$OUT"
-assert_contains "reason names the missing default" "default" "$OUT"
-
 echo "[reject] unknown top-level key"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/unknown-top-level-key.yaml" 2>&1); ST=$?
 assert_exit "unknown-top-level-key.yaml rejected (exit 1)" 1 $ST "$OUT"
