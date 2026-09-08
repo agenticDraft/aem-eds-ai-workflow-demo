@@ -6,3 +6,7 @@ operations:
   attach_file: attach-file
   list_types: list-types
 unsupported: []
+text_conventions:
+  design_keywords: [design, figma, mock, mockup, style, styling, visual, layout, spacing, responsive, breakpoint, typography, colour, color, hero, banner]
+  reproduction_headings: [Steps to reproduce, Steps, Repro]
+  acceptance_criteria_headings: [Acceptance Criteria, AC]
