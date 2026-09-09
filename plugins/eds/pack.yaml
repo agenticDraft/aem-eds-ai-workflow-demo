@@ -30,6 +30,7 @@ stages:
     fix_attempts: 2
   - id: plan
     skill: eds-plan
+    fix_attempts: 1
   - id: plan-gate
     skill: eds-plan-gate
   - id: implement
@@ -56,3 +57,6 @@ artifacts:
   - id: sanitized-spec
     produced_by: intake
     path: ".ai/run-context/sanitized-spec.md"
+  - id: plan
+    produced_by: plan
+    path: ".ai/run-context/plan.yaml"
