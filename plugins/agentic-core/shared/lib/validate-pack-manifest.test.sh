@@ -71,6 +71,41 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/provider-valid/pack.yaml" 2>&1); ST=$?
 assert_exit "provider-valid accepted (exit 0)" 0 $ST "$OUT"
 assert_contains "reports kind" "provider" "$OUT"
 
+echo "[accept] text_conventions carrying only the new acceptance_criteria_headings key"
+PROV_TMP="$(mktemp -d "${TMPDIR:-/tmp}/validate-pack-manifest-provider.XXXXXX")"
+cp -R "$FIXDIR/provider-valid/." "$PROV_TMP/"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+  list_types: list
+unsupported: []
+text_conventions:
+  acceptance_criteria_headings: [Acceptance Criteria, AC]
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
+echo "[reject] text_conventions declared for a non-tracker role"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: scm
+operations:
+  create_branch: fetch
+  publish_change: note
+  check_status: attach
+unsupported: []
+text_conventions:
+  design_keywords: [design]
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the role" "belongs to the tracker role, not 'scm'" "$OUT"
+rm -rf "$PROV_TMP"
+
 # --- committed rejection fixtures -------------------------------------------
 
 echo "[reject] always_autonomous binds an unknown stage"

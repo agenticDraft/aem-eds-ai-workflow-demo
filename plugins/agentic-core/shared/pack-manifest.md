@@ -45,6 +45,7 @@ unsupported: [<operation name>, …]
 text_conventions:               # tracker role only
   design_keywords: [<string>, …]
   reproduction_headings: [<string>, …]
+  acceptance_criteria_headings: [<string>, …]
 ```
 
 ## Top-level keys
@@ -228,9 +229,11 @@ digraph route {
 - **Completeness.** Every operation the declared role has must appear in one of the two. One in
   neither is silently missing — the runner would only discover it mid-run.
 - `text_conventions` — `tracker` role only. Describes how one tracker's items are written: the word
-  list that sets `design_mentioned` and the heading names that set the `has_*` fields. It lives with
-  the tracker because a team that formats items differently changes its tracker pack, not its
-  platform pack.
+  list that sets `design_mentioned` (`design_keywords`) and the heading names that set
+  `has_reproduction_steps` (`reproduction_headings`) and `has_acceptance_criteria`
+  (`acceptance_criteria_headings`). It lives with the tracker because a team that formats items
+  differently changes its tracker pack, not its platform pack. `has_reproduction_url` needs no list
+  here — any `http(s)` URL in the sanitized text sets it.
 - Every skill named in `operations` must resolve to `<pack root>/skills/<skill name>/SKILL.md`.
 
 ## Example — platform

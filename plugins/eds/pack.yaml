@@ -49,4 +49,10 @@ readiness_criteria:
     require: [has_description, has_acceptance_criteria]
   bug:
     require: [has_description, has_reproduction_url, has_reproduction_steps]
-artifacts: []
+artifacts:
+  - id: fact-record
+    produced_by: intake
+    path: ".ai/run-context/fact-record.yaml"
+  - id: sanitized-spec
+    produced_by: intake
+    path: ".ai/run-context/sanitized-spec.md"
