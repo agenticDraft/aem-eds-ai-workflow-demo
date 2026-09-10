@@ -49,3 +49,6 @@ docs/
 # Legacy path, superseded by .ai/playwright/ (D47) — kept ignored in case anything still
 # writes here, or stale local output from before the relocation is still on disk.
 .playwright-mcp/
+# converge binding — names gitignored planning documents, stays local.
+.claude/converge.config.json
+.claude/skills/converge/
