@@ -46,9 +46,9 @@ stages:
     skill: eds-deliver
 always_autonomous: []
 readiness_criteria:
-  story:
+  Story:
     require: [has_description, has_acceptance_criteria]
-  bug:
+  Bug:
     require: [has_description, has_reproduction_url, has_reproduction_steps]
 artifacts:
   - id: fact-record
