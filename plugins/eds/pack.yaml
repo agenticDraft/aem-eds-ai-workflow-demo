@@ -72,3 +72,6 @@ artifacts:
   - id: lint-report
     produced_by: lint
     path: ".ai/run-context/lint-report.md"
+  - id: delivery-report
+    produced_by: deliver
+    path: ".ai/run-context/delivery-report.md"
