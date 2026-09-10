@@ -248,8 +248,8 @@ Emit the `## Result` block:
 - `summary`: one sentence naming the item id, the pull request URL, and which condition was
   downgraded.
 - `artifacts`: `publish_change`'s own written JSON, `check_status`'s own written JSON (when it
-  wrote one), `.ai/run-context/delivery-report.md`, and `attach_file`'s own written JSON (when it
-  succeeded).
+  wrote one), `.ai/run-context/delivery-report.md`, and `attach_file`'s and `post_note`'s own
+  written JSON, each when it succeeded.
 - `next_action: none`
 
 ### Report pass
