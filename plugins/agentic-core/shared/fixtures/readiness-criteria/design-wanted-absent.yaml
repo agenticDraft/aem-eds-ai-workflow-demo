@@ -1,0 +1,13 @@
+item_id: "3003"
+item_type: task
+labels: []
+components: []
+files_named: []
+
+design_source: false
+design_mentioned: true
+
+has_description: true
+has_acceptance_criteria: true
+has_reproduction_url: false
+has_reproduction_steps: false
