@@ -60,3 +60,12 @@ artifacts:
   - id: plan
     produced_by: plan
     path: ".ai/run-context/plan.yaml"
+  - id: baseline-capture
+    produced_by: baseline
+    path: ".ai/run-context/baseline-capture.json"
+  - id: design-reference
+    produced_by: extract
+    path: ".ai/run-context/design-reference.json"
+  - id: verify-report
+    produced_by: verify
+    path: ".ai/run-context/verify-report.md"

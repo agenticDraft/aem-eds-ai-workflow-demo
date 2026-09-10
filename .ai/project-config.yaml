@@ -3,6 +3,7 @@ version: 1
 packs:
   tracker: jira
   scm: github
+  browser: playwright
 
 commands:
   lint: "npm run lint"
