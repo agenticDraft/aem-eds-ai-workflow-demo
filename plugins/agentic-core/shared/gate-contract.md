@@ -9,7 +9,7 @@ Two stage ids carry a fixed contract, present in any route that publishes:
 - **`plan-gate`** — runs after planning, before implementing. Reviews the plan a prior stage
   produced against `plan-criteria.md`'s four criteria.
 - **`publish-gate`** — runs before `deliver`, on the actual change rather than a description of
-  it. Its own criteria are not this file's to invent — see Open below.
+  it. Reviews the change against `publish-criteria.md`'s four criteria.
 
 **Never does:** replace either gate's own criteria doc with prose here (each gate's criteria are
 its own deliverable, not restated in this shared contract), or grant either gate special runner
@@ -24,8 +24,9 @@ that treats a gate differently from any open, pack-declared stage id.
 ## Fixed order: deterministic checks first, judgment second
 
 The cheapest review is no model at all. Everything mechanically checkable about what a gate is
-reviewing is a deterministic script, run before any reviewing model starts — for `plan-gate`,
-that is `check-plan-criteria.sh`. What survives the deterministic pass is judgment by
+reviewing is a deterministic script, run before any reviewing model starts — `check-plan-
+criteria.sh` for `plan-gate`, `check-publish-criteria.sh` for `publish-gate`. What survives the
+deterministic pass is judgment by
 construction: a criterion a script could answer would already have been a script, not a question
 handed to a model. This is why a gate adapter runs on a stronger model tier than an ordinary
 stage — declared per adapter in the pack that supplies it, never fixed in the core.
@@ -54,14 +55,6 @@ in rather than everything it noticed — confidence-based filtering, not exhaust
 are obligations on whichever pack supplies the gate's adapter skill; this contract states them,
 it does not enforce them mechanically.
 
-## Open
-
-`publish-gate`'s own criteria — reviewing the actual change rather than a plan describing it — are
-not designed here. Naming criteria before the work that needs them exists produces guessed
-criteria nobody has evidence for; the same restraint `plan-criteria.md`'s deterministic check
-applies to only what is actually checkable applies to not inventing a second gate's questions in
-advance of a task scoped to build them.
-
 ## Reference, not restatement
 
 A skill or script that resolves or reads a gate's outcome references this file with one line
@@ -72,3 +65,5 @@ and `result-envelope.md` use for their own contracts.
 
 No fixtures of its own: this file states the contract shared by both gate ids. `plan-gate`'s own
 deterministic check has its fixtures under `fixtures/plan-criteria/` — see `plan-criteria.md`.
+`publish-gate`'s own deterministic check reads live git state rather than a fixture file — see
+`publish-criteria.md`.
