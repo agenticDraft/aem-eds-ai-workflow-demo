@@ -13,6 +13,7 @@ stages:
     skill: eds-conventions
   - id: serve
     skill: eds-serve
+    fix_attempts: 5
   - id: baseline
     skill: eds-baseline
     when:
@@ -69,6 +70,9 @@ artifacts:
   - id: design-conventions
     produced_by: conventions
     path: ".ai/run-context/design-conventions.md"
+  - id: serve-report
+    produced_by: serve
+    path: ".ai/run-context/serve-report.md"
   - id: verify-report
     produced_by: verify
     path: ".ai/run-context/verify-report.md"
