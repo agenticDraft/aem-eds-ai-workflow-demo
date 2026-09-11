@@ -1,5 +1,5 @@
 ---
-description: The `component reuse` subagent of the `conventions` stage (D75, `04-eds-pack-design.md`) — globs this project's existing blocks and answers create-vs-extend for every component or file the work item names (the D10 reuse map). Dispatched only by `eds-conventions`; always runs. Ends with the subagent outcome block, not the stage result envelope.
+description: The `component reuse` subagent of the `conventions` stage (D75, `04-eds-pack-design.md`) — globs this project's existing blocks and answers create-vs-extend for every component or file the work item names (the D10 reuse map), and always names the exemplar units a new unit should follow. Dispatched only by `eds-conventions`; always runs. Ends with the subagent outcome block, not the stage result envelope.
 context: fork
 ---
 
@@ -59,6 +59,12 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/eds-conventions-component-reuse/scripts/check-
 This globs `blocks/` for the existing inventory and checks every fact-record `components`/
 `files_named` entry against it.
 
+It also emits one or more `exemplar=` lines on **every** path, including
+`decision=no_components_named`. Carry them into whichever outcome you report below. `plan` reads
+this stage's artifact as its only source of project conventions (D76), so an item that named no
+component must still come away with existing units to follow — dropping the exemplars here leaves
+`plan` with nothing.
+
 ### Named entries?
 
 - The output has one or more `reuse=`/`new=` lines → **Report reuse map**.
@@ -79,8 +85,9 @@ Emit the `## Outcome` block:
 Emit the `## Outcome` block:
 
 - `status: success`
-- `summary`: one sentence naming how many existing blocks were found and that the item named no
-  component or file to check reuse against.
+- `summary`: one sentence naming how many existing blocks were found, that the item named no
+  component or file to check reuse against, and — stated explicitly, never dropped — the
+  `exemplar=` units the check returned.
 - `artifacts: []`
 - `next_action: none`
 
@@ -91,6 +98,7 @@ Emit the `## Outcome` block:
 - `status: success`
 - `summary`: one sentence naming each named entry and whether it matches an existing block
   (`reuse`) or names none (`new`) — the check's own `reuse=`/`new=` lines, summarised, never
-  reworded into a general claim about the item as a whole.
+  reworded into a general claim about the item as a whole — followed by the `exemplar=` units the
+  check returned, stated explicitly and never dropped.
 - `artifacts: []`
 - `next_action: none`

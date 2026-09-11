@@ -14,6 +14,10 @@
 #   reuse=<name>   # one line per named entry that matches an existing block
 #   new=<name>     # one line per named entry with no existing block
 #   decision=no_components_named   # only when both fields are empty
+#   exemplar=<name>  # ALWAYS emitted (1-2 lines, or `(none)`): the existing
+#                    # units whose conventions a new unit should follow. The
+#                    # reuse matches when there are any, else the first two
+#                    # non-structural blocks. `plan` has no other source.
 #
 # Exit codes:
 #   0 — decided (every branch above is a decision, not an error)
@@ -93,6 +97,7 @@ exists_in() {
 }
 
 named_any=0
+reused=()
 for name in "${components[@]:-}" "${files_named[@]:-}"; do
   [[ -z "$name" ]] && continue
   named_any=1
@@ -100,6 +105,7 @@ for name in "${components[@]:-}" "${files_named[@]:-}"; do
   base="${base%.*}"
   if exists_in "$base"; then
     echo "reuse=$name"
+    reused+=("$base")
   else
     echo "new=$name"
   fi
@@ -108,4 +114,39 @@ done
 if [[ $named_any -eq 0 ]]; then
   echo "decision=no_components_named"
 fi
+
+# Exemplars are emitted on every path, including no_components_named: `plan`
+# reads this artifact as its ONLY source of project conventions, so a run that
+# named no component must still be told which existing units to follow.
+# STRUCTURAL is excluded because those three are not shaped like ordinary
+# blocks — header/footer scope on the semantic element, fragment ships no CSS.
+STRUCTURAL="header footer fragment"
+is_structural() {
+  local e
+  for e in $STRUCTURAL; do [[ "$1" == "$e" ]] && return 0; done
+  return 1
+}
+
+exemplars=()
+if [[ ${#reused[@]} -gt 0 ]]; then
+  exemplars=("${reused[@]}")
+else
+  for e in "${existing[@]:-}"; do
+    # `${arr[@]:-}` yields one EMPTY STRING for an empty array under bash 3.2,
+    # which would otherwise be appended as a real (blank) exemplar.
+    [[ -z "$e" ]] && continue
+    is_structural "$e" && continue
+    exemplars+=("$e")
+    [[ ${#exemplars[@]} -eq 2 ]] && break
+  done
+fi
+
+emitted=0
+for e in "${exemplars[@]:-}"; do
+  [[ -z "$e" ]] && continue
+  echo "exemplar=$e"
+  emitted=$((emitted + 1))
+done
+[[ $emitted -eq 0 ]] && echo "exemplar=(none)"
+
 exit 0

@@ -1,5 +1,5 @@
 ---
-description: The plan stage (core contract §4) — reads the fact record and sanitized specification intake produced, researches this project's own existing conventions, and turns the item's requirements into a concrete implementation plan for eds-implement to follow, checked next by eds-plan-gate. Synthesizes its own plan; never returns the sanitized spec unchanged.
+description: The plan stage (core contract §4) — reads the fact record and sanitized specification intake produced plus the conventions artifact the conventions stage wrote (D76 — it does no convention research of its own), and turns the item's requirements into a concrete implementation plan for eds-implement to follow, checked next by eds-plan-gate. Synthesizes its own plan; never returns the sanitized spec unchanged.
 context: fork
 ---
 
@@ -20,17 +20,22 @@ shape this stage must write and validate before returning.
 ## Input
 
 None. This stage reads `.ai/run-context/fact-record.yaml` and `.ai/run-context/sanitized-spec.md`
-at their fixed paths — the two artifacts `intake` always writes.
+at their fixed paths — the two artifacts `intake` always writes — and
+`.ai/run-context/design-conventions.md`, the artifact the `conventions` stage always writes.
+
+**This stage does not research this project's conventions itself (D76).** The `conventions` stage
+runs before it on every route and has already surveyed the project; re-deriving that here would
+duplicate the work and let the two answers drift apart.
 
 ## Flow
 
 ```dot
 digraph eds_plan {
-    "Read the fact record and sanitized spec" [shape=box];
+    "Read the fact record, spec and conventions" [shape=box];
     "Artifacts present?" [shape=diamond];
     "Derive requirements from the spec" [shape=box];
     "Requirements derivable?" [shape=diamond];
-    "Research existing conventions" [shape=box];
+    "Apply the conventions artifact" [shape=box];
     "Draft the plan" [shape=box];
     "Validate the plan" [shape=box];
     "Plan valid?" [shape=diamond];
@@ -40,13 +45,13 @@ digraph eds_plan {
     "Report pass" [shape=doublecircle];
     "Report question" [shape=doublecircle];
 
-    "Read the fact record and sanitized spec" -> "Artifacts present?";
-    "Artifacts present?" -> "Derive requirements from the spec" [label="both present"];
-    "Artifacts present?" -> "Report fail" [label="either missing"];
+    "Read the fact record, spec and conventions" -> "Artifacts present?";
+    "Artifacts present?" -> "Derive requirements from the spec" [label="all present"];
+    "Artifacts present?" -> "Report fail" [label="any missing"];
     "Derive requirements from the spec" -> "Requirements derivable?";
-    "Requirements derivable?" -> "Research existing conventions" [label="at least one"];
+    "Requirements derivable?" -> "Apply the conventions artifact" [label="at least one"];
     "Requirements derivable?" -> "Report question" [label="none"];
-    "Research existing conventions" -> "Draft the plan";
+    "Apply the conventions artifact" -> "Draft the plan";
     "Draft the plan" -> "Validate the plan";
     "Validate the plan" -> "Plan valid?";
     "Plan valid?" -> "Report pass" [label="exit 0"];
@@ -59,14 +64,18 @@ digraph eds_plan {
 
 ## Node Details
 
-### Read the fact record and sanitized spec
+### Read the fact record, spec and conventions
 
-Read `.ai/run-context/fact-record.yaml` and `.ai/run-context/sanitized-spec.md`.
+Read `.ai/run-context/fact-record.yaml`, `.ai/run-context/sanitized-spec.md` and
+`.ai/run-context/design-conventions.md`.
 
 ### Artifacts present?
 
-Both files must exist and be non-empty. If either is missing, go to **Report fail** — this stage
-cannot plan a change it has no fact record or specification for; `intake` should have already run.
+All three files must exist and be non-empty. If any is missing, go to **Report fail** — this stage
+cannot plan a change it has no fact record or specification for, and it cannot follow conventions
+it was never given. `intake` and `conventions` both run before this stage on every route, so a
+missing artifact is a broken route, not a case to work around by researching the project directly.
+Name which file was missing in the failure summary.
 
 ### Derive requirements from the spec
 
@@ -77,25 +86,31 @@ that only restate the same statement in different words are one requirement, not
 
 ### Requirements derivable?
 
-At least one requirement was derived — go to **Research existing conventions**. If the sanitized
+At least one requirement was derived — go to **Apply the conventions artifact**. If the sanitized
 spec carries no actionable requirement (e.g. it describes a symptom with no stated expected
 behavior), go to **Report question**: this stage does not guess what "done" means.
 
-### Research existing conventions
+### Apply the conventions artifact
 
-For each entry in the fact record's `files_named` and `components` that names a path inside this
-project (not a URL, and not a path on another repository — an entry containing `://` or a
-hostname-shaped prefix is external, read as reference material only, never as this project's own
-convention), check whether that path already exists here.
+`.ai/run-context/design-conventions.md` is already in hand from **Read the fact record, spec and
+conventions**. Take from it:
 
-- **It exists** — read it, and read one or two sibling units at the same directory depth, for this
-  project's existing naming, structure and style conventions for that kind of unit.
-- **It does not exist, or every named path is external** — the unit does not exist locally yet.
-  Read one or two existing units of the same general kind elsewhere in the project instead, so the
-  plan follows this project's established conventions rather than inventing new ones from nothing.
+- Its `## Exemplars` section — the existing units this project's conventions are exemplified by.
+  These are the paths that go into `plan.yaml`'s `# Conventions:` header comment, which
+  `implement` opens. Open them here too, to ground the plan in their actual naming and structure.
+- Its per-subagent sections — the markup scoping form, the create-vs-extend answer for anything the
+  item named, and, when `styles` ran, how the design's values graded against the project's tokens.
 
-Keep what was actually read to one or two short notes — this step informs the plan; it does not
-reproduce the read files.
+Two rules, both there to keep this stage from quietly re-becoming a research step:
+
+- **Do not survey the project yourself.** If the artifact does not answer something, the plan says
+  so; it does not go globbing for the answer. A gap in the artifact is a `conventions` bug to
+  report, not one to paper over here.
+- **If `## Exemplars` says `(none)`** — a project with no existing units yet — carry that through
+  as `# Conventions: (none — no existing units in this project)`. Do not invent an exemplar.
+
+Keep what you take to one or two short notes; this step informs the plan, it does not reproduce the
+artifact.
 
 ### Draft the plan
 
@@ -109,7 +124,7 @@ Write `.ai/run-context/plan.yaml`:
 
 ```yaml
 # Implementation plan for <item_id>
-# Conventions: <one-line note of what was read and where, from the previous step>
+# Conventions: <the ## Exemplars paths, plus a one-line note from the conventions artifact>
 
 requirements:
   - req-1

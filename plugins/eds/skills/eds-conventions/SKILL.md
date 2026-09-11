@@ -100,11 +100,22 @@ warning?**.
 
 ### Any warning?
 
-Either way, first write `.ai/run-context/design-conventions.md` — one section per dispatched
-subagent, each headed by the subagent's name and carrying its `## Outcome` `summary` verbatim (and,
-for `styles`, the per-variable grading notes from that subagent's own reasoning, if it ran the
-gradeable path). Note plainly which subagent(s), if any, were not dispatched (`styles`, when
-skipped) rather than omitting them silently.
+Either way, first write `.ai/run-context/design-conventions.md`. **`plan` reads this file as its
+only source of this project's conventions (D76) — it does no research of its own.** Anything a
+dispatched subagent found that is not written here is lost to the rest of the run.
+
+Required structure:
+
+- One `##` section per dispatched subagent, headed by the subagent's name, carrying its `## Outcome`
+  `summary` verbatim — and, for `styles`, the per-variable grading notes from that subagent's own
+  reasoning if it ran the gradeable path.
+- A final `## Exemplars` section listing the `exemplar=` units `component reuse` returned, one per
+  line, as repository paths (`blocks/<name>/`). This section is **never empty and never omitted**:
+  it is what `plan` copies into `plan.yaml`'s `# Conventions:` header comment, which `implement`
+  then opens. If `component reuse` returned `exemplar=(none)` — a project with no blocks yet — say
+  exactly that, so `plan` reports having no exemplar rather than inventing one.
+- Note plainly which subagent(s), if any, were not dispatched (`styles`, when skipped) rather than
+  omitting them silently.
 
 At least one dispatched subagent returned `status: warning` — go to **Report warn**. Every
 dispatched subagent returned `status: success` — go to **Report pass**. This stage has no basis
