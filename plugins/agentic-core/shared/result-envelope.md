@@ -113,9 +113,10 @@ blocker: An image-only design source cannot be identified as reference or eviden
 ## Reference, not restatement
 
 A stage adapter's own text must not copy this shape inline — it references this file with one
-line, e.g. `See shared/result-envelope.md for the required ## Result block.` A deterministic
-validator checks this: every stage adapter's text references the envelope contract, rather than
-each adapter drifting from its own copy.
+line, e.g. `See shared/result-envelope.md for the required ## Result block.`, the same convention
+`fact-record.md`, `project-config.md`, `pack-manifest.md`, `external-content-safety.md` and
+`stage-runner.md` each use for their own contracts. No validator checks this mechanically today
+(G60) — it is enforced by review, the same as every other shared file's own reference rule.
 
 ## Fixtures
 
