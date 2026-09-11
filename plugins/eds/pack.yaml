@@ -66,6 +66,9 @@ artifacts:
   - id: design-reference
     produced_by: extract
     path: ".ai/run-context/design-reference.json"
+  - id: design-conventions
+    produced_by: conventions
+    path: ".ai/run-context/design-conventions.md"
   - id: verify-report
     produced_by: verify
     path: ".ai/run-context/verify-report.md"

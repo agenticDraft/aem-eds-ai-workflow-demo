@@ -26,11 +26,11 @@ stage must end with.
 None. This stage reads `.ai/run-context/plan.yaml` at its fixed path — the artifact `plan` always
 writes (`../../pack.yaml`'s `artifacts:` list).
 
-**This stage does not re-research this project's conventions.** `plan` already resolved which
-existing files exemplify this project's conventions for the kind of unit this item touches, and
-named them in `plan.yaml`'s `# Conventions:` header comment. This stage reads that comment and
-opens the files it names — it does not repeat `plan`'s own research from scratch, and it does not
-wait on the still-undefined `conventions` stage's own artifact.
+**This stage does not research this project's conventions.** The `conventions` stage surveyed the
+project and wrote `.ai/run-context/design-conventions.md`; `plan` read it and carried the exemplar
+units forward into `plan.yaml`'s `# Conventions:` header comment (D76). This stage reads that
+comment and opens the files it names — it neither repeats that research nor reads the conventions
+artifact directly, so `plan.yaml` stays the single thing this stage has to be given.
 
 ## Flow
 
