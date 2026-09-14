@@ -4,4 +4,5 @@ operations:
   render: render
   capture: capture
   measure: measure
+  interact: interact
 unsupported: []

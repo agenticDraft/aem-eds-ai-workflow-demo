@@ -423,7 +423,7 @@ if [[ "$kind" == "provider" ]]; then
     tracker) ROLE_OPS=(fetch_item post_note attach_file list_types) ;;
     scm)     ROLE_OPS=(create_branch publish_change check_status) ;;
     design)  ROLE_OPS=(fetch_reference) ;;
-    browser) ROLE_OPS=(render capture measure) ;;
+    browser) ROLE_OPS=(render capture measure interact) ;;
   esac
 
   op_known() {
