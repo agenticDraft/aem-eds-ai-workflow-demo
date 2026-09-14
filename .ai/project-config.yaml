@@ -1,8 +1,10 @@
 version: 1
 
 packs:
+  platform: eds
   tracker: jira
   scm: github
+  design: figma
   browser: playwright
 
 commands:
