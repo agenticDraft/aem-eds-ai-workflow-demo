@@ -17,13 +17,15 @@
     +  "description": "<awaiting answer: what should package.json's description say?>",
   question: "what should package.json's description say?"
 - id: "F3"
-  class: mechanical
+  class: judgment
   severity: cosmetic
   file: "package.json"
-  finding: "repository.url points at the upstream template repository, not this project's own git remote"
+  finding: "repository.url points at the upstream template repository, not this project's own git remote — demoted from mechanical because package.json has been edited since the boilerplate import (3 commits)"
   diff: |
     -    "url": "git+https://github.com/adobe/aem-boilerplate.git"
     +    "url": "git+https://github.com/agenticDraft/aem-eds-ai-workflow-demo.git"
+  recommendation: "replace the stale upstream url with the project's own git remote, git+https://github.com/agenticDraft/aem-eds-ai-workflow-demo.git"
+  default: "replace the stale upstream url with the project's own git remote, git+https://github.com/agenticDraft/aem-eds-ai-workflow-demo.git"
 - id: "F4"
   class: judgment
   severity: cosmetic

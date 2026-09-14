@@ -38,6 +38,21 @@
 
   /* nav height */
   --nav-height: 64px;
+  --accent-accent-1: #485C11;
+  --accent-accent-2: #DFECC6;
+  --accent-accent-4: #000000;
+  --accent-accent-5: #6F6F6F;
+  --accent-accent-6: #929292;
+  --background-background-1: #FFFFFF;
+  --black: #000000;
+  --dark-grey: #6F6F6F;
+  --dividers-divider-1: #E9E9E9;
+  --mid-green: #8E9C78;
+  --text-captions: #485C11;
+  --text-headline: #000000;
+  --text-link: #000000;
+  --text-on-accent-1: #FFFFFF;
+  --text-paragraph: #6F6F6F;
 }
 
 /* fallback fonts */
