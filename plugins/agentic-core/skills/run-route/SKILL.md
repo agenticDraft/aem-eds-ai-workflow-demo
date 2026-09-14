@@ -50,7 +50,12 @@ input.**
   stage; not an artifact any later stage reads, purely this skill's own scratch space for handing
   a captured envelope to `run-stage.sh`
 
-**Pack roots**, resolved from project config's `packs:` map: `.ai/packs/<pack name>/pack.yaml`.
+**Pack roots**, resolved from project config's `packs:` map: each pack's manifest is a sibling of
+this skill's own plugin root — `${CLAUDE_PLUGIN_ROOT}/../<pack name>/pack.yaml`, the "installed
+pack = sibling directory of the plugin root, loaded via `--plugin-dir`" convention every stage
+adapter's own pack resolution already uses (see, e.g., `eds-intake`'s "Resolve the tracker pack"
+and `eds-extract`'s "Resolve the design pack"). Nothing in this project writes a pack manifest to
+`.ai/packs/<pack name>/pack.yaml` — that path names no real convention.
 
 ## How a stage adapter is invoked
 
@@ -60,10 +65,12 @@ declares `context: fork` in its own frontmatter — checked mechanically by
 `validate-pack-manifest.sh` (core contract §13 rule 11) — meaning it is *written* as a skill meant
 to run in an isolated subagent whose content becomes the subagent's entire prompt.
 
-**Spawn it with `Skill(<skill name>)`. That is the only way.** `Skill()` resolves a skill this
-session has actually discovered, so **every configured pack must be loaded as a plugin before a
-route can run** — via its own `--plugin-dir`, or installed. A session that has the pack manifest on
-disk but has not loaded the pack cannot run its stages.
+**Spawn it with `Skill(<pack name>:<skill name>)`. That is the only way.** A skill loaded from a
+plugin resolves only under that plugin's own namespace, so the qualified form is what a loaded
+session actually answers to — `Skill()` resolves a skill this session has actually discovered, so
+**every configured pack must be loaded as a plugin before a route can run** — via its own
+`--plugin-dir`, or installed. A session that has the pack manifest on disk but has not loaded the
+pack cannot run its stages.
 
 **If `Skill()` reports the skill unknown, that is a contract violation** — the manifest names a
 stage adapter this session cannot resolve, exactly like a stage id the manifest dropped. Route to
@@ -76,17 +83,24 @@ skill-scoped `hooks:`, and the enforced isolation `validate-pack-manifest.sh` ch
 the body hands the subagent the instructions without the sandbox those instructions assume, and
 does it silently. An unloaded pack is a configuration error to report, not a gap to route around.
 
-Pass the stage's inputs as the invocation's argument text, one `key: value` line per input:
+`intake` is the only stage that takes an invocation argument. Pass it exactly one line:
 
 ```
-stage: <stage id>
-fact_record: .ai/run-context/fact-record.yaml
-question_answer: .ai/run-context/question-answer.yaml   # only when the previous stage asked one
+item_id: <the work item id or URL this run was itself invoked with>
 ```
 
-A stage is never told the shape of the run it is part of. It gets the fact record and, when one was
-asked, the previous stage's answer; which stages ran before it, and which were skipped, are yours to
-know and not its business to branch on.
+— this skill's own `argument-hint` value, threaded through unchanged; `intake` is what turns it
+into a fact record, so it is the only stage that has not read one yet.
+
+Every other stage takes **no** invocation argument at all: its own `SKILL.md` declares `## Input:
+None` and reads `.ai/run-context/fact-record.yaml`, `.ai/run-context/question-answer.yaml` (when
+the previous stage asked one), and any prior stage's own artifacts, at their fixed paths, itself —
+the `.ai/run-context/` half of **Fixed paths** above is what makes that possible. Spawn every stage
+after `intake` with no argument text at all.
+
+A stage is never told the shape of the run it is part of. It reads the fact record itself and,
+when one was asked, the previous stage's answer from its own fixed path; which stages ran before
+it, and which were skipped, are yours to know and not its business to branch on.
 
 **Wait for its result before doing anything else.** A forked skill's result arrives in your
 conversation when it completes — do not invoke the next stage until you have captured this one's
@@ -208,8 +222,8 @@ digraph run_route {
 
 ### Resolve pre-flight
 
-Resolve each role's pack path from `.ai/project-config.yaml`'s `packs:` map
-(`.ai/packs/<pack name>/pack.yaml`), then run:
+Resolve each role's pack path from `.ai/project-config.yaml`'s `packs:` map, using **Pack roots**'
+convention above (`${CLAUDE_PLUGIN_ROOT}/../<pack name>/pack.yaml`), then run:
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/check-preflight.sh .ai/project-config.yaml \
@@ -250,9 +264,12 @@ fresh?"* using the fields `check-run-state.sh` reported.
 ### Fresh start: write flag, run intake
 
 1. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-2. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" — `intake` needs no
-   `fact_record`/`route` input yet, since it is what produces the fact record). Capture its
-   envelope to `.ai/run-context/envelope-intake.txt`.
+2. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
+   invocation argument `item_id: $ARGUMENTS` — this skill's own frontmatter declares
+   `argument-hint: "<work item id or URL>"`, and `$ARGUMENTS` is that value, unchanged, exactly as
+   this route itself was invoked with; `intake` needs no `fact_record`/`route` input yet, since it
+   is what produces the fact record. Capture its envelope to
+   `.ai/run-context/envelope-intake.txt`.
 3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
    → go to **Intake decision?**.
 

@@ -50,6 +50,8 @@ digraph eds_deliver {
     "Read the fact record and plan" [shape=box];
     "Fact record present?" [shape=diamond];
     "Compose the change summary" [shape=box];
+    "Commit the working tree" [shape=box];
+    "Commit succeeded?" [shape=diamond];
     "Publish the change" [shape=box];
     "Publish succeeded?" [shape=diamond];
     "Check automated status" [shape=box];
@@ -69,7 +71,10 @@ digraph eds_deliver {
     "Read the fact record and plan" -> "Fact record present?";
     "Fact record present?" -> "Compose the change summary" [label="yes"];
     "Fact record present?" -> "Report fail" [label="fact-record.yaml missing or empty item_id"];
-    "Compose the change summary" -> "Publish the change";
+    "Compose the change summary" -> "Commit the working tree";
+    "Commit the working tree" -> "Commit succeeded?";
+    "Commit succeeded?" -> "Publish the change" [label="yes, or nothing to commit"];
+    "Commit succeeded?" -> "Report fail" [label="no — a real git failure"];
     "Publish the change" -> "Publish succeeded?";
     "Publish succeeded?" -> "Check automated status" [label="pass/warn"];
     "Publish succeeded?" -> "Report fail" [label="fail/question/invalid envelope"];
@@ -151,6 +156,24 @@ Build the pull request title and body from what was read above:
   specification instead.
 
 Keep both in memory for **Publish the change** and **Report back to the tracker** below.
+
+### Commit the working tree
+
+`implement` writes files but does not commit them
+(`../../../agentic-core/shared/publish-criteria.md`: "`implement` writes files; nothing in this
+pack commits them before `deliver` runs `scm.publish_change`"), and nothing between `implement` and
+here does either. `publish_change` pushes `HEAD`, not the working tree, so whatever is still
+uncommitted at this point would be silently left out of the branch it pushes.
+
+Run `git add -A`, then `git commit -m "<the composed title>"`.
+
+### Commit succeeded?
+
+Exit `0` — continue to **Publish the change**. Exit `1` with "nothing to commit, working tree
+clean" on its own output — also continue to **Publish the change**: an earlier retry of this stage
+already committed the same change, or the plan required no file change the working tree did not
+already have — treated the same as a successful commit, not a failure. Any other non-zero exit — go
+to **Report fail**, naming `git`'s own stderr.
 
 ### Publish the change
 
@@ -235,8 +258,8 @@ Emit the `## Result` block:
 
 - `verdict: fail`
 - `summary`: one sentence naming the specific reason — the missing operation(s), the detached-HEAD
-  state, the missing fact record, or the `publish_change` operation's own failure summary verbatim.
-  Never reworded into something more general.
+  state, the missing fact record, a real `git commit` failure, or the `publish_change` operation's
+  own failure summary verbatim. Never reworded into something more general.
 - `artifacts: []`
 - `next_action: none`
 
