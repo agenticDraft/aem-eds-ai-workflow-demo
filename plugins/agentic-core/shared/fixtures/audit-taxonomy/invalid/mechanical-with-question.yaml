@@ -1,0 +1,9 @@
+- id: "F1"
+  class: mechanical
+  severity: cosmetic
+  file: "styles/fonts.css"
+  finding: "a font file is never referenced outside its own declaration"
+  diff: |
+    - old
+    + new
+  question: "this field belongs to needs-the-human only"

@@ -1,0 +1,5 @@
+# Example pack-declared list of paths an agent loads into every stage's
+# own context. A real pack's own list is its own concern; this fixture
+# stands in for one, using generic path shapes rather than a real platform's.
+house-style.md
+conventions/style-guide.md

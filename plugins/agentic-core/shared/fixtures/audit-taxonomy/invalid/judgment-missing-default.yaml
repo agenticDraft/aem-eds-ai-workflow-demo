@@ -1,0 +1,9 @@
+- id: "F1"
+  class: judgment
+  severity: cosmetic
+  file: "blocks/sample/sample.css"
+  finding: "a raw hex color is close to, but not exactly, an adopted token"
+  diff: |
+    - old
+    + new
+  recommendation: "replace the raw hex with the nearest adopted token"

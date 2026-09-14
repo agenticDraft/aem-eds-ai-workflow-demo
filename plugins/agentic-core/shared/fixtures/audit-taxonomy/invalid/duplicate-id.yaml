@@ -1,0 +1,16 @@
+- id: "F1"
+  class: mechanical
+  severity: cosmetic
+  file: "styles/fonts.css"
+  finding: "first entry"
+  diff: |
+    - old
+    + new
+- id: "F1"
+  class: mechanical
+  severity: cosmetic
+  file: "styles/other.css"
+  finding: "second entry, same id"
+  diff: |
+    - old
+    + new
