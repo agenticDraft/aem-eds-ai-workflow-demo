@@ -1,5 +1,5 @@
 ---
-description: Design-system onboarding (core contract §6.2, D22, D24, D81) — manual invocation, run once per project. Takes a list of design-tool frame references (one per breakpoint viewport of the same page), retrieves each through the design role's fetch_reference operation, and writes the proposed token set, breakpoint frame widths and a design manifest under .ai/design/, touching nothing else in the working tree. Never carries a value over from the project's existing stylesheet; every value comes from the design source. A value the design source resolves to something this format cannot represent (a composite or structured value) is recorded as unresolvable, never guessed into a value it never had, and the same variable resolving to two different values across frames aborts the run rather than picking one.
+description: Design-system onboarding (core contract §6.2, D22, D24, D81) — manual invocation, run once per project. Takes a list of design-tool frame references (one per breakpoint viewport of the same page), retrieves each through the design role's fetch_reference operation, and writes the proposed token set, derived breakpoint thresholds and a design manifest under .ai/design/, touching nothing else in the working tree. Never carries a value over from the project's existing stylesheet; every value comes from the design source. A value the design source resolves to something this format cannot represent (a composite or structured value) is recorded as unresolvable, never guessed into a value it never had, and the same variable resolving to two different values across frames aborts the run rather than picking one. Breakpoint thresholds are derived from the recorded frame widths by geometric mean, rounded to the nearest 50 (D21) — never a fixed ladder, never one of the frame widths itself.
 context: fork
 ---
 
@@ -47,6 +47,8 @@ digraph eds_adopt_design_system {
     "Every frame retrieved?" [shape=diamond];
     "Write the design manifest" [shape=box];
     "Manifest written?" [shape=diamond];
+    "Derive breakpoints" [shape=box];
+    "Breakpoints derived?" [shape=diamond];
     "Confirm nothing else changed" [shape=box];
     "Only .ai/design/ changed?" [shape=diamond];
     "Report pass" [shape=doublecircle];
@@ -64,8 +66,11 @@ digraph eds_adopt_design_system {
     "Every frame retrieved?" -> "Report question" [label="a reference returned question"];
     "Every frame retrieved?" -> "Report fail" [label="a reference returned fail"];
     "Write the design manifest" -> "Manifest written?";
-    "Manifest written?" -> "Confirm nothing else changed" [label="yes"];
+    "Manifest written?" -> "Derive breakpoints" [label="yes"];
     "Manifest written?" -> "Report fail" [label="no"];
+    "Derive breakpoints" -> "Breakpoints derived?";
+    "Breakpoints derived?" -> "Confirm nothing else changed" [label="yes"];
+    "Breakpoints derived?" -> "Report fail" [label="no"];
     "Confirm nothing else changed" -> "Only .ai/design/ changed?";
     "Only .ai/design/ changed?" -> "Report pass" [label="yes"];
     "Only .ai/design/ changed?" -> "Report fail" [label="no"];
@@ -131,14 +136,35 @@ deterministic writer for `design-system.md`, `proposed-tokens.css` and `proposed
 (`../../../agentic-core/shared/design-manifest.md`) — it classifies every resolved value, detects a
 same-name conflict across frames, and places everything in the fixed shape. Nothing about the
 values, the classification, or the conflict check is this skill's own judgment call; the script is
-the single source for all of it.
+the single source for all of it. Its own `proposed-breakpoints.md` records the frame widths
+undereived — deriving a threshold from them is **Derive breakpoints**' job, immediately next, not
+this node's.
 
 ### Manifest written?
 
-The script exited `0` — continue to **Confirm nothing else changed**. It exited `1` (a same-name
-conflict across frames — its own message names both conflicting values and which frames produced
-them) or `2` (a malformed artifact — should not happen given a conformant `fetch_reference`, but
-checked anyway) — go to **Report fail**, naming the script's own stderr message verbatim.
+The script exited `0` — continue to **Derive breakpoints**. It exited `1` (a same-name conflict
+across frames — its own message names both conflicting values and which frames produced them) or
+`2` (a malformed artifact — should not happen given a conformant `fetch_reference`, but checked
+anyway) — go to **Report fail**, naming the script's own stderr message verbatim.
+
+### Derive breakpoints
+
+Run `scripts/write-proposed-breakpoints.sh .ai/design/design-system.md
+.ai/design/proposed-breakpoints.md`. This script reads the frame widths the previous node just
+wrote into the manifest, feeds them to
+`../../../agentic-core/shared/lib/derive-breakpoints.sh` — pure arithmetic, the geometric mean of
+adjacent widths rounded to the nearest 50, smallest frame is the base with no threshold (D21,
+`../../../agentic-core/shared/breakpoint-thresholds.md`) — and overwrites
+`proposed-breakpoints.md` with the derived thresholds and the arithmetic behind each one, replacing
+the undereived placeholder the previous node wrote. No design provider is called here: every width
+this node derives from is already on disk.
+
+### Breakpoints derived?
+
+The script exited `0` — continue to **Confirm nothing else changed**. It exited `2` (the manifest
+has no frames, or two frames share a width — the core deriver's own refusal, forwarded verbatim
+rather than reworded, because a threshold equal to a frame width is the exact defect D21 exists to
+prevent) — go to **Report fail**, naming the script's own stderr message verbatim.
 
 ### Confirm nothing else changed
 
@@ -164,7 +190,7 @@ Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
 - `artifacts`: `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
   `.ai/design/proposed-breakpoints.md`.
 - `next_action: none`
-- `metrics: frames=<count>`
+- `metrics: frames=<count> thresholds=<count>`
 
 ### Report fail
 
