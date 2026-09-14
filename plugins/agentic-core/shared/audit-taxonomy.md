@@ -39,6 +39,16 @@ A class is a statement about what the *fix* needs, never about how alarming the 
 finding that looks trivial but has no single correct answer is `judgment`, not `mechanical`; a
 finding that looks serious but has one derivable answer is `mechanical`, not something scarier.
 
+**A `mechanical` verdict is provisional on the file being untouched since it was assembled.**
+`mechanical` means a fix applies with no human input at all — a file a human has since edited no
+longer meets that bar, whatever the edit was. `lib/check-auto-fix-eligibility.sh` is the
+deterministic test: exactly one commit in a path's `git log` history (the boilerplate import
+itself) means untouched and the finding stays `mechanical`; any other count demotes it to
+`judgment`, never applied silently. `lib/check-shallow-clone.sh` is a required precondition — a
+shallow clone makes every path report at most one commit regardless of real history, so it must
+run first and abort the audit before any eligibility check rather than let a `git log` answer it
+cannot trust flip a real edit back to `mechanical`.
+
 ## The severity test
 
 **One question decides severity, and it is checkable, not a matter of taste (G22):** *does an
@@ -170,9 +180,24 @@ file excludable so a declaration is not counted as its own use. It exits `0` and
 `referenced: <path>:<line>` per hit when at least one is found, `1` and prints `not-referenced`
 when none is, `2` for a usage error.
 
+`lib/check-shallow-clone.sh <project-root>` is the required precondition for the two checks below:
+is `<project-root>`'s clone deep enough to make `git log` a trustworthy oracle. It exits `0` and
+prints `ok: full clone ...`, `1` (a PERMANENT abort) and prints `permanent-abort: ...` on stderr
+naming `git fetch --unshallow` as the remedy when the clone is shallow, `2` for a usage error. Must
+run, and exit `0`, before the first call described next.
+
+`lib/check-auto-fix-eligibility.sh <project-root> <path> [<path> ...]` is the deterministic
+auto-fix eligibility oracle: exactly one commit in a path's history means untouched since import
+(`eligible`), any other count means edited since and no longer safe to auto-fix (`demoted`). It
+exits `0` when every path is eligible, `1` when at least one is demoted (every path's verdict is
+still printed), `2` for a usage error. Trusts the caller to have already run
+`check-shallow-clone.sh` — see that script's own header for why the two stay separate.
+
 ```bash
 bash plugins/agentic-core/shared/lib/validate-findings.test.sh
 bash plugins/agentic-core/shared/lib/classify-severity.test.sh
 bash plugins/agentic-core/shared/lib/classify-hex-token.test.sh
 bash plugins/agentic-core/shared/lib/check-reference.test.sh
+bash plugins/agentic-core/shared/lib/check-shallow-clone.test.sh
+bash plugins/agentic-core/shared/lib/check-auto-fix-eligibility.test.sh
 ```

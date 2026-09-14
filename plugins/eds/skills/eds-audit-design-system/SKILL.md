@@ -1,5 +1,5 @@
 ---
-description: Design-system audit (core contract §6.2, D22, D23, D81; audit-taxonomy.md) — manual invocation, run any time after design-system onboarding has produced a manifest. Compares this platform's own documents and code against the adopted token set and against each other, classifies every discrepancy into one of four fix-cost classes, decides each one's severity by whether an agent reads its file as truth, and writes .ai/design/audit.md. Invocable alone, or as a step inside eds-adopt-design-system's own flow (D17). Touches nothing outside .ai/design/.
+description: Design-system audit (core contract §6.2, D22, D23, D81; audit-taxonomy.md) — manual invocation, run any time after design-system onboarding has produced a manifest. Compares this platform's own documents and code against the adopted token set and against each other, classifies every discrepancy into one of four fix-cost classes, decides each one's severity by whether an agent reads its file as truth, demotes any mechanical finding whose file was edited since the boilerplate import to judgment rather than auto-fixing over a human's own change, and writes .ai/design/audit.md. Aborts before writing anything if the repository is a shallow clone, since that would make the demotion check itself untrustworthy. Invocable alone, or as a step inside eds-adopt-design-system's own flow (D17). Touches nothing outside .ai/design/.
 context: fork
 ---
 
@@ -40,6 +40,9 @@ digraph eds_audit_design_system {
     "Check block stylesheet colors" [shape=box];
     "Check for dead font files" [shape=box];
     "Assemble findings" [shape=box];
+    "Check shallow-repository precondition" [shape=box];
+    "Repository shallow?" [shape=diamond];
+    "Check auto-fix eligibility for mechanical findings" [shape=box];
     "Write the audit" [shape=box];
     "Confirm nothing else changed" [shape=box];
     "Only .ai/design/ changed?" [shape=diamond];
@@ -55,7 +58,11 @@ digraph eds_audit_design_system {
     "Check the package manifest fields" -> "Check block stylesheet colors";
     "Check block stylesheet colors" -> "Check for dead font files";
     "Check for dead font files" -> "Assemble findings";
-    "Assemble findings" -> "Write the audit";
+    "Assemble findings" -> "Check shallow-repository precondition";
+    "Check shallow-repository precondition" -> "Repository shallow?";
+    "Repository shallow?" -> "Report fail" [label="yes"];
+    "Repository shallow?" -> "Check auto-fix eligibility for mechanical findings" [label="no"];
+    "Check auto-fix eligibility for mechanical findings" -> "Write the audit";
     "Write the audit" -> "Confirm nothing else changed";
     "Confirm nothing else changed" -> "Only .ai/design/ changed?";
     "Only .ai/design/ changed?" -> "Any poisoning finding?" [label="yes"];
@@ -160,10 +167,40 @@ Collect every finding recorded by the four checks above into one list, in the or
 ran, assigning each a unique `id` (`F1`, `F2`, … in that order they were found). An audit that
 found nothing produces an empty list.
 
+### Check shallow-repository precondition
+
+Run `../../../agentic-core/shared/lib/check-shallow-clone.sh .` once, before any call to the
+eligibility oracle in the next node — never after. This is the only node in this flow that reads
+the repository's own clone depth rather than its content.
+
+### Repository shallow?
+
+Exit `1` (`permanent-abort: ...`) — go to **Report fail**: a shallow clone makes `git log` report
+at most one commit for every path regardless of real history, so no auto-fix eligibility verdict
+computed against it can be trusted. Stop before checking a single file; do not fall through to the
+next node. Exit `0` (`ok: full clone`) — continue to **Check auto-fix eligibility for mechanical
+findings**.
+
+### Check auto-fix eligibility for mechanical findings
+
+For every finding assembled above with `class: mechanical`, run `../../../agentic-core/shared/
+lib/check-auto-fix-eligibility.sh . <file>` against that finding's own `file`. Findings of any
+other class are untouched by this node — the check exists to protect a human's own edit from a
+silent auto-fix, not to reclassify anything else.
+
+- `eligible: <file>` — leave the finding exactly as assembled; it is still `mechanical`.
+- `demoted: <file> (<n> commits)` — the file has been edited since the boilerplate import, so a
+  human decision already lives in it. Rewrite that finding in place: `class: judgment`,
+  `recommendation` naming the same fix its `diff` already carries, `default` equal to
+  `recommendation` (`../../../agentic-core/shared/audit-taxonomy.md`'s own rule for a `judgment`
+  finding's `diff` — the recommended value is what the diff already carries, so accepting the
+  default applies exactly that diff, nothing further to construct), `diff` and `file` unchanged.
+
 ### Write the audit
 
-Write `.ai/design/audit.md`: the assembled list, in `../../../agentic-core/shared/audit-
-taxonomy.md`'s exact shape, or the literal `[]` when it is empty — never an omitted or blank file.
+Write `.ai/design/audit.md`: the assembled list — with any node above's demotions applied — in
+`../../../agentic-core/shared/audit-taxonomy.md`'s exact shape, or the literal `[]` when it is
+empty — never an omitted or blank file.
 Run `../../../agentic-core/shared/lib/validate-findings.sh .ai/design/audit.md` to confirm the
 file this node just wrote actually conforms to that shape before reporting anything about it.
 
