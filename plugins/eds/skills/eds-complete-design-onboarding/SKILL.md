@@ -137,16 +137,22 @@ Read `.ai/design/audit.md`, the file the audit just wrote. Parse it as a bare fi
 This commit adopts the manifest and the design tokens into project source — nothing else. It
 never touches the project's live breakpoint or `styles/fonts.css`'s font declarations this run
 (D82: the derived breakpoint is recorded in the manifest for a human to act on separately; no font
-value resolved this run has anything to write there).
+value resolved this run has anything to write there). Everything below computes into a scratch
+directory outside the working tree (`mktemp -d`) — nothing under `styles/` is touched yet. Writing
+to the real path is **Write and commit the design system**'s job, after approval; a node named
+*Assemble* that itself wrote to project source would make the Reject-if clause below unfalsifiable
+the same way Phase 5 / Task 4's own reject-if reasoning describes for its precondition ordering.
 
-1. Copy `.ai/design/design-system.md` verbatim to `styles/design-system.md` — the manifest,
-   promoted (D22).
-2. Run `../../../agentic-core/shared/lib/append-css-custom-properties.sh styles/styles.css
-   .ai/design/proposed-tokens.css`. This adds every token the design source resolved as a new
-   custom property in `styles/styles.css`'s `:root` block, skipping any name already present —
-   never renaming or overwriting an existing one (D20, D82).
-3. Record the two resulting file paths (`styles/design-system.md`, `styles/styles.css`) as this
-   commit's file list, for **Present the full proposal** and the later commit step.
+1. Copy `.ai/design/design-system.md` to `<scratch>/design-system.md` — the manifest as it would
+   be promoted (D22).
+2. Copy `styles/styles.css` to `<scratch>/styles.css`, then run
+   `../../../agentic-core/shared/lib/append-css-custom-properties.sh <scratch>/styles.css
+   .ai/design/proposed-tokens.css` against the scratch copy. This computes every token the design
+   source resolved as a new custom property in the `:root` block, skipping any name already
+   present — never renaming or overwriting an existing one (D20, D82).
+3. Record the two scratch file paths, and their real target paths (`styles/design-system.md`,
+   `styles/styles.css`), as this commit's contents, for **Present the full proposal** and the later
+   commit step.
 
 ### Assemble the mechanical-cleanup commit
 
@@ -225,9 +231,10 @@ Approved — continue to **Create the onboarding branch**. Declined — go to **
 
 ### Write and commit the design system
 
-Write `styles/design-system.md` and `styles/styles.css` exactly as computed in **Assemble the
-design-system commit**. `git add` both files and `git commit` with a message naming this as the
-design-system adoption commit and the token/frame counts the manifest records.
+Copy the two scratch files from **Assemble the design-system commit** to their real target paths
+(`styles/design-system.md`, `styles/styles.css`) — the first real write outside `.ai/design/` this
+run makes. `git add` both files and `git commit` with a message naming this as the design-system
+adoption commit and the token/frame counts the manifest records.
 
 ### Write and commit the mechanical cleanup
 
