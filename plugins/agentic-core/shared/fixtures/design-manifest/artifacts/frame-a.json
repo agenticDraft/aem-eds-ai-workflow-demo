@@ -1,0 +1,11 @@
+{
+  "reference": "https://example-design-tool.test/file/abc123?node=1-1043",
+  "file_key": "abc123",
+  "node_id": "1:1043",
+  "node_name": "Label",
+  "geometry": { "x": 20, "y": 1673, "width": 1220, "height": 65 },
+  "variables": {
+    "Accent/Accent 4": "#000000",
+    "Dividers/Divider 1": "#E9E9E9"
+  }
+}

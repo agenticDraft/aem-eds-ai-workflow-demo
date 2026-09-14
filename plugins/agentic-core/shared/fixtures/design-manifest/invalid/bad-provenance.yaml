@@ -1,0 +1,8 @@
+version: 1
+tokens:
+  provenance: collection-identity
+  values: []
+  unresolvable: []
+frames:
+  - reference: "https://example-design-tool.test/file/abc123?node=1-118"
+    width: 1280

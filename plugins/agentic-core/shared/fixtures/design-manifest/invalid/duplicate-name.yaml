@@ -1,0 +1,12 @@
+version: 1
+tokens:
+  provenance: resolved-value-set
+  values:
+    - name: "Accent/Accent 4"
+      value: "#000000"
+  unresolvable:
+    - name: "Accent/Accent 4"
+      reason: "value is not a recognized color or dimension: provider returned a composite type"
+frames:
+  - reference: "https://example-design-tool.test/file/abc123?node=1-118"
+    width: 1280

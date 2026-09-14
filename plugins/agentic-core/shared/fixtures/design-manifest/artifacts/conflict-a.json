@@ -1,0 +1,7 @@
+{
+  "reference": "https://example-design-tool.test/file/abc123?node=2-1",
+  "geometry": { "width": 375 },
+  "variables": {
+    "Accent/Accent 4": "#000000"
+  }
+}

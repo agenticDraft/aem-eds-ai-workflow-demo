@@ -1,0 +1,12 @@
+{
+  "reference": "https://example-design-tool.test/file/abc123?node=1-118",
+  "file_key": "abc123",
+  "node_id": "1:118",
+  "node_name": "Desktop",
+  "geometry": { "x": 64, "y": 100, "width": 1280, "height": 7388.66748046875 },
+  "variables": {
+    "Accent/Accent 4": "#000000",
+    "Text/On accent 1": "#FFFFFF",
+    "Heading 1": "Font(family: \"Crimson Text\", style: Regular, size: 60, weight: 400, lineHeight: 0.9, letterSpacing: -3)"
+  }
+}

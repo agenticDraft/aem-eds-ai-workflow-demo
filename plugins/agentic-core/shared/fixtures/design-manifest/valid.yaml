@@ -1,0 +1,14 @@
+version: 1
+tokens:
+  provenance: resolved-value-set
+  values:
+    - name: "Accent/Accent 4"
+      value: "#000000"
+    - name: "Dividers/Divider 1"
+      value: "#E9E9E9"
+  unresolvable:
+    - name: "Heading 1"
+      reason: "value is not a recognized color or dimension: provider returned a composite type"
+frames:
+  - reference: "https://example-design-tool.test/file/abc123?node=1-118"
+    width: 1280
