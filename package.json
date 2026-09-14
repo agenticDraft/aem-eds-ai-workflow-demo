@@ -1,8 +1,8 @@
 {
-  "name": "@adobe/aem-boilerplate",
+  "name": "aem-eds-ai-workflow-demo",
   "private": true,
   "version": "1.3.0",
-  "description": "Starter project for Adobe Helix",
+  "description": "AEM Edge Delivery boilerplate used as the demo and test bed for the delivery automation being built in this repo.",
   "scripts": {
     "up": "aem up --no-open --forward-browser-logs",
     "up:draft": "aem up --no-open --forward-browser-logs --html-folder drafts",
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adobe/aem-boilerplate.git"
+    "url": "git+https://github.com/agenticDraft/aem-eds-ai-workflow-demo.git"
   },
   "author": "Adobe",
   "license": "Apache License 2.0",
