@@ -14,7 +14,11 @@
 #     declares at least one item type; every entry in `always_autonomous` and
 #     every artifact's `produced_by` names a declared stage; every skill
 #     resolves and declares isolated execution; and route.dot agrees with the
-#     stage list node for node.
+#     stage list node for node. Two further, optional keys — `onboarding_
+#     state_path` and `audit_findings_path` (D80) — each, when present, must
+#     be a well-formed relative path: non-empty, not absolute, no `..`
+#     segment. Neither is checked for existence here; that is pre-flight's
+#     job at runtime, against a real project.
 #
 #   provider — `role` is one of the four core roles; every key in
 #     `operations` and every entry in `unsupported` is an operation that
@@ -326,6 +330,31 @@ if [[ "$kind" == "platform" ]]; then
         || fail "an artifact is missing its 'path'"
       cursor=$((cursor + 1))
     done
+  fi
+
+  # --- onboarding-state and audit-findings paths (validator 15, D80) --------
+  # Both optional. The core never learns what either path is called beyond
+  # this — only that a declared value is a legitimate relative path a later
+  # structural read (pre-flight) may test for existence against a real
+  # project's working tree. This validator never touches disk for either: a
+  # pack has no fixed project to check against.
+  validate_declared_path() {
+    local key="$1" value="$2"
+    [[ -n "$value" ]] || fail "'$key' is present but empty — omit the key instead"
+    [[ "$value" != /* ]] || fail "'$key' must be a relative path, not absolute: '$value'"
+    case "/$value/" in
+      */../*) fail "'$key' may not contain a '..' path segment: '$value'" ;;
+    esac
+  }
+
+  if [[ "${LINES[cursor]:-}" =~ ^onboarding_state_path:\ \"(.*)\"$ ]]; then
+    validate_declared_path "onboarding_state_path" "${BASH_REMATCH[1]}"
+    cursor=$((cursor + 1))
+  fi
+
+  if [[ "${LINES[cursor]:-}" =~ ^audit_findings_path:\ \"(.*)\"$ ]]; then
+    validate_declared_path "audit_findings_path" "${BASH_REMATCH[1]}"
+    cursor=$((cursor + 1))
   fi
 
   if (( cursor < n )); then

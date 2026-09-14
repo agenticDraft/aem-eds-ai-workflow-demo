@@ -55,6 +55,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/write-run-state.test.sh
       - name: Check run state
         run: bash plugins/agentic-core/shared/lib/check-run-state.test.sh
+      - name: Check onboarding gate
+        run: bash plugins/agentic-core/shared/lib/check-onboarding-gate.test.sh
       - name: Check preflight
         run: bash plugins/agentic-core/shared/lib/check-preflight.test.sh
       - name: Run stage

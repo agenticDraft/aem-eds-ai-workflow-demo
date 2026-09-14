@@ -5,13 +5,18 @@
 # validate-pack-manifest.sh and validate-project-config.sh already validate —
 # never a runtime health check against a live tool or process.
 #
-# Two checks, in order:
+# Three checks, in order:
 #   1. every role the project config requires (packs.platform/tracker/scm/
 #      browser always, packs.design only when it is not "none") has a
 #      role=path argument naming a pack.yaml that validates as the right
 #      kind for that role.
 #   2. every operation core contract §6 declares for a configured provider
 #      role is implemented rather than declared unsupported.
+#   3. the onboarding gate (core contract §6.3, D80), delegated to
+#      check-onboarding-gate.sh against the platform pack's manifest — a
+#      no-op unless that manifest declares onboarding_state_path and/or
+#      audit_findings_path. An absent onboarding-state file only warns; an
+#      open poisoning finding at the audit-findings path blocks.
 #
 # Usage:
 #   check-preflight.sh <project-config path> <role>=<path-to-pack.yaml> [...]
@@ -20,9 +25,12 @@
 #
 # Exit codes:
 #   0 — "ready", then one "<role>: ok" line per role checked ("design: none"
-#       when config requires no design pack)
+#       when config requires no design pack), then check 3's own line(s)
+#       ("onboarding: ok|warn — …", "audit: ok — …") when the platform pack
+#       declares either onboarding path — omitted entirely when it declares
+#       neither.
 #   1 — "invalid: <reason>" on stderr, naming the first missing pack, role
-#       mismatch or unavailable operation
+#       mismatch, unavailable operation, or open poisoning finding
 #   2 — usage error: no config argument, config not found, a malformed
 #       role=path pair, an unrecognized role name
 
@@ -31,6 +39,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VALIDATE_CONFIG="$SCRIPT_DIR/validate-project-config.sh"
 VALIDATE_MANIFEST="$SCRIPT_DIR/validate-pack-manifest.sh"
+CHECK_ONBOARDING="$SCRIPT_DIR/check-onboarding-gate.sh"
 
 usage() {
   echo "usage: check-preflight.sh <project-config path> <role>=<path-to-pack.yaml> [...]" >&2
@@ -153,6 +162,15 @@ for role in "${PROVIDER_ROLES[@]}"; do
   fi
 done
 
+# --- check 3: onboarding gate, when the platform pack declares it (D80) ----
+GATE_OUT="$("$CHECK_ONBOARDING" "$PLATFORM_PATH" 2>&1)"
+GATE_STATUS=$?
+if [[ $GATE_STATUS -eq 1 ]]; then
+  fail "${GATE_OUT#invalid: }"
+elif [[ $GATE_STATUS -ne 0 ]]; then
+  fail "onboarding gate could not run — ${GATE_OUT}"
+fi
+
 # --- ready -------------------------------------------------------------
 echo "ready"
 echo "platform: ok"
@@ -164,4 +182,7 @@ else
   echo "design: ok"
 fi
 echo "browser: ok"
+if [[ "$GATE_OUT" != "not-gated" ]]; then
+  echo "$GATE_OUT"
+fi
 exit 0
