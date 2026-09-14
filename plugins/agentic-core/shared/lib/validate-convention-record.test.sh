@@ -57,6 +57,20 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/unknown-top-level-key.yaml" 2>&1); ST=$
 assert_exit "unknown-top-level-key.yaml rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the bad key" "notes" "$OUT"
 
+echo "[accept] onboarding_answers with entries"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/valid-with-answers.yaml" 2>&1); ST=$?
+assert_exit "valid-with-answers.yaml accepted (exit 0)" 0 $ST "$OUT"
+
+echo "[reject] onboarding_answers missing entirely"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/missing-onboarding-answers.yaml" 2>&1); ST=$?
+assert_exit "missing-onboarding-answers.yaml rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the missing key" "onboarding_answers" "$OUT"
+
+echo "[reject] onboarding_answers entry with an empty field"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/onboarding-answer-empty-field.yaml" 2>&1); ST=$?
+assert_exit "onboarding-answer-empty-field.yaml rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the empty field" "answer is empty" "$OUT"
+
 echo "[usage] no argument"
 OUT=$(bash "$VALIDATOR" 2>&1); ST=$?
 assert_exit "no arg -> usage error (exit 2)" 2 $ST "$OUT"
