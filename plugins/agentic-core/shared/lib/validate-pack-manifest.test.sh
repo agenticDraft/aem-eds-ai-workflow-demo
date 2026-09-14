@@ -66,6 +66,10 @@ echo "[accept] a platform manifest declaring all fifteen stages"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-valid-full-route/pack.yaml" 2>&1); ST=$?
 assert_exit "platform-valid-full-route accepted (exit 0)" 0 $ST "$OUT"
 
+echo "[accept] a platform manifest declaring onboarding_state_path and audit_findings_path (D80)"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-valid-onboarding/pack.yaml" 2>&1); ST=$?
+assert_exit "platform-valid-onboarding accepted (exit 0)" 0 $ST "$OUT"
+
 echo "[accept] a well-formed provider manifest"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/provider-valid/pack.yaml" 2>&1); ST=$?
 assert_exit "provider-valid accepted (exit 0)" 0 $ST "$OUT"
@@ -169,6 +173,21 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/digraph-label-mismatch/pack.ya
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason prints the actual label" "is 'design_source=true'" "$OUT"
 assert_contains "reason prints the expected rendering" "design_source=true OR design_mentioned=true" "$OUT"
+
+echo "[reject] validator 15 — onboarding_state_path is absolute"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/onboarding-path-absolute/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says absolute" "not absolute" "$OUT"
+
+echo "[reject] validator 15 — audit_findings_path contains a '..' segment"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/onboarding-path-traversal/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the segment" "'..' path segment" "$OUT"
+
+echo "[reject] validator 15 — onboarding_state_path present but empty"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/onboarding-path-empty/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says omit the key" "omit the key instead" "$OUT"
 
 echo "[reject] provider manifest omits an operation without declaring it unsupported"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/provider-invalid/missing-operation/pack.yaml" 2>&1); ST=$?

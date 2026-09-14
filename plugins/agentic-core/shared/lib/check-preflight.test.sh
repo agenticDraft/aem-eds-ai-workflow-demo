@@ -88,6 +88,67 @@ OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \
 assert_exit "role mismatch rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the declared role" "declares role 'tracker'" "$OUT"
 
+# --- check 3: the onboarding gate (D80) -------------------------------------
+# platform-valid-onboarding declares onboarding_state_path=onboarding/manifest.md
+# and audit_findings_path=onboarding/audit.md, both resolved relative to the
+# current working directory — the same convention every project-relative path
+# in this system uses. Each case cd's into its own temp "project root" first.
+GATED_PLATFORM="$PACKFIXDIR/platform-valid-onboarding/pack.yaml"
+
+run_gated() {
+  local dir="$1"; shift
+  (cd "$dir" && bash "$CHECK" "$@" 2>&1)
+}
+
+ONBOARD_TMP="$(mktemp -d "${TMPDIR:-/tmp}/check-preflight-onboarding.XXXXXX")"
+trap 'rm -rf "$ONBOARD_TMP"' EXIT
+
+echo "[accept] onboarding gate: neither declared path present in the project — warns, still ready"
+mkdir -p "$ONBOARD_TMP/no-paths/onboarding"
+OUT=$(run_gated "$ONBOARD_TMP/no-paths" "$FIXDIR/config-valid.yaml" \
+  "platform=$GATED_PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER"); ST=$?
+assert_exit "still ready (exit 0)" 0 $ST "$OUT"
+assert_contains "reports ready" "ready" "$OUT"
+assert_contains "onboarding warns" "onboarding: warn" "$OUT"
+assert_contains "audit ok, nothing to check yet" "audit: ok — no audit yet" "$OUT"
+
+echo "[accept] onboarding gate: onboarding-state file present"
+mkdir -p "$ONBOARD_TMP/onboarded/onboarding"
+: > "$ONBOARD_TMP/onboarded/onboarding/manifest.md"
+OUT=$(run_gated "$ONBOARD_TMP/onboarded" "$FIXDIR/config-valid.yaml" \
+  "platform=$GATED_PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER"); ST=$?
+assert_exit "ready (exit 0)" 0 $ST "$OUT"
+assert_contains "onboarding ok" "onboarding: ok" "$OUT"
+
+echo "[reject] onboarding gate: an open poisoning finding blocks before any branch/file exists"
+mkdir -p "$ONBOARD_TMP/poisoned/onboarding"
+cat > "$ONBOARD_TMP/poisoned/onboarding/audit.md" <<'EOF'
+- id: "F1"
+  class: mechanical
+  severity: poisoning
+  file: "AGENTS.project.md"
+  finding: "the breakpoint claim in this house-style document contradicts what the code actually enforces"
+  diff: |
+    -    the breakpoint is 1024px
+    +    the breakpoint is 900px
+EOF
+OUT=$(run_gated "$ONBOARD_TMP/poisoned" "$FIXDIR/config-valid.yaml" \
+  "platform=$GATED_PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER"); ST=$?
+assert_exit "blocked (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the contradiction" "breakpoint claim" "$OUT"
+assert_contains "reason names the remedy" "onboarding-completion flow" "$OUT"
+
+echo "[accept] a platform pack declaring neither onboarding path runs ungated, output unchanged"
+OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \
+  "platform=$PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER" 2>&1); ST=$?
+assert_exit "ready (exit 0)" 0 $ST "$OUT"
+if [[ "$OUT" == *"onboarding:"* || "$OUT" == *"audit:"* ]]; then
+  FAIL=$((FAIL + 1)); echo "  FAIL: ungated pack prints no onboarding/audit line"
+  echo "    got: $OUT"
+else
+  PASS=$((PASS + 1)); echo "  ok: ungated pack prints no onboarding/audit line"
+fi
+
 echo "[usage] no arguments"
 OUT=$(bash "$CHECK" 2>&1); ST=$?
 assert_exit "no args -> usage error (exit 2)" 2 $ST "$OUT"

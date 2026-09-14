@@ -88,3 +88,5 @@ artifacts:
   - id: delivery-report
     produced_by: deliver
     path: ".ai/run-context/delivery-report.md"
+onboarding_state_path: "styles/design-system.md"
+audit_findings_path: ".ai/design/audit.md"
