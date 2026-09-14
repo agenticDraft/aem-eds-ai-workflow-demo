@@ -1,0 +1,35 @@
+- id: "F1"
+  class: mechanical
+  severity: poisoning
+  file: "house-style.md"
+  finding: "the stated breakpoint value does not match the stylesheet's own media query"
+  diff: |
+    - `@media (width >= 600px)`. 600px is the only breakpoint in this project.
+    + `@media (width >= 900px)`. 900px is the only breakpoint in this project.
+- id: "F2"
+  class: needs-the-human
+  severity: cosmetic
+  file: "project-manifest.json"
+  finding: "the project name is the template default, not this project's own name"
+  diff: |
+    -  "name": "template-default",
+    +  "name": "<awaiting answer: what should this project be called?>",
+  question: "what should this project's manifest name field say?"
+- id: "F3"
+  class: judgment
+  severity: cosmetic
+  file: "blocks/sample/sample.css"
+  finding: "a raw hex color is close to, but not exactly, an adopted token"
+  diff: |
+    -  border: 1px solid #dadada;
+    +  border: 1px solid var(--dividers-divider-1);
+  recommendation: "replace the raw hex with the nearest adopted token, Dividers/Divider 1"
+  default: "replace the raw hex with the nearest adopted token, Dividers/Divider 1"
+- id: "F4"
+  class: report-only
+  severity: poisoning
+  file: "house-style.md"
+  finding: "a documented workflow step is claimed as automatic but nothing in the project runs it"
+  diff: |
+    - Performance is checked automatically on every change.
+    + Performance is not currently checked automatically; see the open workflow gap.

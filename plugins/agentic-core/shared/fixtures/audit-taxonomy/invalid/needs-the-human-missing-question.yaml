@@ -1,0 +1,8 @@
+- id: "F1"
+  class: needs-the-human
+  severity: cosmetic
+  file: "project-manifest.json"
+  finding: "the project name is the template default, not this project's own name"
+  diff: |
+    - old
+    + new

@@ -1,0 +1,8 @@
+- id: "F1"
+  class: severe
+  severity: cosmetic
+  file: "styles/fonts.css"
+  finding: "an unknown class literal"
+  diff: |
+    - old
+    + new

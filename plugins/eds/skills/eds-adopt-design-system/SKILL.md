@@ -1,5 +1,5 @@
 ---
-description: Design-system onboarding (core contract §6.2, D22, D24, D81) — manual invocation, run once per project. Takes a list of design-tool frame references (one per breakpoint viewport of the same page), retrieves each through the design role's fetch_reference operation, and writes the proposed token set, derived breakpoint thresholds and a design manifest under .ai/design/, touching nothing else in the working tree. Never carries a value over from the project's existing stylesheet; every value comes from the design source. A value the design source resolves to something this format cannot represent (a composite or structured value) is recorded as unresolvable, never guessed into a value it never had, and the same variable resolving to two different values across frames aborts the run rather than picking one. Breakpoint thresholds are derived from the recorded frame widths by geometric mean, rounded to the nearest 50 (D21) — never a fixed ladder, never one of the frame widths itself.
+description: Design-system onboarding (core contract §6.2, D22, D24, D81) — manual invocation, run once per project. Takes a list of design-tool frame references (one per breakpoint viewport of the same page), retrieves each through the design role's fetch_reference operation, and writes the proposed token set, derived breakpoint thresholds and a design manifest under .ai/design/, touching nothing else in the working tree. Never carries a value over from the project's existing stylesheet; every value comes from the design source. A value the design source resolves to something this format cannot represent (a composite or structured value) is recorded as unresolvable, never guessed into a value it never had, and the same variable resolving to two different values across frames aborts the run rather than picking one. Breakpoint thresholds are derived from the recorded frame widths by geometric mean, rounded to the nearest 50 (D21) — never a fixed ladder, never one of the frame widths itself. Its final step audits the project against the manifest it just wrote (D23) by invoking eds-audit-design-system, and surfaces a poisoning finding as verdict: warn rather than a plain pass.
 context: fork
 ---
 
@@ -51,7 +51,10 @@ digraph eds_adopt_design_system {
     "Breakpoints derived?" [shape=diamond];
     "Confirm nothing else changed" [shape=box];
     "Only .ai/design/ changed?" [shape=diamond];
+    "Run the audit" [shape=box];
+    "Audit result?" [shape=diamond];
     "Report pass" [shape=doublecircle];
+    "Report warn" [shape=doublecircle];
     "Report fail" [shape=doublecircle];
     "Report question" [shape=doublecircle];
 
@@ -72,8 +75,12 @@ digraph eds_adopt_design_system {
     "Breakpoints derived?" -> "Confirm nothing else changed" [label="yes"];
     "Breakpoints derived?" -> "Report fail" [label="no"];
     "Confirm nothing else changed" -> "Only .ai/design/ changed?";
-    "Only .ai/design/ changed?" -> "Report pass" [label="yes"];
+    "Only .ai/design/ changed?" -> "Run the audit" [label="yes"];
     "Only .ai/design/ changed?" -> "Report fail" [label="no"];
+    "Run the audit" -> "Audit result?";
+    "Audit result?" -> "Report pass" [label="pass"];
+    "Audit result?" -> "Report warn" [label="warn"];
+    "Audit result?" -> "Report fail" [label="fail or question"];
 }
 ```
 
@@ -175,10 +182,27 @@ rather than assumed: this skill must never be the reason a project's tracked sou
 ### Only .ai/design/ changed?
 
 Every line `git status --porcelain` printed names a path under `.ai/design/` (or the output is
-empty, when `.ai/design/` was already tracked and unchanged in shape) — continue to **Report
-pass**. Any line names a path outside `.ai/design/` — go to **Report fail**, naming that path
+empty, when `.ai/design/` was already tracked and unchanged in shape) — continue to **Run the
+audit**. Any line names a path outside `.ai/design/` — go to **Report fail**, naming that path
 exactly; this must never happen, and reporting `pass` over it would make the one guarantee this
 skill exists for decorative.
+
+### Run the audit
+
+Invoke `Skill(eds:eds-audit-design-system)` with no arguments — the manifest this flow just wrote
+is exactly what that skill needs to audit against (D17: the same skill is invocable standalone or
+as a step here). Read the `## Result` block it ends with; its `artifacts` field names
+`.ai/design/audit.md`, added to this flow's own `artifacts` list in whichever report node is
+reached next.
+
+### Audit result?
+
+The audit's own `verdict` was `pass` — continue to **Report pass**. It was `warn` — continue to
+**Report warn**. It was `fail` or `question` — go to **Report fail**, naming the audit's own
+`summary` verbatim; a proposal this flow just wrote should not be reported as a clean `pass` when
+the one check built to look for a problem in it could not complete or found one worth surfacing at
+this level too. (A structural audit failure here is unexpected — the manifest was just written by
+this same flow — but checked rather than assumed.)
 
 ### Report pass
 
@@ -188,9 +212,21 @@ Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
 - `summary`: one sentence naming how many frames were retrieved and where the manifest was
   written.
 - `artifacts`: `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
-  `.ai/design/proposed-breakpoints.md`.
+  `.ai/design/proposed-breakpoints.md`, `.ai/design/audit.md`.
 - `next_action: none`
 - `metrics: frames=<count> thresholds=<count>`
+
+### Report warn
+
+Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
+
+- `verdict: warn`
+- `summary`: one sentence naming how many frames were retrieved, where the manifest was written,
+  and that the audit recorded at least one `poisoning` finding.
+- `artifacts`: `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
+  `.ai/design/proposed-breakpoints.md`, `.ai/design/audit.md`.
+- `next_action`: the audit's own `next_action`, forwarded verbatim.
+- `metrics: frames=<count> thresholds=<count>`, plus the audit's own `metrics` forwarded verbatim.
 
 ### Report fail
 

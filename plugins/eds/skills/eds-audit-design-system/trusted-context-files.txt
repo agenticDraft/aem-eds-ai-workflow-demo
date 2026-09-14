@@ -1,0 +1,9 @@
+# This pack's own declaration of which project paths an agent loads into
+# every stage's own context and trusts without re-deriving them — the
+# membership list `classify-severity.sh` checks a finding's `file` against
+# (see ../../../agentic-core/shared/audit-taxonomy.md, "The severity test").
+# One relative path per line; blank lines and lines starting with # are
+# ignored. Grows the same way the naming-rule denylist grows: a new
+# truth-bearing file gets added here when this platform gains one.
+AGENTS.md
+AGENTS.project.md
