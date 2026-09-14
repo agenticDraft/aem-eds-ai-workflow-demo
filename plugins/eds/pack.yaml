@@ -73,6 +73,9 @@ artifacts:
   - id: prototype-report
     produced_by: prototype
     path: ".ai/run-context/prototype-report.md"
+  - id: verify-design-report
+    produced_by: verify-design
+    path: ".ai/run-context/verify-design-report.md"
   - id: serve-report
     produced_by: serve
     path: ".ai/run-context/serve-report.md"
