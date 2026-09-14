@@ -1,0 +1,7 @@
+{
+  "name": "@adobe/aem-boilerplate",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adobe/aem-boilerplate.git"
+  }
+}

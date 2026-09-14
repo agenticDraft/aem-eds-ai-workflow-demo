@@ -4,9 +4,10 @@
 # involved: this is the CI floor a convention record must clear before
 # anything reads it.
 #
-# Checks the fixed shape shared/convention-record.md defines: the six
+# Checks the fixed shape shared/convention-record.md defines: the seven
 # top-level keys, in order, and nothing else; version an integer >= 1; the
-# five answer fields each a non-empty quoted string.
+# five answer fields each a non-empty quoted string; onboarding_answers a
+# bare list of {question, answer} pairs, or the literal [].
 #
 # Usage:
 #   validate-convention-record.sh <path>
@@ -69,7 +70,7 @@ top_level_key() {
 }
 
 # --- top-level key set, in order ------------------------------------------
-EXPECTED_TOP_LEVEL=(version pack_name unit_of_work_location definition_of_done stage_conventions verification_gate)
+EXPECTED_TOP_LEVEL=(version pack_name unit_of_work_location definition_of_done stage_conventions verification_gate onboarding_answers)
 
 TOPKEY=""
 top_level_key
@@ -98,13 +99,46 @@ for subkey in pack_name unit_of_work_location definition_of_done stage_conventio
   [[ -z "$MATCH" ]] && fail "${subkey} is empty"
 done
 
+# --- onboarding_answers ------------------------------------------------------
+if (( cursor >= n )); then
+  fail "missing required top-level key: 'onboarding_answers'"
+fi
+NEXT_LINE="${LINES[cursor]}"
+if [[ "$NEXT_LINE" == "onboarding_answers: []" ]]; then
+  cursor=$((cursor + 1))
+elif [[ "$NEXT_LINE" == "onboarding_answers:" ]]; then
+  cursor=$((cursor + 1))
+  entries=0
+  while (( cursor < n )) && [[ "${LINES[cursor]}" =~ ^\ \ -\ question:\ \"(.*)\"$ ]]; do
+    q="${BASH_REMATCH[1]}"
+    [[ -z "$q" ]] && fail "onboarding_answers entry $((entries + 1)): question is empty"
+    cursor=$((cursor + 1))
+    if (( cursor >= n )) || [[ ! "${LINES[cursor]}" =~ ^\ \ \ \ answer:\ \"(.*)\"$ ]]; then
+      fail "onboarding_answers entry $((entries + 1)): expected 'answer: \"<value>\"' after 'question:', got '${LINES[cursor]:-<end of file>}'"
+    fi
+    a="${BASH_REMATCH[1]}"
+    [[ -z "$a" ]] && fail "onboarding_answers entry $((entries + 1)): answer is empty"
+    cursor=$((cursor + 1))
+    entries=$((entries + 1))
+  done
+  if (( entries == 0 )); then
+    fail "onboarding_answers: present but empty — use the literal 'onboarding_answers: []' instead"
+  fi
+else
+  top_level_key
+  if [[ -n "$TOPKEY" ]]; then
+    fail "unknown top-level key: '$TOPKEY'"
+  fi
+  fail "expected 'onboarding_answers:' or 'onboarding_answers: []', got '$NEXT_LINE'"
+fi
+
 # --- nothing else may follow ------------------------------------------------
 if (( cursor < n )); then
   top_level_key
   if [[ -n "$TOPKEY" ]]; then
     fail "unknown top-level key: '$TOPKEY'"
   fi
-  fail "unexpected content after 'verification_gate:': '${LINES[cursor]}'"
+  fail "unexpected content after 'onboarding_answers:': '${LINES[cursor]}'"
 fi
 
 echo "valid"

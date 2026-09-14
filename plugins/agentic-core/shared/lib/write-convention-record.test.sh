@@ -48,6 +48,7 @@ OUT_PATH="$TMPDIR_ROOT/fresh/.ai/project-conventions.yaml"
 OUT=$(bash "$WRITER" "$OUT_PATH" "acme" "components/" "renders with no errors" "none" "lint and test both exit 0" 2>&1); ST=$?
 assert_exit "writer exits 0" 0 $ST "$OUT"
 assert_contains "reports written" "written: $OUT_PATH" "$OUT"
+assert_contains "onboarding_answers defaults to []" "onboarding_answers: []" "$(cat "$OUT_PATH")"
 VALID_OUT=$(bash "$VALIDATOR" "$OUT_PATH" 2>&1); VALID_ST=$?
 assert_exit "written file passes the validator" 0 $VALID_ST "$VALID_OUT"
 
@@ -56,6 +57,15 @@ OUT2=$(bash "$WRITER" "$OUT_PATH" "acme" "components/" "renders with no errors" 
 assert_exit "re-run exits 0" 0 $ST2 "$OUT2"
 assert_contains "reports updated" "updated: $OUT_PATH" "$OUT2"
 assert_contains "new value present" "lint only" "$(cat "$OUT_PATH")"
+
+echo "[write] re-run preserves an existing onboarding_answers block rather than resetting it"
+ANSWERED_PATH="$TMPDIR_ROOT/answered/.ai/project-conventions.yaml"
+bash "$WRITER" "$ANSWERED_PATH" "acme" "components/" "done" "none" "lint" >/dev/null
+ONBOARD_WRITER="$SCRIPT_DIR/write-onboarding-answers.sh"
+bash "$ONBOARD_WRITER" "$ANSWERED_PATH" "what should the name say?" "acme-storefront" >/dev/null
+OUT6=$(bash "$WRITER" "$ANSWERED_PATH" "acme" "components/" "done" "none" "lint only" 2>&1); ST6=$?
+assert_exit "re-run after onboarding exits 0" 0 $ST6 "$OUT6"
+assert_contains "onboarding answer survives a setup re-run" "acme-storefront" "$(cat "$ANSWERED_PATH")"
 
 echo "[reject] a value containing a double quote"
 BAD_PATH="$TMPDIR_ROOT/bad/.ai/project-conventions.yaml"
