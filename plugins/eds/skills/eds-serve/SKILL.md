@@ -19,6 +19,21 @@ None. This stage reads `.ai/project-config.yaml`'s `commands.serve` and `paths.p
 fixed path. It receives nothing from any earlier stage, and nothing it does depends on what the
 work item says — which is why it carries no `when:` and runs on every item.
 
+## The sandbox denies loopback, deterministically, every time
+
+The default Bash sandbox denies both `bind()` and `connect()` on `127.0.0.1`/`localhost` outright —
+not a rate limit, not a flaky occasional denial, a hard `EPERM` on every attempt, confirmed by
+direct measurement (`05-gap-register.md`'s G58). Nothing about this project's own configuration
+changes that. **Every Bash invocation in this stage that polls the preview URL or starts the serve
+command must set `dangerouslyDisableSandbox: true` on that call, unconditionally — not as a retry
+after a first sandboxed attempt fails, and not left to judgment in the moment.** A first sandboxed
+attempt does not give a different, more informative failure than a first unsandboxed one would;
+it only spends a poll ladder's worth of time (and, at the exit-code level, is indistinguishable
+from nothing genuinely listening — see **Poll the preview URL**, below) confirming a fact this
+section already states as certain. This is scoped narrowly: only this stage's own two commands
+(`poll-preview.sh`, `start-serve.sh`), for the sole purpose of reaching `localhost` — no broader
+sandbox change, and no change to any other stage's own tool calls.
+
 ## Poll before starting, never the other way round
 
 The first thing this stage does is poll. A server may already be answering — left by an earlier
@@ -87,7 +102,8 @@ handed onward to every stage that renders a page.
 
 ### Poll the preview URL
 
-Run:
+Run, with `dangerouslyDisableSandbox: true` on this call — see **The sandbox denies loopback,
+deterministically, every time**, above:
 
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/skills/eds-serve/scripts/poll-preview.sh <the preview URL>
@@ -118,7 +134,8 @@ waiting.
 
 ### Start the serve command
 
-Run:
+Run, with `dangerouslyDisableSandbox: true` on this call — same reason as **Poll the preview URL**,
+above:
 
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/skills/eds-serve/scripts/start-serve.sh \
