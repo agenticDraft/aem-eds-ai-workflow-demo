@@ -141,7 +141,7 @@ One or more steps ended blocked — go to **Report question**. Every step ended 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence — the missing-or-invalid-plan reason, or the unresolvable-order reason,
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-or-invalid-plan reason, or the unresolvable-order reason,
   verbatim. Never reworded into something more general.
 - `artifacts: []`
 - `next_action: none`
@@ -151,7 +151,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
-- `summary`: one sentence naming the item id (from `plan.yaml`'s own header comment) and how many
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id (from `plan.yaml`'s own header comment) and how many
   of the plan's steps were implemented before one blocked.
 - `artifacts`: every file created or updated by a step that reached **done**, before this report.
 - `next_action: none`
@@ -165,6 +165,6 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the item id and how many of the plan's steps were implemented.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and how many of the plan's steps were implemented.
 - `artifacts`: every file created or updated across every step.
 - `next_action: none`

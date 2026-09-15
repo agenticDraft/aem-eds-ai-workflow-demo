@@ -189,7 +189,7 @@ Nothing survived — go to **Report pass**.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence — the missing-plan reason; or the checker's `invalid: <reason>` from
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-plan reason; or the checker's `invalid: <reason>` from
   stderr, verbatim, never reworded into something more general; or that the checker could not run
   to a verdict, naming its usage error; or which of criteria 3 and 4 is answered no and the single
   step or requirement that settles it.
@@ -201,7 +201,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence stating that all four criteria are answered yes, and how many findings
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) stating that all four criteria are answered yes, and how many findings
   were recorded.
 - `artifacts: []`
 - `next_action: none`
@@ -214,7 +214,7 @@ step id or path first.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming how many requirements and steps the plan carries and that all four
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many requirements and steps the plan carries and that all four
   criteria are answered yes.
 - `artifacts: []`
 - `next_action: none`

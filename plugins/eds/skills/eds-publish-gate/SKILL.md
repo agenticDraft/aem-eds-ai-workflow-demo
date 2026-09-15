@@ -225,7 +225,7 @@ Nothing survived — go to **Report pass**.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence — the checker's `invalid: <reason>` from stderr, verbatim, never reworded
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the checker's `invalid: <reason>` from stderr, verbatim, never reworded
   into something more general; or that the checker could not run to a verdict, naming its usage or
   environment error; or that the plan is missing; or which of criteria 3 and 4 is answered no and
   the single step or path that settles it.
@@ -237,7 +237,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence stating that all four criteria are answered yes, and how many findings
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) stating that all four criteria are answered yes, and how many findings
   were recorded.
 - `artifacts: []`
 - `next_action: none`
@@ -250,7 +250,7 @@ first.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming how many files the change touches and that all four criteria are
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many files the change touches and that all four criteria are
   answered yes.
 - `artifacts: []`
 - `next_action: none`

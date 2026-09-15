@@ -92,7 +92,7 @@ name. Then return to **Run the lint command** for the next attempt.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence — either that no lint command is configured, or that lint attempts were
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no lint command is configured, or that lint attempts were
   exhausted (naming the attempt count) or stopped for lack of improvement, plus how many issues
   remain per the last run. Never the command's raw output verbatim.
 - `artifacts`: empty when no lint command was configured. Otherwise, every file edited across all
@@ -105,7 +105,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming how many attempts the lint command took to exit zero.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many attempts the lint command took to exit zero.
 - `artifacts`: every file edited across any earlier attempts — empty if it passed on the first
   attempt.
 - `next_action: none`

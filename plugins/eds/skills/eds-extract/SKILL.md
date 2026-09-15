@@ -211,7 +211,7 @@ an empty result.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence — this item's fact record names no design source and none was requested,
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — this item's fact record names no design source and none was requested,
   so there was nothing to extract.
 - `artifacts: []`
 - `next_action: none`
@@ -221,7 +221,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the source kind (`design_tool` or `image`) and, for a design-tool
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the source kind (`design_tool` or `image`) and, for a design-tool
   source, how many variables were retrieved.
 - `artifacts`:
   - `.ai/run-context/design-reference.json`
@@ -234,7 +234,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
-- `summary`: one sentence — either "more than one image attachment, none marked as the design
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either "more than one image attachment, none marked as the design
   reference" (the `ambiguous` decision) or the design provider's own question summary, relayed
   unchanged (the provider-question path).
 - `artifacts: []`
@@ -250,7 +250,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming what went wrong — the usage error from **Resolve the design
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong — the usage error from **Resolve the design
   source**; the `missing` decision naming that the fact record called for a design source none
   could be found; the unconfigured `packs.design`; the design provider's own `fail` summary
   relayed unchanged; or the download failure's stderr line. Never guessed or reworded into

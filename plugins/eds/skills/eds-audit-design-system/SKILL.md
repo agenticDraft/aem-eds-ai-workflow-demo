@@ -230,7 +230,7 @@ pass**.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming how many findings were recorded and that none is `poisoning`.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many findings were recorded and that none is `poisoning`.
 - `artifacts`: `.ai/design/audit.md`.
 - `next_action: none`
 - `metrics: findings=<count>, poisoning=0`
@@ -240,7 +240,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence naming how many findings were recorded and how many are `poisoning`.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many findings were recorded and how many are `poisoning`.
 - `artifacts`: `.ai/design/audit.md`.
 - `next_action`: a short phrase naming that `.ai/design/audit.md` holds findings still awaiting a
   human-reviewed change — `mechanical` findings ready to apply as-is, `judgment` and
@@ -254,7 +254,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming what went wrong, verbatim from the node that failed — never a
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong, verbatim from the node that failed — never a
   guess at the cause.
 - `artifacts: []`
 - `next_action: none`

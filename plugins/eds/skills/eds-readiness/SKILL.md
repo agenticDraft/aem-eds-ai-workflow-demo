@@ -89,7 +89,7 @@ after it (`readiness-criteria.md`).
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence — the missing-fact-record reason; or the checker's `invalid: <reason>`
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-fact-record reason; or the checker's `invalid: <reason>`
   from stderr, verbatim, never reworded into something more general; or that the checker could not
   run to a verdict, naming its usage error.
 - `artifacts: []` — this stage writes nothing.
@@ -100,7 +100,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the item's `item_type` and that its declared readiness criteria
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item's `item_type` and that its declared readiness criteria
   all hold.
 - `artifacts: []`
 - `next_action: none`

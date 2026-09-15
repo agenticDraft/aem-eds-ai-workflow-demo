@@ -119,7 +119,7 @@ deciding anything from it.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming what went wrong — the fetch operation's own summary verbatim on a
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong — the fetch operation's own summary verbatim on a
   fetch failure, or the script's stderr line on a computation failure. Never guessed or reworded
   into something more general.
 - `artifacts: []`
@@ -130,7 +130,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the item id, its type, and that the fact record was written.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, its type, and that the fact record was written.
 - `artifacts`:
   - `.ai/run-context/fact-record.yaml`
   - `.ai/run-context/sanitized-spec.md`

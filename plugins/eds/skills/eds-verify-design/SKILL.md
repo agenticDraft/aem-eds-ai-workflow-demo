@@ -297,7 +297,7 @@ missing draft file, or a draft-server/render failure) — there is nothing to re
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming the specific reason — the missing input, the missing operation(s),
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the specific reason — the missing input, the missing operation(s),
   the missing draft file, the draft-server script's own `no-answer:`/`start-failed:` line, the
   render operation's own failure summary, or the remaining mismatch count after both attempts. Never
   reworded into something more general.
@@ -315,7 +315,7 @@ earlier attempt, and which degradation(s) applied.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence naming the item id, the target block, and which degradation applied.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and which degradation applied.
 - `artifacts`: every screenshot and measurement file the operations wrote, every block file edited,
   plus `.ai/run-context/verify-design-report.md`.
 - `next_action: none`
@@ -328,7 +328,7 @@ warn**'s, with an empty degradation list.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the item id, the target block, and how many attempts the
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and how many attempts the
   comparison took to find no mismatch.
 - `artifacts`: every screenshot and measurement file the operations wrote, every block file edited
   (empty if the first attempt already matched), plus `.ai/run-context/verify-design-report.md`.

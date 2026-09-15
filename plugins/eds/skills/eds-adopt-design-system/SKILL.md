@@ -209,7 +209,7 @@ this same flow — but checked rather than assumed.)
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming how many frames were retrieved and where the manifest was
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many frames were retrieved and where the manifest was
   written.
 - `artifacts`: `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
   `.ai/design/proposed-breakpoints.md`, `.ai/design/audit.md`.
@@ -221,7 +221,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence naming how many frames were retrieved, where the manifest was written,
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many frames were retrieved, where the manifest was written,
   and that the audit recorded at least one `poisoning` finding.
 - `artifacts`: `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
   `.ai/design/proposed-breakpoints.md`, `.ai/design/audit.md`.
@@ -233,7 +233,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming what went wrong, verbatim from the node that failed — never a
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong, verbatim from the node that failed — never a
   guess at the cause.
 - `artifacts: []`
 - `next_action: none`
@@ -243,7 +243,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
-- `summary`: one sentence stating what is unresolved.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) stating what is unresolved.
 - `artifacts: []`
 - `next_action: none`
 - `question`: either "which frame or frames should be the design reference?" (no reference given
