@@ -285,7 +285,7 @@ remote even though the pull request itself did not open.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the pull request opened, or (when already onboarded) that no
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the pull request opened, or (when already onboarded) that no
   change was needed.
 - `artifacts`: `styles/design-system.md`, `styles/styles.css`, plus `.ai/project-conventions.yaml`
   when it was updated.
@@ -297,7 +297,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence stating the human declined; no branch or commit was created.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) stating the human declined; no branch or commit was created.
 - `artifacts: []`
 - `next_action: none`
 
@@ -306,7 +306,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming what went wrong, verbatim from the node that failed — never a
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong, verbatim from the node that failed — never a
   guess at the cause.
 - `artifacts: []`
 - `next_action: none`

@@ -257,7 +257,7 @@ None of these — go to **Report pass**.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming the specific reason — the missing operation(s), the detached-HEAD
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the specific reason — the missing operation(s), the detached-HEAD
   state, the missing fact record, a real `git commit` failure, or the `publish_change` operation's
   own failure summary verbatim. Never reworded into something more general.
 - `artifacts: []`
@@ -268,7 +268,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence naming the item id, the pull request URL, and which condition was
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the pull request URL, and which condition was
   downgraded.
 - `artifacts`: `publish_change`'s own written JSON, `check_status`'s own written JSON (when it
   wrote one), `.ai/run-context/delivery-report.md`, and `attach_file`'s and `post_note`'s own
@@ -282,6 +282,6 @@ Same `artifacts:` list as **Report warn**.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the item id and the pull request URL.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and the pull request URL.
 - `artifacts`: as above.
 - `next_action: none`

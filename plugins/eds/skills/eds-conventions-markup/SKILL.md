@@ -62,7 +62,7 @@ classified at all.
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: warning`
-- `summary`: one sentence — this project has no existing blocks yet, so no scoping convention
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — this project has no existing blocks yet, so no scoping convention
   could be surveyed; the platform default (`.blockname .child`) applies until one exists.
 - `artifacts: []`
 - `next_action: none`
@@ -72,7 +72,7 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: success`
-- `summary`: one sentence naming how many blocks were surveyed and that every one is scoped to its
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many blocks were surveyed and that every one is scoped to its
   own block, by class or by its own semantic tag.
 - `artifacts: []`
 - `next_action: none`
@@ -82,7 +82,7 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: warning`
-- `summary`: one sentence combining both findings that apply — which blocks (by name) use a
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) combining both findings that apply — which blocks (by name) use a
   scoping form other than `.blockname .child`/bare-tag (the survey's own `drift=` line), and which
   blocks' CSS could not be classified at all (the survey's own `review=` line) — both verbatim,
   never reworded into something more general.

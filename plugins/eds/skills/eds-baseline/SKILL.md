@@ -194,7 +194,7 @@ than discovered silently from a gap-shaped artifact.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming the specific reason — the missing operation(s), the unresolved
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the specific reason — the missing operation(s), the unresolved
   target component(s), the missing renderable content naming every component with nothing to
   render, or the render operation's own failure summary verbatim. Never reworded into something
   more general.
@@ -207,7 +207,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence naming the item id, every component captured, and which width or
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, every component captured, and which width or
   component selector came back missing.
 - `artifacts`: `.ai/run-context/baseline-capture.json`, plus every screenshot the capture operation
   actually wrote.
@@ -218,6 +218,6 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the item id and every component captured.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and every component captured.
 - `artifacts`: `.ai/run-context/baseline-capture.json`, plus every screenshot captured.
 - `next_action: none`

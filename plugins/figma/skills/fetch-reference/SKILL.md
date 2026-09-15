@@ -147,7 +147,7 @@ The call returned an `image_url` — continue to **Write artifacts**. The call e
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the node and the Figma file the reference came from.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the node and the Figma file the reference came from.
 - `artifacts`: both files written above, `.ai/figma/<file_key>-<node_id>.json` and
   `.ai/figma/<file_key>-<node_id>.png`.
 - `next_action: none`
@@ -158,7 +158,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming what went wrong — the unsupported URL shape, the missing/
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong — the unsupported URL shape, the missing/
   unauthenticated `figma` plugin, or the tool error that was returned. Never a guess at the cause.
 - `artifacts: []`
 - `next_action: none`
@@ -168,7 +168,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
-- `summary`: one sentence — the given URL has no node-id.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the given URL has no node-id.
 - `artifacts: []`
 - `next_action: none`
 - `question`: ask which frame or node in the file should be the design reference.

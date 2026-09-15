@@ -127,7 +127,7 @@ is enough to carry the stage's own verdict to `warn`.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence — the missing-fact-record reason, or the failing subagent's own
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-fact-record reason, or the failing subagent's own
   `blocker`, verbatim, never reworded into something more general.
 - `artifacts: []`
 - `next_action: none`
@@ -137,7 +137,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence naming which subagent(s) reported a warning and why, drawn from their
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming which subagent(s) reported a warning and why, drawn from their
   own `summary` fields.
 - `artifacts`:
   - `.ai/run-context/design-conventions.md`
@@ -148,7 +148,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming that every dispatched subagent succeeded and, briefly, what each
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming that every dispatched subagent succeeded and, briefly, what each
   found.
 - `artifacts`:
   - `.ai/run-context/design-conventions.md`

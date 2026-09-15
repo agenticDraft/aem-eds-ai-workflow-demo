@@ -86,7 +86,7 @@ report of its own.
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: failure`
-- `summary`: one sentence — `.ai/run-context/design-reference.json` is missing or unreadable.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — `.ai/run-context/design-reference.json` is missing or unreadable.
 - `artifacts: []`
 - `next_action: none`
 - `blocker`: `extract` did not leave a readable `design-reference.json` for this item
@@ -96,7 +96,7 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: warning`
-- `summary`: one sentence — no design values were retrieved for this item, so there is nothing to
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — no design values were retrieved for this item, so there is nothing to
   grade; confidence capped low.
 - `artifacts: []`
 - `next_action: none`
@@ -106,7 +106,7 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: warning`
-- `summary`: one sentence — design values exist but this project has not adopted a design system
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — design values exist but this project has not adopted a design system
   yet, so there is nothing to grade against; confidence capped low.
 - `artifacts: []`
 - `next_action: run project onboarding before trusting a styles verdict`
@@ -116,7 +116,7 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: success`
-- `summary`: one sentence naming how many variables matched the adopted system and how many
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many variables matched the adopted system and how many
   drifted — e.g. "Graded 2 design values against the adopted system: 1 matched, 1 drifted."
 - `artifacts: []`
 - `next_action: none`

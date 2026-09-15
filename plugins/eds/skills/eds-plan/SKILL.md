@@ -177,7 +177,7 @@ satisfies or is removed. Go back to **Validate the plan**.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence — the missing-artifact reason, or the validator's `invalid: <reason>`
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-artifact reason, or the validator's `invalid: <reason>`
   from the second failed attempt, verbatim. Never reworded into something more general.
 - `artifacts: []`
 - `next_action: none`
@@ -187,7 +187,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the item id and how many requirements the plan covers.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and how many requirements the plan covers.
 - `artifacts`:
   - `.ai/run-context/plan.yaml`
 - `next_action: none`
@@ -197,7 +197,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
-- `summary`: one sentence naming the item id and that its specification carries no actionable
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and that its specification carries no actionable
   requirement.
 - `artifacts: []`
 - `next_action: none`
