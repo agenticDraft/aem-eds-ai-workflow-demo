@@ -138,7 +138,7 @@ One or more steps ended blocked — go to **Report question**. Every step ended 
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence — the missing-or-invalid-plan reason, or the unresolvable-order reason,
@@ -148,7 +148,7 @@ Emit the `## Result` block:
 
 ### Report question
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
 - `summary`: one sentence naming the item id (from `plan.yaml`'s own header comment) and how many
@@ -162,7 +162,7 @@ Emit the `## Result` block:
 
 ### Report pass
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the item id and how many of the plan's steps were implemented.

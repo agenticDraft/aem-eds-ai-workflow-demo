@@ -191,7 +191,7 @@ than discovered silently from a gap-shaped artifact.
 
 ### Report fail
 
-Emit the `## Result` block (see `../../../agentic-core/shared/result-envelope.md`):
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence naming the specific reason — the missing operation(s), the unresolved
@@ -204,7 +204,7 @@ Emit the `## Result` block (see `../../../agentic-core/shared/result-envelope.md
 
 ### Report warn
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
 - `summary`: one sentence naming the item id, every component captured, and which width or
@@ -215,7 +215,7 @@ Emit the `## Result` block:
 
 ### Report pass
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the item id and every component captured.

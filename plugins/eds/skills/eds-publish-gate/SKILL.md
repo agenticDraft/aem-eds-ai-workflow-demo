@@ -222,7 +222,7 @@ Nothing survived — go to **Report pass**.
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence — the checker's `invalid: <reason>` from stderr, verbatim, never reworded
@@ -234,7 +234,7 @@ Emit the `## Result` block:
 
 ### Report warn
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
 - `summary`: one sentence stating that all four criteria are answered yes, and how many findings
@@ -247,7 +247,7 @@ first.
 
 ### Report pass
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming how many files the change touches and that all four criteria are

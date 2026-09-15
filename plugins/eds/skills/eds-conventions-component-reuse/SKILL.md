@@ -72,7 +72,7 @@ component must still come away with existing units to follow — dropping the ex
 
 ### Report fail
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: failure`
 - `summary`: one sentence — the fact record is missing or empty.
@@ -82,7 +82,7 @@ Emit the `## Outcome` block:
 
 ### Report inventory only
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: success`
 - `summary`: one sentence naming how many existing blocks were found, that the item named no
@@ -93,7 +93,7 @@ Emit the `## Outcome` block:
 
 ### Report reuse map
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: success`
 - `summary`: one sentence naming each named entry and whether it matches an existing block

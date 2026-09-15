@@ -254,7 +254,7 @@ None of these — go to **Report pass**.
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence naming the specific reason — the missing operation(s), the detached-HEAD
@@ -265,7 +265,7 @@ Emit the `## Result` block:
 
 ### Report warn
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
 - `summary`: one sentence naming the item id, the pull request URL, and which condition was
@@ -279,7 +279,7 @@ Emit the `## Result` block:
 
 Same `artifacts:` list as **Report warn**.
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the item id and the pull request URL.

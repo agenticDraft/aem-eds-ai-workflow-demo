@@ -59,7 +59,7 @@ classified at all.
 
 ### Report no blocks
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: warning`
 - `summary`: one sentence — this project has no existing blocks yet, so no scoping convention
@@ -69,7 +69,7 @@ Emit the `## Outcome` block:
 
 ### Report consistent
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: success`
 - `summary`: one sentence naming how many blocks were surveyed and that every one is scoped to its
@@ -79,7 +79,7 @@ Emit the `## Outcome` block:
 
 ### Report needs attention
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: warning`
 - `summary`: one sentence combining both findings that apply — which blocks (by name) use a

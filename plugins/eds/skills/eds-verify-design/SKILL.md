@@ -294,7 +294,7 @@ every file edited, and which of **Attempts exhausted or no improvement?**'s two 
 Skip the report when this stage failed before any attempt (missing inputs, unresolved browser role,
 missing draft file, or a draft-server/render failure) — there is nothing to report on yet.
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence naming the specific reason — the missing input, the missing operation(s),
@@ -312,7 +312,7 @@ Run **Teardown**. Write `.ai/run-context/verify-design-report.md`: the target bl
 new/existing state, the final attempt's own (empty) mismatch list, every file edited across any
 earlier attempt, and which degradation(s) applied.
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
 - `summary`: one sentence naming the item id, the target block, and which degradation applied.
@@ -325,7 +325,7 @@ Emit the `## Result` block:
 Run **Teardown**. Write `.ai/run-context/verify-design-report.md`, same content as **Report
 warn**'s, with an empty degradation list.
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the item id, the target block, and how many attempts the

@@ -113,7 +113,7 @@ Create `drafts/` if it does not already exist. Write the composed markup to
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence — either that `block` or `item_id` was missing or `item_id` failed the
@@ -123,7 +123,7 @@ Emit the `## Result` block:
 
 ### Report pass
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the block, the item id, and the rows×columns generated.

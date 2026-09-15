@@ -227,7 +227,7 @@ pass**.
 
 ### Report pass
 
-Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming how many findings were recorded and that none is `poisoning`.
@@ -237,7 +237,7 @@ Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
 
 ### Report warn
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
 - `summary`: one sentence naming how many findings were recorded and how many are `poisoning`.
@@ -251,7 +251,7 @@ Emit the `## Result` block:
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence naming what went wrong, verbatim from the node that failed — never a

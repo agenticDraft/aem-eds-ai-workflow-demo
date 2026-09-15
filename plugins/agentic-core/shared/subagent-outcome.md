@@ -95,6 +95,10 @@ blocker: selector '.hero-banner' not found in the rendered DOM
 - A missing `artifacts` list, even when empty.
 - `blocker` present with a status other than `failure`.
 - `blocker` absent when `status: failure`.
+- The block rendered as a bulleted or backtick-wrapped list (e.g. `` - `status: success` `` instead
+  of `status: success`) — a stage adapter's own instructions that describe each field with a bullet
+  (see the next section) are guidance for a human reading the skill, never a template to reproduce
+  literally in the emitted block.
 
 ## Reference, not restatement
 

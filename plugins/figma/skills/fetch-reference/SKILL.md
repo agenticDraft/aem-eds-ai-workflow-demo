@@ -144,7 +144,7 @@ The call returned an `image_url` — continue to **Write artifacts**. The call e
 
 ### Report pass
 
-Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the node and the Figma file the reference came from.
@@ -155,7 +155,7 @@ Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
 
 ### Report fail
 
-Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence naming what went wrong — the unsupported URL shape, the missing/
@@ -165,7 +165,7 @@ Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
 
 ### Report question
 
-Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
 - `summary`: one sentence — the given URL has no node-id.
