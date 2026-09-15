@@ -72,7 +72,7 @@ component must still come away with existing units to follow — dropping the ex
 
 ### Report fail
 
-Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list, with `status:` as the very next line, nothing between it and the heading. Fields:
 
 - `status: failure`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the fact record is missing or empty.
@@ -82,7 +82,7 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 
 ### Report inventory only
 
-Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list, with `status:` as the very next line, nothing between it and the heading. Fields:
 
 - `status: success`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many existing blocks were found, that the item named no
@@ -93,7 +93,7 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 
 ### Report reuse map
 
-Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list, with `status:` as the very next line, nothing between it and the heading. Fields:
 
 - `status: success`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming each named entry and whether it matches an existing block
