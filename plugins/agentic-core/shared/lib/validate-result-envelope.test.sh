@@ -62,6 +62,11 @@ echo "[reject] missing artifacts list"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/missing-artifacts.md" 2>&1); ST=$?
 assert_exit "missing artifacts list rejected (exit 1)" 1 $ST "$OUT"
 
+echo "[reject] artifacts written as an inline scalar instead of a list"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/artifacts-inline-scalar.md" 2>&1); ST=$?
+assert_exit "artifacts inline scalar rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names artifacts, not summary" "'artifacts:' must be a list" "$OUT"
+
 echo "[reject] text after the block"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/trailing-text.md" 2>&1); ST=$?
 assert_exit "trailing text rejected (exit 1)" 1 $ST "$OUT"

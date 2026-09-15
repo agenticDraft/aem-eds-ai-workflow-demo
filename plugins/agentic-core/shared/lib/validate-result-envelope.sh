@@ -98,13 +98,16 @@ if (( ${#summary} > 200 )); then
 fi
 cursor=$((cursor + 1))
 
-# What follows summary decides two distinct failure modes: if it's a known
-# field other than artifacts, the artifacts list was skipped entirely; if
-# it's not a recognised field at all, the summary text itself spilled onto
-# a second line.
+# What follows summary decides three distinct failure modes: if it's
+# artifacts written as an inline scalar instead of a list, name that
+# specifically; if it's a known field other than artifacts, the artifacts
+# list was skipped entirely; if it's not a recognised field at all, the
+# summary text itself spilled onto a second line.
 next="${LINES[cursor]:-}"
 if [[ "$next" == "artifacts:" || "$next" == "artifacts: []" ]]; then
   : # well-formed, handled below
+elif [[ "$next" =~ ^artifacts:\ .+$ ]]; then
+  fail "'artifacts:' must be a list, even for a single path — write it as 'artifacts:' followed by '  - <path>' on the next line, not an inline value"
 elif [[ "$next" =~ ^(next_action|question|options|blocker|metrics):.*$ ]]; then
   fail "missing 'artifacts:' list"
 else

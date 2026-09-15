@@ -106,6 +106,9 @@ blocker: An image-only design source cannot be identified as reference or eviden
 - Prose after the block — the block must be the last thing emitted.
 - A `verdict` outside the four literals.
 - A missing `artifacts` list, even when empty.
+- `artifacts:` written as an inline scalar (`artifacts: path/to/file`) instead of a list — even a
+  single path is still a list: `artifacts:` on its own line, followed by `  - path/to/file`.
+  Writing exactly one path is not license to drop the list form.
 - Tables or ASCII art inside `summary`.
 - `question` or `blocker` present with a verdict other than `question`.
 - `blocker` absent when `verdict: question`.
