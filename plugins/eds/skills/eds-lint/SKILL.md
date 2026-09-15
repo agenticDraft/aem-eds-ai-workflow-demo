@@ -137,7 +137,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no lint command is configured, or that lint attempts were
   exhausted (naming the attempt count) or stopped for lack of improvement, plus how many issues
   remain per the last run. Never the command's raw output verbatim.
-- `artifacts`: empty when no lint command was configured. Otherwise, every file edited across all
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): empty when no lint command was configured. Otherwise, every file edited across all
   attempts, plus `.ai/run-context/lint-report.md` — written with the last attempt's full combined
   output, the attempt count, and which of the two stop conditions above applied.
 - `next_action: none`
@@ -156,7 +156,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many attempts it took to exit
   zero, or, when reached with pre-existing issues left in place, how many remain and that they are
   out of scope.
-- `artifacts`: every file edited across any earlier attempts, plus `.ai/run-context/lint-report.md`
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file edited across any earlier attempts, plus `.ai/run-context/lint-report.md`
   when reached with pre-existing issues left in place — both empty if it passed on the first
   attempt with nothing to report.
 - `next_action: none`

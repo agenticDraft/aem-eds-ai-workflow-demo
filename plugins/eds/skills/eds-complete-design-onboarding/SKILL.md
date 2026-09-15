@@ -287,7 +287,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the pull request opened, or (when already onboarded) that no
   change was needed.
-- `artifacts`: `styles/design-system.md`, `styles/styles.css`, plus `.ai/project-conventions.yaml`
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `styles/design-system.md`, `styles/styles.css`, plus `.ai/project-conventions.yaml`
   when it was updated.
 - `next_action: none`
 - `metrics: mechanical=<count> judgment=<count> needs_the_human=<count> report_only=<count>`

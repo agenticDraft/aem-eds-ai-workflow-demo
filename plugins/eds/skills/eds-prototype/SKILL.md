@@ -268,7 +268,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and whether it is new or existing.
-- `artifacts`: the same four paths as **Report warn**.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): the same four paths as **Report warn**.
 - `next_action: none`
 
 ## Known limitations

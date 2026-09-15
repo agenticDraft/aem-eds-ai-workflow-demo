@@ -127,5 +127,5 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the block, the item id, and the rows×columns generated.
-- `artifacts`: `[drafts/<item_id>.plain.html]`
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `[drafts/<item_id>.plain.html]`
 - `next_action: none`

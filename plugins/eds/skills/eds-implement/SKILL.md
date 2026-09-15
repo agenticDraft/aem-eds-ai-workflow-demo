@@ -153,7 +153,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `verdict: question`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id (from `plan.yaml`'s own header comment) and how many
   of the plan's steps were implemented before one blocked.
-- `artifacts`: every file created or updated by a step that reached **done**, before this report.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file created or updated by a step that reached **done**, before this report.
 - `next_action: none`
 - `question`: the missing decision each blocked step needs, phrased so a human can answer it —
   one sentence per blocked step when more than one is blocked.
@@ -166,5 +166,5 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and how many of the plan's steps were implemented.
-- `artifacts`: every file created or updated across every step.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file created or updated across every step.
 - `next_action: none`

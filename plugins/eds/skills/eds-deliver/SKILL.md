@@ -270,7 +270,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the pull request URL, and which condition was
   downgraded.
-- `artifacts`: `publish_change`'s own written JSON, `check_status`'s own written JSON (when it
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `publish_change`'s own written JSON, `check_status`'s own written JSON (when it
   wrote one), `.ai/run-context/delivery-report.md`, and `attach_file`'s and `post_note`'s own
   written JSON, each when it succeeded.
 - `next_action: none`
@@ -283,5 +283,5 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and the pull request URL.
-- `artifacts`: as above.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): as above.
 - `next_action: none`

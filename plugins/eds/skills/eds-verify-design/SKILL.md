@@ -301,7 +301,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   the missing draft file, the draft-server script's own `no-answer:`/`start-failed:` line, the
   render operation's own failure summary, or the remaining mismatch count after both attempts. Never
   reworded into something more general.
-- `artifacts`: every screenshot, measurement file, and edited block file any attempt produced,
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot, measurement file, and edited block file any attempt produced,
   plus `.ai/run-context/verify-design-report.md` when written, plus `.ai/run-context/draft-
   server.log` when the draft server was the cause; `[]` when nothing ran.
 - `next_action: none`
@@ -316,7 +316,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and which degradation applied.
-- `artifacts`: every screenshot and measurement file the operations wrote, every block file edited,
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot and measurement file the operations wrote, every block file edited,
   plus `.ai/run-context/verify-design-report.md`.
 - `next_action: none`
 
@@ -330,7 +330,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and how many attempts the
   comparison took to find no mismatch.
-- `artifacts`: every screenshot and measurement file the operations wrote, every block file edited
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot and measurement file the operations wrote, every block file edited
   (empty if the first attempt already matched), plus `.ai/run-context/verify-design-report.md`.
 - `next_action: none`
 

@@ -148,7 +148,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the node and the Figma file the reference came from.
-- `artifacts`: both files written above, `.ai/figma/<file_key>-<node_id>.json` and
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): both files written above, `.ai/figma/<file_key>-<node_id>.json` and
   `.ai/figma/<file_key>-<node_id>.png`.
 - `next_action: none`
 - `metrics: variables=<count of entries in the variable map>`
