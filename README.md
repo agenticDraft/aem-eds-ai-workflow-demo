@@ -46,28 +46,30 @@ Always go through the npm script. `lint:js` loads a project-local ESLint rule vi
 
 ## Credentials
 
-This project's automation never creates or edits your `.ai/credentials` file — you manage it
-yourself. Add these three lines to a `.ai/credentials` file at the project root (create one if you
-don't have it yet):
+This project's automation never creates or edits `.claude/settings.local.json` — you manage it
+yourself. It is gitignored and personal, never `.claude/settings.json`, which is shared. Add an
+`env` block with these four variables (create the file if you don't have it yet):
 
-```
-JIRA_SITE=your-site.atlassian.net
-JIRA_EMAIL=you@example.com
-JIRA_API_TOKEN=your_api_token_here
-```
-
-Create a token at https://id.atlassian.com/manage-profile/security/api-tokens. `.ai/credentials`
-is gitignored — never commit it. Every script and skill in the pipeline reads these three variables
-from the environment, never as a command-line argument, so they never appear in `ps -ef`, shell
-history, or a log.
+| Variable | Purpose |
+| --- | --- |
+| `JIRA_SITE` | Your Atlassian Cloud site, e.g. `your-site.atlassian.net` |
+| `JIRA_EMAIL` | The email address of the Jira account the token belongs to |
+| `JIRA_API_TOKEN` | A token from https://id.atlassian.com/manage-profile/security/api-tokens |
+| `GH_TOKEN` | A GitHub fine-grained personal access token, scoped to this repo, with Contents and Pull requests read/write |
 
 The pipeline also calls your Atlassian Cloud site directly (`https://<your-site>.atlassian.net`),
-not just `api.atlassian.com`. Since that hostname is specific to your Jira instance, add it to
-`.claude/settings.local.json` (gitignored, personal — never `.claude/settings.json`, which is
-shared):
+not just `api.atlassian.com`. Since that hostname is specific to your Jira instance, add it to the
+same file's sandbox allowlist — Claude Code merges it with the shared `.claude/settings.json`
+allowlist, so you don't need to touch the committed file:
 
 ```json
 {
+  "env": {
+    "JIRA_SITE": "your-site.atlassian.net",
+    "JIRA_EMAIL": "you@example.com",
+    "JIRA_API_TOKEN": "your_api_token_here",
+    "GH_TOKEN": "your_github_token_here"
+  },
   "sandbox": {
     "network": {
       "allowedDomains": ["<your-site>.atlassian.net"]
@@ -76,16 +78,20 @@ shared):
 }
 ```
 
-Claude Code merges this list with the shared `.claude/settings.json` allowlist, so you don't need
-to touch the committed file.
+Claude Code loads this file's `env` block into every session's subprocesses, foreground or
+backgrounded — which is what a `run-route` invocation needs, since it runs detached. Every script
+and skill in the pipeline reads these variables from the environment, never as a command-line
+argument, so they never appear in `ps -ef`, shell history, or a log.
 
-**The `scm` pack (`plugins/github/`) needs no `.ai/credentials` entry.** It authenticates through
-the `gh` CLI's own local credential store instead — run `gh auth login` once on the machine, and
-confirm it with `gh auth status`. This is a per-machine login, not a token this project's
-automation ever reads, creates or holds.
+**The `scm` pack (`plugins/github/`) authenticates through the `gh` CLI, which reads `GH_TOKEN`
+from the environment before it ever needs its own keychain-backed login.** `gh`'s own local
+credential store (`gh auth login`) still works for your own interactive use of `gh` elsewhere on
+this machine, but the pipeline's stages run as sandboxed subprocesses that cannot read that
+keychain — so `GH_TOKEN` above is required for the pipeline specifically, not optional the way
+`gh auth login` alone might suggest.
 
-**The `design` pack (`plugins/figma/`) also needs no `.ai/credentials` entry.** It calls the
-Figma MCP server through the official `figma` Claude Code plugin instead. Install it once
+**The `design` pack (`plugins/figma/`) also needs no entry here.** It calls the Figma MCP server
+through the official `figma` Claude Code plugin instead. Install it once
 (`claude plugin install figma@claude-plugins-official` or via `/plugin`) and complete its OAuth
 flow in a Claude Code session — the plugin's own `authenticate` tool opens a browser link for you
 to approve. This means the operation only runs inside a session where that plugin is installed
