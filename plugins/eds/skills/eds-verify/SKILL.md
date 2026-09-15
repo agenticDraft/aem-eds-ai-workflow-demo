@@ -259,8 +259,11 @@ match by default.
 Any of the following, on the evidence gathered above, is a hard failure:
 
 - The render operation's own `console_errors` count is greater than zero.
-- Every one of a target block's selectors came back `found: false` from **measure** — the block did
-  not render into the page at all.
+- Every selector **measure** checked, across every target block, came back `found: false` — nothing
+  this run looked for rendered into the page at all. Evaluate this across the whole run, not one
+  target block at a time: when at least one target block did render (even if another named target
+  block has no renderable content anywhere in this checkout), that is a coverage gap, not a run
+  that found nothing — see the downgrade bullet below for that case instead.
 - The baseline comparison (when one ran) found a landmark outside this change with a materially
   different geometry or computed style — a regression this change caused elsewhere on the page.
 - The design comparison (when one ran) found the rendered result does not visually match the
@@ -283,7 +286,14 @@ Any of the following is true — go to **Report warn**:
   expected one might.
 - No design comparison ran despite `design_source` or `design_mentioned` being `true`, because no
   design reference artifact existed yet.
-- A plan-named selector (beyond the block wrapper itself) came back `found: false`.
+- A plan-named selector (beyond the block wrapper itself) came back `found: false`, on a target
+  block that did otherwise render — distinct from the next bullet, where the block has no
+  renderable content at all.
+- A target block named in `fact-record.yaml`'s `files_named` has no renderable content anywhere in
+  this checkout — no page or fixture references it, so **measure** could not check any of its
+  selectors against anything. This is a gap in this checkout's own fixture content, not evidence
+  this run's change broke that block; report it plainly rather than folding it into an unrelated
+  block's clean pass.
 - `plan.yaml` did not exist, so this stage's checks ran against the block's rendered state alone,
   with no requirement-level detail to check against.
 - No behaviour check ran through `interact` — because the browser pack does not support the
