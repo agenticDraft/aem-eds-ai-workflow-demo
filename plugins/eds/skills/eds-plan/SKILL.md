@@ -187,7 +187,10 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and how many requirements the plan covers.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming only the item id and how many requirements the plan covers —
+  nothing else, even when it is accurate: not the validator's exit code or its own message, not each
+  step's name or what it does. That level of detail belongs in `plan.yaml` itself, already listed
+  below as this stage's artifact; a human or a later stage reads the file for it, not this sentence.
 - `artifacts`:
   - `.ai/run-context/plan.yaml`
 - `next_action: none`
