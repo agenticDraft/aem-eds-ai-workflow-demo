@@ -317,7 +317,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   characters, keep the single most specific reason and drop the rest rather than compounding
   clauses with "and"/";" — the full detail already lives in `verify-report.md` and the
   `artifacts` list.
-- `artifacts`: every file any operation invoked above actually wrote before the failure, if any;
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file any operation invoked above actually wrote before the failure, if any;
   otherwise `[]`.
 - `next_action: none`
 
@@ -338,7 +338,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   characters, keep the item id and target block and name the downgrade only as a category
   (e.g. "interact check downgraded") rather than spelling out why — the reasons already live in
   `verify-report.md`.
-- `artifacts`: every screenshot, measurement and interaction file the operations wrote, plus
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot, measurement and interaction file the operations wrote, plus
   `.ai/run-context/verify-report.md`.
 - `next_action: none`
 
@@ -352,6 +352,6 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized
   summary fails validation and takes the whole run to `failed`), naming the item id and the
   target block(s) checked.
-- `artifacts`: every screenshot, measurement and interaction file the operations wrote, plus
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot, measurement and interaction file the operations wrote, plus
   `.ai/run-context/verify-report.md`.
 - `next_action: none`

@@ -231,7 +231,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many findings were recorded and that none is `poisoning`.
-- `artifacts`: `.ai/design/audit.md`.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/design/audit.md`.
 - `next_action: none`
 - `metrics: findings=<count>, poisoning=0`
 
@@ -241,7 +241,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many findings were recorded and how many are `poisoning`.
-- `artifacts`: `.ai/design/audit.md`.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/design/audit.md`.
 - `next_action`: a short phrase naming that `.ai/design/audit.md` holds findings still awaiting a
   human-reviewed change — `mechanical` findings ready to apply as-is, `judgment` and
   `needs-the-human` findings still needing an answer — and that the `poisoning` ones should not

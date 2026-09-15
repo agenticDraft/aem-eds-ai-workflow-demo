@@ -169,7 +169,7 @@ Then emit the `## Result` block as plain `key: value` lines per `../../../agenti
   no serve command is configured; or that the serve command exited on startup; or that the preview
   never answered before the poll ladder was exhausted, naming that this last one is a transient
   failure. Never the serve command's raw output verbatim.
-- `artifacts`: empty for the two configuration gaps. Otherwise `.ai/run-context/serve-report.md`,
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): empty for the two configuration gaps. Otherwise `.ai/run-context/serve-report.md`,
   plus `.ai/run-context/serve.log` when a command was started.
 - `next_action: none`
 
@@ -189,6 +189,6 @@ Then emit the `## Result` block as plain `key: value` lines per `../../../agenti
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the answering status and whether this stage started the server or
   found it already answering.
-- `artifacts`: `.ai/run-context/serve-report.md`, plus `.ai/run-context/serve.log` when a command
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/run-context/serve-report.md`, plus `.ai/run-context/serve.log` when a command
   was started.
 - `next_action: none`

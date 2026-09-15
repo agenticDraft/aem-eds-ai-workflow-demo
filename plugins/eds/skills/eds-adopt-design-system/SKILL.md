@@ -211,7 +211,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many frames were retrieved and where the manifest was
   written.
-- `artifacts`: `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
   `.ai/design/proposed-breakpoints.md`, `.ai/design/audit.md`.
 - `next_action: none`
 - `metrics: frames=<count> thresholds=<count>`
@@ -223,7 +223,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many frames were retrieved, where the manifest was written,
   and that the audit recorded at least one `poisoning` finding.
-- `artifacts`: `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/design/design-system.md`, `.ai/design/proposed-tokens.css`,
   `.ai/design/proposed-breakpoints.md`, `.ai/design/audit.md`.
 - `next_action`: the audit's own `next_action`, forwarded verbatim.
 - `metrics: frames=<count> thresholds=<count>`, plus the audit's own `metrics` forwarded verbatim.

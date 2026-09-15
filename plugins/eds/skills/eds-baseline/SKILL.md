@@ -198,7 +198,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   target component(s), the missing renderable content naming every component with nothing to
   render, or the render operation's own failure summary verbatim. Never reworded into something
   more general.
-- `artifacts`: every file any operation invoked above actually wrote before the failure, if any;
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file any operation invoked above actually wrote before the failure, if any;
   otherwise `[]`.
 - `next_action: none`
 
@@ -209,7 +209,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, every component captured, and which width or
   component selector came back missing.
-- `artifacts`: `.ai/run-context/baseline-capture.json`, plus every screenshot the capture operation
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/run-context/baseline-capture.json`, plus every screenshot the capture operation
   actually wrote.
 - `next_action: none`
 
@@ -219,5 +219,5 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and every component captured.
-- `artifacts`: `.ai/run-context/baseline-capture.json`, plus every screenshot captured.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/run-context/baseline-capture.json`, plus every screenshot captured.
 - `next_action: none`
