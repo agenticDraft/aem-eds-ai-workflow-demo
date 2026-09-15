@@ -162,7 +162,7 @@ was started, so there is nothing to report on. The report carries, one field per
 polled; the status that answered, or `none`; whether this stage started what is running; the
 process id, or `none`; the log path, or `none`; and the poll output that ended the attempt.
 
-Then emit the `## Result` block:
+Then emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, and never followed by anything else. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no preview URL is configured; or that nothing answered and
@@ -173,6 +173,10 @@ Then emit the `## Result` block:
   plus `.ai/run-context/serve.log` when a command was started.
 - `next_action: none`
 
+The block above must be the last thing this stage emits — no trailing note, caveat, or explanation
+after it, even something genuinely useful for a human (a sandbox restriction hit, a manual step
+taken). Say it inside the block's own fields, or in `serve-report.md`, not after.
+
 ### Report pass
 
 Write `.ai/run-context/serve-report.md` with the same fields as **Report fail**. When this stage
@@ -180,7 +184,7 @@ reached here from **Already answering?**, the started-by-this-stage field is fal
 id and log are `none` — this stage has no handle on a server it did not start, and recording one
 it guessed at would be worse than recording none.
 
-Then emit the `## Result` block:
+Then emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, and never followed by anything else. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the answering status and whether this stage started the server or
