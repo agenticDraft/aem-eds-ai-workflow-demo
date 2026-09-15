@@ -32,12 +32,18 @@ docs/
 .ai/logs/
 .ai/run-state.json
 .ai/progress.md
+.ai/route-progress.txt
+.ai/log.md
 .ai/playwright/
 .ai/tracker/
 .ai/scm/
 .ai/figma/
 .ai/run-context/
 .analytics/
+
+# eds-fixture's placeholder test content (G3, D8) — a fixture drafts/<item_id>.plain.html generates
+# to render against when no real content exists yet, never real page content meant for publication.
+drafts/
 
 # Reserved — no folder exists yet; nothing writes here until a task needs it (D47).
 .ai/research/
