@@ -208,7 +208,7 @@ an empty result.
 
 ### Report skip
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence — this item's fact record names no design source and none was requested,
@@ -218,7 +218,7 @@ Emit the `## Result` block:
 
 ### Report pass
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the source kind (`design_tool` or `image`) and, for a design-tool
@@ -231,7 +231,7 @@ Emit the `## Result` block:
 
 ### Report question
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
 - `summary`: one sentence — either "more than one image attachment, none marked as the design
@@ -247,7 +247,7 @@ Emit the `## Result` block:
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence naming what went wrong — the usage error from **Resolve the design

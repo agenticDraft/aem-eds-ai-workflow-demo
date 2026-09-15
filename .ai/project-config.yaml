@@ -16,3 +16,7 @@ commands:
 paths:
   spec_dir: ".ai/specs"
   preview: "http://localhost:3000/preview"
+
+limits:
+  questions_per_run: 3
+  fix_attempts_default: 3

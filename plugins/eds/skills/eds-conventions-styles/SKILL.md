@@ -83,7 +83,7 @@ report of its own.
 
 ### Report missing artifact
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: failure`
 - `summary`: one sentence — `.ai/run-context/design-reference.json` is missing or unreadable.
@@ -93,7 +93,7 @@ Emit the `## Outcome` block:
 
 ### Report no values
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: warning`
 - `summary`: one sentence — no design values were retrieved for this item, so there is nothing to
@@ -103,7 +103,7 @@ Emit the `## Outcome` block:
 
 ### Report no manifest
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: warning`
 - `summary`: one sentence — design values exist but this project has not adopted a design system
@@ -113,7 +113,7 @@ Emit the `## Outcome` block:
 
 ### Report graded
 
-Emit the `## Outcome` block:
+Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `status: success`
 - `summary`: one sentence naming how many variables matched the adopted system and how many

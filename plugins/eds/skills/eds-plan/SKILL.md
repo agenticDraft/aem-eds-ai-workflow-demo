@@ -174,7 +174,7 @@ satisfies or is removed. Go back to **Validate the plan**.
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence — the missing-artifact reason, or the validator's `invalid: <reason>`
@@ -184,7 +184,7 @@ Emit the `## Result` block:
 
 ### Report pass
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the item id and how many requirements the plan covers.
@@ -194,7 +194,7 @@ Emit the `## Result` block:
 
 ### Report question
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
 - `summary`: one sentence naming the item id and that its specification carries no actionable

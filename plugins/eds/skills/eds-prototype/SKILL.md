@@ -227,7 +227,7 @@ None of these — go to **Report pass**.
 
 ### Report fail
 
-Emit the `## Result` block (see `../../../agentic-core/shared/result-envelope.md`):
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence naming which required input was missing — `design-reference.json` or
@@ -237,7 +237,7 @@ Emit the `## Result` block (see `../../../agentic-core/shared/result-envelope.md
 
 ### Report question
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: question`
 - `summary`: one sentence naming the item id and that no block or component name could be resolved
@@ -250,7 +250,7 @@ Emit the `## Result` block:
 
 ### Report warn
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
 - `summary`: one sentence naming the item id, the target block, whether it is new or existing, and
@@ -264,7 +264,7 @@ Emit the `## Result` block:
 
 ### Report pass
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the item id, the target block, and whether it is new or existing.

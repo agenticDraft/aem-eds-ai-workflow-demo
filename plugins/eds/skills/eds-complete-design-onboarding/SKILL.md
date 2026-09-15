@@ -282,7 +282,7 @@ remote even though the pull request itself did not open.
 
 ### Report pass
 
-Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence naming the pull request opened, or (when already onboarded) that no
@@ -294,7 +294,7 @@ Emit the `## Result` block (`../../../agentic-core/shared/result-envelope.md`):
 
 ### Report declined
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence stating the human declined; no branch or commit was created.
@@ -303,7 +303,7 @@ Emit the `## Result` block:
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence naming what went wrong, verbatim from the node that failed — never a

@@ -109,6 +109,10 @@ blocker: An image-only design source cannot be identified as reference or eviden
 - Tables or ASCII art inside `summary`.
 - `question` or `blocker` present with a verdict other than `question`.
 - `blocker` absent when `verdict: question`.
+- The block rendered as a bulleted or backtick-wrapped list (e.g. `` - `verdict: pass` `` instead
+  of `verdict: pass`) — a stage adapter's own instructions that describe each field with a bullet
+  (see the next section) are guidance for a human reading the skill, never a template to reproduce
+  literally in the emitted block.
 
 ## Reference, not restatement
 
