@@ -89,7 +89,9 @@ blocker: selector '.hero-banner' not found in the rendered DOM
 
 ## Anti-patterns
 
-- Prose after the block — the block must be the last thing emitted.
+- Prose after the block — the block must be the last thing emitted, even prose explicitly
+  labeled as commentary, context, or "not part of the envelope." Put it before the heading
+  instead, where it is already sanctioned.
 - A blank line, or any other line, between `## Outcome` and `status:` — `status:` is always the
   line immediately following the heading, with nothing between them.
 - A `status` outside `success | warning | failure` — including any result-envelope verdict

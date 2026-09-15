@@ -6,7 +6,10 @@ description: The result envelope contract. Every stage adapter and every provide
 
 Every stage adapter and every provider operation **ends** its output with this block. It must be
 the last thing emitted. Anything above it is for a human debugging that stage — the runner reads
-only the block.
+only the block. **This is where a narrative summary of what ran belongs, if one is worth writing at
+all** — before the heading, never after. Labeling trailing text as commentary, context, or
+explicitly "not part of the envelope" does not exempt it: the rule is positional, not semantic, and
+`validate-result-envelope.sh` enforces it the same way regardless of how the text describes itself.
 
 **This block governs one tier only: an adapter returning to the runner.** A stage adapter that
 dispatches subagents of its own uses a second, separate contract for what those return to it —
@@ -103,7 +106,9 @@ blocker: An image-only design source cannot be identified as reference or eviden
 
 ## Anti-patterns
 
-- Prose after the block — the block must be the last thing emitted.
+- Prose after the block — the block must be the last thing emitted, even prose explicitly
+  labeled as commentary, context, or "not part of the envelope." Put it before the heading
+  instead, where it is already sanctioned.
 - A blank line, or any other line, between `## Result` and `verdict:` — `verdict:` is always the
   line immediately following the heading, with nothing between them.
 - A `verdict` outside the four literals.
