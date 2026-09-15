@@ -296,13 +296,17 @@ None of these — go to **Report pass**.
 
 ### Report fail
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence naming the specific reason — the missing operation(s), the unresolved
-  target block, the missing renderable content, the render operation's own failure summary
-  verbatim, or the specific acceptance criterion that failed. Never reworded into something more
-  general.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized
+  summary fails validation and takes the whole run to `failed`), naming the specific reason —
+  the missing operation(s), the unresolved target block, the missing renderable content, the
+  render operation's own failure summary verbatim, or the specific acceptance criterion that
+  failed. Never reworded into something more general; if naming everything runs past 200
+  characters, keep the single most specific reason and drop the rest rather than compounding
+  clauses with "and"/";" — the full detail already lives in `verify-report.md` and the
+  `artifacts` list.
 - `artifacts`: every file any operation invoked above actually wrote before the failure, if any;
   otherwise `[]`.
 - `next_action: none`
@@ -315,11 +319,15 @@ its own before/after state and verdict (or, when none ran, plainly why — unsup
 interactive element identified, or which specific check's own `interact` call did not complete),
 and, plainly labeled, which of the downgraded/skipped conditions above applied.
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence naming the item id, the target block, and which check was downgraded or
-  skipped.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized
+  summary fails validation and takes the whole run to `failed`), naming the item id, the target
+  block, and which check was downgraded or skipped. If naming all three runs past 200
+  characters, keep the item id and target block and name the downgrade only as a category
+  (e.g. "interact check downgraded") rather than spelling out why — the reasons already live in
+  `verify-report.md`.
 - `artifacts`: every screenshot, measurement and interaction file the operations wrote, plus
   `.ai/run-context/verify-report.md`.
 - `next_action: none`
@@ -328,10 +336,12 @@ Emit the `## Result` block:
 
 Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
 
-Emit the `## Result` block:
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence naming the item id and the target block(s) checked.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized
+  summary fails validation and takes the whole run to `failed`), naming the item id and the
+  target block(s) checked.
 - `artifacts`: every screenshot, measurement and interaction file the operations wrote, plus
   `.ai/run-context/verify-report.md`.
 - `next_action: none`
