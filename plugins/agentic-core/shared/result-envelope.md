@@ -104,6 +104,8 @@ blocker: An image-only design source cannot be identified as reference or eviden
 ## Anti-patterns
 
 - Prose after the block — the block must be the last thing emitted.
+- A blank line, or any other line, between `## Result` and `verdict:` — `verdict:` is always the
+  line immediately following the heading, with nothing between them.
 - A `verdict` outside the four literals.
 - A missing `artifacts` list, even when empty.
 - `artifacts:` written as an inline scalar (`artifacts: path/to/file`) instead of a list — even a

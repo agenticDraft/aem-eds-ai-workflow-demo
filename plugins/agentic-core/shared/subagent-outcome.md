@@ -90,9 +90,14 @@ blocker: selector '.hero-banner' not found in the rendered DOM
 ## Anti-patterns
 
 - Prose after the block — the block must be the last thing emitted.
+- A blank line, or any other line, between `## Outcome` and `status:` — `status:` is always the
+  line immediately following the heading, with nothing between them.
 - A `status` outside `success | warning | failure` — including any result-envelope verdict
   literal (`pass`, `warn`, `fail`, `question`) used here by mistake.
 - A missing `artifacts` list, even when empty.
+- `artifacts:` written as an inline scalar (`artifacts: path/to/file`) instead of a list — even a
+  single path is still a list: `artifacts:` on its own line, followed by `  - path/to/file`.
+  Writing exactly one path is not license to drop the list form.
 - `blocker` present with a status other than `failure`.
 - `blocker` absent when `status: failure`.
 - The block rendered as a bulleted or backtick-wrapped list (e.g. `` - `status: success` `` instead
