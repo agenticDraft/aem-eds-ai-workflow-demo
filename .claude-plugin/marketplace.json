@@ -1,0 +1,51 @@
+{
+  "name": "aem-eds-ai-workflow-demo",
+  "description": "Automated EDS Delivery: an agnostic delivery core (agentic-core) plus swappable provider/platform packs (eds, jira, github, figma, playwright) that sequence a work item from intake to a published change.",
+  "owner": {
+    "name": "agenticDraft"
+  },
+  "plugins": [
+    {
+      "name": "agentic-core",
+      "source": "./plugins/agentic-core",
+      "description": "Agnostic delivery core: sequences stages, spawns pack adapters as subagents, reads the result envelope, and branches. Knows no tracker, SCM, design tool or browser by name.",
+      "version": "0.1.0",
+      "author": { "name": "agenticDraft" }
+    },
+    {
+      "name": "eds",
+      "source": "./plugins/eds",
+      "description": "Platform pack for an Edge Delivery project: binds every stage of the default route to this platform's own conventions, calling the tracker, scm, design and browser provider packs where each stage needs them.",
+      "version": "0.1.0",
+      "author": { "name": "agenticDraft" }
+    },
+    {
+      "name": "jira",
+      "source": "./plugins/jira",
+      "description": "Provider pack for the tracker role: fetch_item, post_note, attach_file, list_types against a real Jira Cloud site over its REST API.",
+      "version": "0.1.0",
+      "author": { "name": "agenticDraft" }
+    },
+    {
+      "name": "github",
+      "source": "./plugins/github",
+      "description": "Provider pack for the scm role: create_branch, publish_change, check_status against a real GitHub repository over the gh CLI.",
+      "version": "0.1.0",
+      "author": { "name": "agenticDraft" }
+    },
+    {
+      "name": "figma",
+      "source": "./plugins/figma",
+      "description": "Provider pack for the design role: fetch_reference against a real Figma file, wrapping the Figma MCP server's design-context tools.",
+      "version": "0.1.0",
+      "author": { "name": "agenticDraft" }
+    },
+    {
+      "name": "playwright",
+      "source": "./plugins/playwright",
+      "description": "Provider pack for the browser role: render, capture, measure, interact against a real headless Chromium browser via the playwright npm library, run standalone with no MCP tool call.",
+      "version": "0.1.0",
+      "author": { "name": "agenticDraft" }
+    }
+  ]
+}

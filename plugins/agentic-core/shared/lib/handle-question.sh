@@ -82,7 +82,9 @@ ALWAYS_LINE="$(grep -m1 '^always_autonomous: \[' "$PACK")"
 always_autonomous=0
 if [[ "$ALWAYS_LINE" =~ ^always_autonomous:\ \[(.*)\]$ ]]; then
   IFS=',' read -ra ids <<< "${BASH_REMATCH[1]}"
-  for id in "${ids[@]}"; do
+  for id in "${ids[@]:-}"; do
+    # `${arr[@]:-}` yields one EMPTY STRING for an empty array under bash 3.2.
+    [[ -z "$id" ]] && continue
     id="${id// /}"
     [[ "$id" == "$STAGE_ID" ]] && always_autonomous=1
   done
