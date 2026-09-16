@@ -17,7 +17,14 @@ branch: <branch name>
 
 ## What to do
 
-1. Run `${CLAUDE_PLUGIN_ROOT}/skills/check-status/scripts/check-status.sh <branch>`, substituting
+**This script calls `gh`, and the default Bash sandbox's network-filtering proxy does TLS
+interception that breaks `gh`'s own Go TLS client — a consistent, every-time failure
+(`connect EPERM`-shaped errors or a token reported invalid), not a flaky occasional one; `curl` and
+the token itself are unaffected, only `gh`'s own HTTP client (`05-gap-register.md`'s G68).** Run
+every step below with `dangerouslyDisableSandbox: true`, unconditionally, on the first attempt.
+
+1. Run, with `dangerouslyDisableSandbox: true`:
+   `${CLAUDE_PLUGIN_ROOT}/skills/check-status/scripts/check-status.sh <branch>`, substituting
    the `branch` value given above.
 2. Output the script's entire stdout, unchanged, as your entire response. Do not add commentary,
    reformat it, or summarize it — the script's own output already ends with the `## Result` block
