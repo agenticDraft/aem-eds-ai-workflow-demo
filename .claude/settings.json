@@ -1,4 +1,18 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(gh issue *)",
+      "Bash(curl *)"
+    ]
+  },
+  "enabledPlugins": {
+    "agentic-core@aem-eds-ai-workflow-demo": true,
+    "eds@aem-eds-ai-workflow-demo": true,
+    "jira@aem-eds-ai-workflow-demo": true,
+    "github@aem-eds-ai-workflow-demo": true,
+    "figma@aem-eds-ai-workflow-demo": true,
+    "playwright@aem-eds-ai-workflow-demo": true
+  },
   "sandbox": {
     "network": {
       "allowedDomains": [
@@ -8,11 +22,5 @@
         "www.figma.com"
       ]
     }
-  },
-  "permissions": {
-    "allow": [
-      "Bash(gh issue *)",
-      "Bash(curl *)"
-    ]
   }
 }

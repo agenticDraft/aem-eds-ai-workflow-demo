@@ -8,6 +8,6 @@ fixed alongside this fixture.
 
 ## Result
 verdict: pass
-summary: EDS-4 implemented — all 3 plan steps done; columns.js now imports and applies createOptimizedPicture.
-artifacts: blocks/columns/columns.js
+summary: Implemented — all 3 plan steps done; the target file now applies the requested change.
+artifacts: src/widget/widget.js
 next_action: none
