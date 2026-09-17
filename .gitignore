@@ -23,6 +23,12 @@ docs/
 
 # Secrets — THIS REPO IS PUBLIC. Never remove these lines.
 .ai/credentials
+# Any file named exactly `credentials`, wherever it sits. The enumerated path above did not cover
+# the credentials file this project actually uses (docs/agentic-core/credentials), which was ignored
+# only incidentally, by the blanket `docs/` rule below — one negation added to track something under
+# docs/ would have exposed it. Matches the bare name only, so `credentials.js` and the like are
+# unaffected.
+**/credentials
 .claude/settings.local.json
 .claude/artifacts/
 
