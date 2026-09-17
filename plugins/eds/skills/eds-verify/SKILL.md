@@ -55,6 +55,7 @@ digraph eds_verify {
     "Target block identified?" [shape=diamond];
     "Locate existing content for the block" [shape=box];
     "Renderable content found?" [shape=diamond];
+    "Generate a fixture" [shape=box];
     "Located path a drafts/ fixture?" [shape=diamond];
     "Start the dedicated draft server" [shape=box];
     "Draft server answering?" [shape=diamond];
@@ -78,7 +79,9 @@ digraph eds_verify {
     "Target block identified?" -> "Report fail" [label="no"];
     "Locate existing content for the block" -> "Renderable content found?";
     "Renderable content found?" -> "Located path a drafts/ fixture?" [label="yes"];
-    "Renderable content found?" -> "Report fail" [label="no"];
+    "Renderable content found?" -> "Generate a fixture" [label="no"];
+    "Generate a fixture" -> "Located path a drafts/ fixture?" [label="pass"];
+    "Generate a fixture" -> "Report fail" [label="fail"];
     "Located path a drafts/ fixture?" -> "Start the dedicated draft server" [label="yes"];
     "Located path a drafts/ fixture?" -> "Render the target page" [label="no"];
     "Start the dedicated draft server" -> "Draft server answering?";
@@ -172,9 +175,31 @@ around.
 
 At least one target block resolved to a page path — continue to **Located path a drafts/
 fixture?** with that path (the first one found, if a block resolved to more than one). No target
-block resolved to any page — go to **Report fail**, naming every target block name that had
-nothing to render: this change has no existing content to check behaviour and responsiveness
-against, and this stage does not fabricate any.
+block resolved to any page — continue to **Generate a fixture** instead, naming every target block
+name that had nothing to render as the reason one is being generated: this change has no existing
+content to check behaviour and responsiveness against, so this stage builds a placeholder rather
+than reporting nothing to check against at all.
+
+### Generate a fixture
+
+Invoke `Skill(eds:eds-fixture)` with:
+
+```
+block: <the first target block name from Target block identified?>
+item_id: <the fact record's own item id>
+```
+
+`pass` — take the written path from its `artifacts` list (`drafts/<item_id>.plain.html`) as this
+stage's own located page path and continue to **Located path a drafts/ fixture?** with it, the same
+way a genuinely located path would continue there — it always answers "yes" in practice, since
+`eds-fixture` writes nowhere but `drafts/`, so this run gets the same decorated draft-server
+rendering as any other `drafts/` fixture, with no separate branch needed here. `fail` — an occupied
+path, a rejected `block`/`item_id` — go to **Report fail**, naming the fixture's own summary
+verbatim.
+
+**This target is not real content.** Every path from here to **Report warn** must state plainly
+that the rendered target was a generated placeholder fixture, naming the file — see that node and
+**Any check downgraded or skipped?** below.
 
 ### Located path a drafts/ fixture?
 
@@ -375,6 +400,11 @@ Any of the following is true — go to **Report warn**:
   because a specific check's own `interact` call itself returned `fail`/`question` rather than
   completing — reported plainly as **not attempted**, distinct from a check that ran and passed.
   Never omitted from `verify-report.md` and never folded silently into a clean pass.
+- The rendered target came from **Generate a fixture**, not from an existing page this stage
+  located. This run proves the unit decorates, renders at three widths and responds to
+  interaction; it proves nothing about any acceptance criterion concerning real copy or real
+  content shape, since the fixture's own cells name only their row and column. Always a downgrade
+  when it applies, never foldable into a clean pass.
 
 None of these — go to **Report pass**.
 
@@ -420,7 +450,10 @@ Run **Teardown**. Write `.ai/run-context/verify-report.md`: the target block nam
 the selectors measured and their findings, each behaviour check attempted through `interact` with
 its own before/after state and verdict (or, when none ran, plainly why — unsupported operation, no
 interactive element identified, or which specific check's own `interact` call did not complete),
-and, plainly labeled, which of the downgraded/skipped conditions above applied.
+and, plainly labeled, which of the downgraded/skipped conditions above applied. **When this run's
+target came from Generate a fixture**, state plainly that the target was a generated placeholder
+fixture, not authored content, naming the written file — a report that reads the same for real and
+generated content makes every later run's evidence untrustworthy.
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
@@ -436,6 +469,11 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `next_action: none`
 
 ### Report pass
+
+**Never reached when this run's target came from Generate a fixture** — that condition is one of
+the routes to **Report warn** instead (**Any check downgraded or skipped?**): a generated fixture
+proves decoration and behaviour but nothing about real copy or content shape, and a clean `pass`
+would claim more than the evidence supports.
 
 Run **Teardown**. Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
 
