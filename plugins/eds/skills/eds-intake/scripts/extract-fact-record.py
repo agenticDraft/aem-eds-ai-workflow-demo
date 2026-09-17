@@ -100,6 +100,12 @@ def find_matches(text, words):
 
 URL_RE = re.compile(r"https?://\S+")
 FILE_RE = re.compile(r"\b[\w./-]+\.(?:js|css|html|json|md)\b")
+# A bare component directory the text names without a specific file inside it
+# (e.g. "blocks/features-carousel/") — FILE_RE requires a file extension and
+# never matches this shape on its own. `blocks/` is fixed: every consumer of
+# `files_named`'s own "matching blocks/<name>/..." fallback (eds-baseline,
+# eds-prototype, eds-verify) already assumes that root.
+BLOCK_DIR_RE = re.compile(r"\bblocks/[\w-]+/")
 FIGMA_HOSTS = ("figma.com", "www.figma.com")
 
 
@@ -172,7 +178,7 @@ def main():
     has_reproduction_steps = bool(reproduction_matches)
     has_reproduction_url = bool(URL_RE.search(plain_text))
 
-    files_named = sorted(set(FILE_RE.findall(plain_text)))
+    files_named = sorted(set(FILE_RE.findall(plain_text)) | set(BLOCK_DIR_RE.findall(plain_text)))
 
     os.makedirs(os.path.dirname(out_fact_record) or ".", exist_ok=True)
     with open(out_fact_record, "w", encoding="utf-8") as f:
