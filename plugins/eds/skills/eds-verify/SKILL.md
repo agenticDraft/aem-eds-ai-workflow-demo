@@ -222,8 +222,12 @@ Two shapes, depending on which path led here:
   config.yaml`'s `paths.preview` value's origin (scheme and host) and the page path found above to
   build the target URL.
 - **From Draft server answering? (yes):** take the draft server's own `origin=` (from **Start the
-  dedicated draft server**'s output) plus `/drafts/<item_id>` — `.plain.html` never appears in the
-  URL, the pipeline resolves it, the same clean-URL shape `eds-verify-design` uses.
+  dedicated draft server**'s output) plus the located page path's own basename with its trailing
+  `.plain.html` stripped. **The located path is the authority for this URL, not `item_id`** — a
+  fixture may be named for the unit rather than the item (`drafts/columns-demo.plain.html` located
+  for item `EDS-9` builds `/drafts/columns-demo`, never `/drafts/EDS-9`, which the draft server does
+  not serve). `.plain.html` never appears in the built URL, the pipeline resolves it, the same
+  clean-URL shape `eds-verify-design` uses.
 
 Invoke `Skill(<packs.browser>:<render skill name>)` with:
 
