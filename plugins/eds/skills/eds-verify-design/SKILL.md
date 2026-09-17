@@ -70,6 +70,7 @@ digraph eds_verify_design {
     "Compare against the design reference" [shape=box];
     "Any mismatch found?" [shape=diamond];
     "Attempts exhausted or no improvement?" [shape=diamond];
+    "Every remaining mismatch a content-asset gap?" [shape=diamond];
     "Edit the block's CSS and JS" [shape=box];
     "Any degradation to report?" [shape=diamond];
     "Report fail" [shape=doublecircle];
@@ -95,8 +96,10 @@ digraph eds_verify_design {
     "Compare against the design reference" -> "Any mismatch found?";
     "Any mismatch found?" -> "Any degradation to report?" [label="no"];
     "Any mismatch found?" -> "Attempts exhausted or no improvement?" [label="yes"];
-    "Attempts exhausted or no improvement?" -> "Report fail" [label="yes"];
+    "Attempts exhausted or no improvement?" -> "Every remaining mismatch a content-asset gap?" [label="yes"];
     "Attempts exhausted or no improvement?" -> "Edit the block's CSS and JS" [label="no"];
+    "Every remaining mismatch a content-asset gap?" -> "Any degradation to report?" [label="yes"];
+    "Every remaining mismatch a content-asset gap?" -> "Report fail" [label="no"];
     "Edit the block's CSS and JS" -> "Render the draft page";
     "Any degradation to report?" -> "Report warn" [label="yes"];
     "Any degradation to report?" -> "Report pass" [label="no"];
@@ -228,7 +231,13 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables`, `geome
 1. **Visual comparison, always.** Read both images — this attempt's own screenshot and the
    reference — and compare them by inspection, the same judgment-based comparison `eds-verify`
    applies rather than a pixel-diff library (D19: vision comparison, not a Layout Matrix). Note any
-   material visual difference as a mismatch, in plain language.
+   material visual difference as a mismatch, in plain language, tagged `[fixable]` or
+   `[content-asset gap]` — the second only when the difference exists because required content (a
+   real photo, a specific piece of copy) is genuinely absent from the project and no edit to
+   `<name>.css`/`<name>.js` could produce it, never as a softer way to describe a difference a CSS or
+   JS change could actually close. A wrong color, wrong spacing, wrong font application, or wrong
+   layout is always `[fixable]`, however small — this tag exists for missing *content*, not for
+   difficulty or scope of the fix.
 2. **Value comparison, when `has_values` is `true`.** `measure`'s own fixed property list is
    `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `line-height` — geometry
    (a bounding box) is separate and carries no padding/margin/gap. For each entry in `variables`
@@ -249,7 +258,7 @@ exhausted or no improvement?**.
 
 ### Attempts exhausted or no improvement?
 
-Either of the following — go to **Report fail**:
+Either of the following — go to **Every remaining mismatch a content-asset gap?**:
 
 - This was the second render/compare attempt (this stage's own cap, core contract §4 / D19).
 - This attempt's mismatch list is identical to, or a superset of, the immediately preceding
@@ -257,6 +266,16 @@ Either of the following — go to **Report fail**:
 
 Neither — continue to **Edit the block's CSS and JS**. (With this stage's own two-attempt cap, this
 branch is reachable only once, on the first attempt's own mismatches.)
+
+### Every remaining mismatch a content-asset gap?
+
+Every entry in this attempt's own mismatch list carries the `[content-asset gap]` tag (an untagged
+entry, or one tagged `[fixable]`, fails this check) — continue to **Any degradation to report?**: a
+missing real asset is not something exhausting the fix-loop's edit budget was ever going to close,
+so treating it the same as an unresolved code defect would fail a route the fix loop had no way to
+save regardless of attempt count. At least one `[fixable]` or untagged entry remains — go to
+**Report fail**: a genuinely addressable defect went unresolved after this stage's own budget, which
+is exactly what **Attempts exhausted or no improvement?** exists to catch.
 
 ### Edit the block's CSS and JS
 
@@ -275,6 +294,9 @@ run (see **Any degradation to report?**).
 
 Any of the following — go to **Report warn**:
 
+- The final attempt's mismatch list is non-empty (every entry `[content-asset gap]`, reached only
+  from **Every remaining mismatch a content-asset gap?**) — name each one, and what content is
+  missing, in the report; this is the degradation itself, not a side note.
 - `design-reference.json`'s `has_values` is `false` (an image-only source), so the whole comparison
   was visual-only; no value could be checked quantitatively at all.
 - At least one `variables` entry named spacing or geometry rather than one of `measure`'s own
@@ -309,8 +331,9 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 ### Report warn
 
 Run **Teardown**. Write `.ai/run-context/verify-design-report.md`: the target block name and
-new/existing state, the final attempt's own (empty) mismatch list, every file edited across any
-earlier attempt, and which degradation(s) applied.
+new/existing state, the final attempt's own mismatch list (empty, unless reached via **Every
+remaining mismatch a content-asset gap?**, in which case every remaining `[content-asset gap]`
+entry), every file edited across any earlier attempt, and which degradation(s) applied.
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
@@ -350,6 +373,11 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - **The draft server's own port is derived, not configured.** `paths.preview`'s port plus one is
   this stage's own fixed convention; a project whose preview port is itself one below something else
   already bound could collide. Not observed in this project's own real run below.
+- **The `[content-asset gap]` tag is a judgment call, the same class this stage already makes for
+  every visual comparison (D19), not a new category of risk.** Its guardrail is stated where the tag
+  is assigned, not enforced by a script: a wrong color, spacing, font application or layout is always
+  `[fixable]`, regardless of how small the edit would be — the tag exists only for content genuinely
+  absent from the project.
 - **`Skill(eds:eds-verify-design)` resolving inside a real route, under `context: fork`.** Same class
   as every prior stage-adapter task — the `eds` plugin is not loaded into this session, so the flow
   was executed by hand, node by node, against the real scripts and real project state.
