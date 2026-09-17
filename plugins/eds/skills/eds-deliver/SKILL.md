@@ -36,7 +36,7 @@ disk, regardless of what the runner forwarded.
 **This stage does not itself create the working branch.** `scm.create_branch` is not invoked by any
 stage in this pack — a route's branch is assumed already checked out by the time `deliver` runs, out
 of band, the same way `eds-verify` assumes the project's `serve` command is already up by the time
-it runs. See G46 (`05-gap-register.md`) for the open question of who calls `create_branch`.
+it runs. See G46 for the open question of who calls `create_branch`.
 
 ## Flow
 

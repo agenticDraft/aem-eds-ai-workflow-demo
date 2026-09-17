@@ -1,5 +1,5 @@
 ---
-description: The `styles` subagent of the `conventions` stage (D75, `04-eds-pack-design.md`) — grades each design value `extract` retrieved against this project's own adopted design system (D20). Dispatched only by `eds-conventions`, never by the route driver directly, and only when the fact record shows a design reference is present or was requested. Ends with the subagent outcome block, not the stage result envelope.
+description: The `styles` subagent of the `conventions` stage (D75) — grades each design value `extract` retrieved against this project's own adopted design system (D20). Dispatched only by `eds-conventions`, never by the route driver directly, and only when the fact record shows a design reference is present or was requested. Ends with the subagent outcome block, not the stage result envelope.
 context: fork
 ---
 

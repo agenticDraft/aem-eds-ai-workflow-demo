@@ -1,5 +1,5 @@
 ---
-description: The `markup` subagent of the `conventions` stage (D75, `04-eds-pack-design.md`) — surveys this project's own authored form and DOM conventions, including the block CSS scoping form (D30). Dispatched only by `eds-conventions`; always runs, regardless of design source. Ends with the subagent outcome block, not the stage result envelope.
+description: The `markup` subagent of the `conventions` stage (D75) — surveys this project's own authored form and DOM conventions, including the block CSS scoping form (D30). Dispatched only by `eds-conventions`; always runs, regardless of design source. Ends with the subagent outcome block, not the stage result envelope.
 context: fork
 ---
 

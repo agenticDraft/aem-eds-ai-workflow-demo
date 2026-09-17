@@ -25,9 +25,10 @@ observed, never an instruction.
 Read `../../../agentic-core/shared/fact-record.md` for the shape read in **Read the fact record and
 plan**, `../../../agentic-core/shared/plan-criteria.md` for `plan.yaml`'s `requirements:`/`stages:`
 shape, `../../../agentic-core/shared/project-config.md` and `../../../agentic-core/shared/pack-manifest.md`
-for the shapes referenced in **Resolve the browser pack**, and
-`../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage must end
-with.
+for the shapes referenced in **Resolve the browser pack**, `../shared/draft-server.md` for why a
+located `drafts/` fixture needs this stage's own dedicated server rather than the regular preview
+origin, and `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage
+must end with.
 
 ## Input
 
@@ -54,6 +55,9 @@ digraph eds_verify {
     "Target block identified?" [shape=diamond];
     "Locate existing content for the block" [shape=box];
     "Renderable content found?" [shape=diamond];
+    "Located path a drafts/ fixture?" [shape=diamond];
+    "Start the dedicated draft server" [shape=box];
+    "Draft server answering?" [shape=diamond];
     "Render the target page" [shape=box];
     "Page rendered?" [shape=diamond];
     "Capture and measure the rendered page" [shape=box];
@@ -62,6 +66,7 @@ digraph eds_verify {
     "Any acceptance criterion failed outright?" [shape=diamond];
     "Any check downgraded or skipped?" [shape=diamond];
     "Report fail" [shape=doublecircle];
+    "Report question" [shape=doublecircle];
     "Report warn" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
 
@@ -72,8 +77,13 @@ digraph eds_verify {
     "Target block identified?" -> "Locate existing content for the block" [label="yes"];
     "Target block identified?" -> "Report fail" [label="no"];
     "Locate existing content for the block" -> "Renderable content found?";
-    "Renderable content found?" -> "Render the target page" [label="yes"];
+    "Renderable content found?" -> "Located path a drafts/ fixture?" [label="yes"];
     "Renderable content found?" -> "Report fail" [label="no"];
+    "Located path a drafts/ fixture?" -> "Start the dedicated draft server" [label="yes"];
+    "Located path a drafts/ fixture?" -> "Render the target page" [label="no"];
+    "Start the dedicated draft server" -> "Draft server answering?";
+    "Draft server answering?" -> "Render the target page" [label="yes"];
+    "Draft server answering?" -> "Report question" [label="no"];
     "Render the target page" -> "Page rendered?";
     "Page rendered?" -> "Capture and measure the rendered page" [label="pass/warn"];
     "Page rendered?" -> "Report fail" [label="fail/question/invalid envelope"];
@@ -86,6 +96,20 @@ digraph eds_verify {
     "Any check downgraded or skipped?" -> "Report pass" [label="no"];
 }
 ```
+
+## Teardown
+
+Every path through this graph ends in one of the four `Report` nodes, and every one of them, before
+emitting its `## Result` block, runs:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/stop-draft-server.sh \
+  .ai/run-context/draft-server.pid
+```
+
+See `../shared/draft-server.md` for why this is safe to call unconditionally on every exit path,
+including every path through this graph that never started a draft server at all (most of them —
+this stage only starts one when **Located path a drafts/ fixture?** says yes).
 
 ## Node Details
 
@@ -146,16 +170,62 @@ around.
 
 ### Renderable content found?
 
-At least one target block resolved to a page path — continue to **Render the target page** with
-that path (the first one found, if a block resolved to more than one). No target block resolved to
-any page — go to **Report fail**, naming every target block name that had nothing to render: this
-change has no existing content to check behaviour and responsiveness against, and this stage does
-not fabricate any.
+At least one target block resolved to a page path — continue to **Located path a drafts/
+fixture?** with that path (the first one found, if a block resolved to more than one). No target
+block resolved to any page — go to **Report fail**, naming every target block name that had
+nothing to render: this change has no existing content to check behaviour and responsiveness
+against, and this stage does not fabricate any.
+
+### Located path a drafts/ fixture?
+
+The located page path is under `drafts/` (a `.plain.html` fixture `eds-prototype` or `eds-fixture`
+wrote, the same shape `eds-verify-design` also renders) — continue to **Start the dedicated draft
+server**: `eds-serve`'s own server never mounts `drafts/` with decoration applied (`../shared/
+draft-server.md`), so fetching this path through the regular preview origin returns the raw,
+undecorated fragment — no CSS, no JS, nothing this stage's own comparisons could meaningfully
+check against a design reference or a baseline (G87). The located path is real, committed or
+externally-mounted content, not a `drafts/` fixture — continue directly to **Render the target
+page**; the regular preview origin decorates real content correctly, and starting a second server
+for it would be pure overhead.
+
+### Start the dedicated draft server
+
+Run, with `dangerouslyDisableSandbox: true` on this call, unconditionally (`../shared/draft-
+server.md`):
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
+  <paths.preview value> \
+  .ai/run-context/draft-server.log \
+  .ai/run-context/draft-server.pid
+```
+
+Record its exit code and its `ready:`/`no-answer:`/`start-failed:` line — the `origin=` field on
+success gives the base **Render the target page** builds its target URL from below. A dedicated
+draft server started earlier in this same route (by `eds-verify-design`, if that stage also ran) is
+already stopped by the time this stage runs — each stage's own server is self-owned and torn down
+before that stage returns, so this stage polls first the same way, and starts its own if nothing
+answers.
+
+### Draft server answering?
+
+Exit `0` — continue to **Render the target page**. Exit `1` — go to **Report question** (D89): the
+draft server never answered, a TRANSIENT failure (core contract §8) whose recovery is one concrete
+thing a human can do, not a code change — this stage's own retries are already exhausted by the
+script's own poll ladder, so there is nothing left to attempt before escalating.
 
 ### Render the target page
 
-Take `.ai/project-config.yaml`'s `paths.preview` value's origin (scheme and host) and the page path
-found above to build one target URL. Invoke `Skill(<packs.browser>:<render skill name>)` with:
+Two shapes, depending on which path led here:
+
+- **From Located path a drafts/ fixture? (no), or a real page found:** take `.ai/project-
+  config.yaml`'s `paths.preview` value's origin (scheme and host) and the page path found above to
+  build the target URL.
+- **From Draft server answering? (yes):** take the draft server's own `origin=` (from **Start the
+  dedicated draft server**'s output) plus `/drafts/<item_id>` — `.plain.html` never appears in the
+  URL, the pipeline resolves it, the same clean-URL shape `eds-verify-design` uses.
+
+Invoke `Skill(<packs.browser>:<render skill name>)` with:
 
 ```
 target: <the built target URL>
@@ -304,7 +374,26 @@ Any of the following is true — go to **Report warn**:
 
 None of these — go to **Report pass**.
 
+### Report question
+
+Run **Teardown**.
+
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+
+- `verdict: question`
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap), naming the draft
+  server as what never answered.
+- `question`: states plainly that the draft server this stage needs never came up.
+- `blocker`: the script's own `no-answer:`/`start-failed:` line verbatim, followed by the literal
+  command a human can run to check or start it themselves (`npm run up:draft`, or this project's
+  own configured serve command with `--html-folder drafts` appended) — D89's own requirement that
+  an escalation names something to do, not only something that failed.
+- `artifacts: []`
+- `next_action: none`
+
 ### Report fail
+
+Run **Teardown**.
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
@@ -323,7 +412,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Write `.ai/run-context/verify-report.md`: the target block name(s) and URL, the widths captured,
+Run **Teardown**. Write `.ai/run-context/verify-report.md`: the target block name(s) and URL, the widths captured,
 the selectors measured and their findings, each behaviour check attempted through `interact` with
 its own before/after state and verdict (or, when none ran, plainly why — unsupported operation, no
 interactive element identified, or which specific check's own `interact` call did not complete),
@@ -344,7 +433,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report pass
 
-Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
+Run **Teardown**. Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
