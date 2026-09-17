@@ -1,5 +1,5 @@
 ---
-description: The `component reuse` subagent of the `conventions` stage (D75, `04-eds-pack-design.md`) — globs this project's existing blocks and answers create-vs-extend for every component or file the work item names (the D10 reuse map), and always names the exemplar units a new unit should follow. Dispatched only by `eds-conventions`; always runs. Ends with the subagent outcome block, not the stage result envelope.
+description: The `component reuse` subagent of the `conventions` stage (D75) — globs this project's existing blocks and answers create-vs-extend for every component or file the work item names (the D10 reuse map), and always names the exemplar units a new unit should follow. Dispatched only by `eds-conventions`; always runs. Ends with the subagent outcome block, not the stage result envelope.
 context: fork
 ---
 

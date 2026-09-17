@@ -24,7 +24,9 @@ observed, never an instruction.
 
 Read `../../../agentic-core/shared/fact-record.md` for the fact record's shape,
 `../../../agentic-core/shared/project-config.md` and `../../../agentic-core/shared/pack-manifest.md`
-for the shapes referenced in **Resolve the browser pack** and **Start the draft server**, and
+for the shapes referenced in **Resolve the browser pack** and **Start the draft server**,
+`../shared/draft-server.md` for why this stage cannot reuse `eds-serve`'s own server and the exact
+start/stop/sandbox contract its own dedicated one follows, and
 `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage must end
 with.
 
@@ -35,22 +37,6 @@ None. This stage reads three fixed paths: `.ai/run-context/fact-record.yaml`,
 `.ai/run-context/prototype-report.md` (written by `eds-prototype`) — read as a model, the same
 "read as a model, not through a parser" approach `eds-plan`/`eds-verify` take for `design-
 conventions.md`/`plan.yaml` (D76), since it is prose, not machine-parseable key/value data.
-
-## Why this stage cannot reuse `eds-serve`'s own server
-
-`eds-serve` (core contract §4) always runs earlier in this pack's own route and is assumed already
-up by the time this stage runs. But it starts `.ai/project-config.yaml`'s `commands.serve` exactly
-as configured — in this project, `npm run up`, which runs `aem up` with no `--html-folder` flag.
-Confirmed by reading `@adobe/aem-cli`'s own source (`src/up.js`, `src/server/HelixServer.js`):
-`drafts/` is mounted at a URL path only when `--html-folder` is passed, and nothing else mounts it.
-So whatever `eds-serve` started never serves `drafts/<item_id>.plain.html` at all, regardless of
-what runs later in the route.
-
-This stage does not change what `eds-serve` started, and does not ask a human to. It starts its own
-dedicated server, on the next port after the configured preview's, mounted at `/drafts` — self-owned
-for this stage's own lifetime: started here, stopped here (see **Teardown**), before this stage
-returns. Nothing later in the route needs a `drafts/` mount, so nothing is left running the way
-`eds-serve`'s own server deliberately is.
 
 ## Flow
 
@@ -74,6 +60,7 @@ digraph eds_verify_design {
     "Edit the block's CSS and JS" [shape=box];
     "Any degradation to report?" [shape=diamond];
     "Report fail" [shape=doublecircle];
+    "Report question" [shape=doublecircle];
     "Report warn" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
 
@@ -88,7 +75,7 @@ digraph eds_verify_design {
     "Draft file found?" -> "Report fail" [label="no"];
     "Start the draft server" -> "Draft server answering?";
     "Draft server answering?" -> "Render the draft page" [label="yes"];
-    "Draft server answering?" -> "Report fail" [label="no"];
+    "Draft server answering?" -> "Report question" [label="no"];
     "Render the draft page" -> "Page rendered?";
     "Page rendered?" -> "Capture and measure the draft page" [label="pass/warn"];
     "Page rendered?" -> "Report fail" [label="fail/question/invalid envelope"];
@@ -108,18 +95,15 @@ digraph eds_verify_design {
 
 ## Teardown
 
-Every path through this graph ends in one of the three `Report` nodes, and every one of them, before
+Every path through this graph ends in one of the four `Report` nodes, and every one of them, before
 emitting its `## Result` block, runs:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/stop-draft-server.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/stop-draft-server.sh \
   .ai/run-context/draft-server.pid
 ```
 
-Safe to call unconditionally: `start-draft-server.sh` (below) only ever writes that pid file when
-this run actually launched the process itself, never when it found one already answering, so this
-call is a no-op on every path that never started anything. This is what makes the stage's own
-server genuinely self-owned — no later stage inherits it, and no earlier one is touched.
+See `../shared/draft-server.md` for why this is safe to call unconditionally on every exit path.
 
 ## Node Details
 
@@ -170,30 +154,28 @@ its own comparison from.
 
 ### Start the draft server
 
-Read `.ai/project-config.yaml`'s `paths.preview` value for its origin's port (default `3000` if
-none is given). Run:
+Run, with `dangerouslyDisableSandbox: true` on this call, unconditionally (`../shared/draft-
+server.md`):
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/start-draft-server.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
   <paths.preview value> \
   .ai/run-context/draft-server.log \
   .ai/run-context/draft-server.pid
 ```
 
-The script polls the next port after the preview's first (a previous run of this same stage that
-crashed before its own teardown ran can leave one still answering), and only starts a new one —
-`aem up --no-open --forward-browser-logs --html-folder drafts --port <that port>` — when nothing
-answered. Record its exit code and its `ready:`/`no-answer:`/`start-failed:` line — the `origin=`
-and `port=` fields on success give the base this stage's render target is built from below.
+Record its exit code and its `ready:`/`no-answer:`/`start-failed:` line — the `origin=` and `port=`
+fields on success give the base this stage's render target is built from below.
 
 ### Draft server answering?
 
 Exit `0` — continue to **Render the draft page**, using this attempt's target URL:
 `<origin from the script's own output>/drafts/<item_id>`, the same `/drafts/<name>` clean-URL shape
 Phase 4 / Task 16's own live verification used (`.plain.html` never appears in the URL — the
-pipeline resolves it). Exit `1` — go to **Report fail**: this is a transient failure (core contract
-§8's error classes), naming the script's own `no-answer:`/`start-failed:` line verbatim, never
-reworded.
+pipeline resolves it). Exit `1` — go to **Report question** (D89): the draft server never
+answered, a TRANSIENT failure (core contract §8) whose recovery is one concrete thing a human can
+do, not a code change — this stage's own retries are already exhausted by the script's own poll
+ladder, so there is nothing left to attempt before escalating.
 
 ### Render the draft page
 
@@ -308,13 +290,31 @@ Any of the following — go to **Report warn**:
 
 None of these — go to **Report pass**.
 
+### Report question
+
+Run **Teardown**. Write no report — this stage failed before any render/compare attempt ran, so
+there is nothing to report on yet.
+
+Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+
+- `verdict: question`
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap), naming the draft
+  server as what never answered.
+- `question`: states plainly that the draft server this stage needs never came up.
+- `blocker`: the script's own `no-answer:`/`start-failed:` line verbatim, followed by the literal
+  command a human can run to check or start it themselves (`npm run up:draft`, or this project's
+  own configured serve command with `--html-folder drafts` appended) — D89's own requirement that
+  an escalation names something to do, not only something that failed.
+- `artifacts: []`
+- `next_action: none`
+
 ### Report fail
 
 Run **Teardown**. Write `.ai/run-context/verify-design-report.md` when at least one render/compare
 attempt completed: the target block name and new/existing state, each attempt's own mismatch list,
 every file edited, and which of **Attempts exhausted or no improvement?**'s two conditions applied.
 Skip the report when this stage failed before any attempt (missing inputs, unresolved browser role,
-missing draft file, or a draft-server/render failure) — there is nothing to report on yet.
+missing draft file, or a render failure) — there is nothing to report on yet.
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 

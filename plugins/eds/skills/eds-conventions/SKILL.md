@@ -20,7 +20,7 @@ None. This stage reads `.ai/run-context/fact-record.yaml` at its fixed path — 
 
 ## The three subagents
 
-`04-eds-pack-design.md`'s D9/D75 names them: `styles`, `markup`, `component reuse`. `markup` and
+D9/D75 name them: `styles`, `markup`, `component reuse`. `markup` and
 `component reuse` always run. `styles` runs only when the fact record shows a design reference is
 present or was requested — the same condition `extract`/`prototype`/`verify-design` already use —
 because with neither field set there are no design values for it to grade.

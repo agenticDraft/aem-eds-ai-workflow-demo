@@ -3,7 +3,7 @@
 # files_named extraction, added alongside the fix that taught it to recognise a
 # bare component directory (e.g. "blocks/features-carousel/") the work item's
 # text names without a specific file inside it — the shape a plain FILE_RE
-# extension match can never catch (see G83, 05-gap-register.md).
+# extension match can never catch (see G83).
 #
 # Not full coverage of the script's every field; this covers only the
 # files_named change, which had zero test coverage before this fix.
@@ -15,8 +15,8 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="$SCRIPT_DIR/extract-fact-record.py"
-# The tracker pack, not eds's own — text_conventions lives there (04-eds-pack-design.md),
-# the same pack path eds-intake/SKILL.md itself resolves this script against.
+# The tracker pack, not eds's own — text_conventions lives there, the same pack path
+# eds-intake/SKILL.md itself resolves this script against.
 PACK_YAML="$SCRIPT_DIR/../../../../jira/pack.yaml"
 
 PASS=0

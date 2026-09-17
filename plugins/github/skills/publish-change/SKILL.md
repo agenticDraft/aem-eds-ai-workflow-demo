@@ -23,7 +23,7 @@ base: <base branch name>           # optional, defaults to the repository's defa
 **This script calls `gh`, and the default Bash sandbox's network-filtering proxy does TLS
 interception that breaks `gh`'s own Go TLS client — a consistent, every-time failure
 (`connect EPERM`-shaped errors or a token reported invalid), not a flaky occasional one; `curl` and
-the token itself are unaffected, only `gh`'s own HTTP client (`05-gap-register.md`'s G68).** Run
+the token itself are unaffected, only `gh`'s own HTTP client (G68).** Run
 every step below with `dangerouslyDisableSandbox: true`, unconditionally, on the first attempt.
 
 1. Write the `body` text to a new temporary file, exactly as given, with no shell interpolation of

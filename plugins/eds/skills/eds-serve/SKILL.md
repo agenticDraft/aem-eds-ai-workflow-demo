@@ -23,8 +23,7 @@ work item says — which is why it carries no `when:` and runs on every item.
 
 The default Bash sandbox denies both `bind()` and `connect()` on `127.0.0.1`/`localhost` outright —
 not a rate limit, not a flaky occasional denial, a hard `EPERM` on every attempt, confirmed by
-direct measurement (`05-gap-register.md`'s G58). Nothing about this project's own configuration
-changes that. **Every Bash invocation in this stage that polls the preview URL or starts the serve
+direct measurement (G58). Nothing about this project's own configuration changes that. **Every Bash invocation in this stage that polls the preview URL or starts the serve
 command must set `dangerouslyDisableSandbox: true` on that call, unconditionally — not as a retry
 after a first sandboxed attempt fails, and not left to judgment in the moment.** A first sandboxed
 attempt does not give a different, more informative failure than a first unsandboxed one would;
