@@ -18,7 +18,9 @@
 #     state_path` and `audit_findings_path` (D80) — each, when present, must
 #     be a well-formed relative path: non-empty, not absolute, no `..`
 #     segment. Neither is checked for existence here; that is pre-flight's
-#     job at runtime, against a real project.
+#     job at runtime, against a real project. A third optional key,
+#     `evidence_manifest` (D86), when present, must name an artifact id this
+#     same pack registers in its own `artifacts:` list above.
 #
 #   provider — `role` is one of the four core roles; every key in
 #     `operations` and every entry in `unsupported` is an operation that
@@ -318,8 +320,10 @@ if [[ "$kind" == "platform" ]]; then
 
   # --- artifacts ------------------------------------------------------------
   require_line '^artifacts:( \[\])?$' "'artifacts:' or 'artifacts: []'"
+  ARTIFACT_IDS=()
   if [[ -z "$MATCH" ]]; then
     while [[ "${LINES[cursor]:-}" =~ ^\ \ -\ id:\ (.+)$ ]]; do
+      artifact_id="${BASH_REMATCH[1]}"
       cursor=$((cursor + 1))
       [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ produced_by:\ (.+)$ ]] \
         || fail "an artifact is missing its 'produced_by' stage id"
@@ -329,6 +333,7 @@ if [[ "$kind" == "platform" ]]; then
       [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ path:\ \".*\"$ ]] \
         || fail "an artifact is missing its 'path'"
       cursor=$((cursor + 1))
+      ARTIFACT_IDS+=("$artifact_id")
     done
   fi
 
@@ -354,6 +359,20 @@ if [[ "$kind" == "platform" ]]; then
 
   if [[ "${LINES[cursor]:-}" =~ ^audit_findings_path:\ \"(.*)\"$ ]]; then
     validate_declared_path "audit_findings_path" "${BASH_REMATCH[1]}"
+    cursor=$((cursor + 1))
+  fi
+
+  # --- evidence_manifest (validator 16, D86) --------------------------------
+  # Optional. When present, it must name an artifact id this same pack
+  # registers above, in its own 'artifacts:' list — never an unregistered id,
+  # and never a stage id. Checked structurally only: whether the artifact at
+  # that id actually carries the evidence-manifest shape is a separate,
+  # deterministic check (validate-evidence-manifest.sh) against the file
+  # itself, not against this manifest.
+  if [[ "${LINES[cursor]:-}" =~ ^evidence_manifest:\ (.+)$ ]]; then
+    evidence_manifest_id="${BASH_REMATCH[1]}"
+    in_list "$evidence_manifest_id" "${ARTIFACT_IDS[@]:-}" \
+      || fail "evidence_manifest names an artifact this pack does not register: '$evidence_manifest_id'"
     cursor=$((cursor + 1))
   fi
 
