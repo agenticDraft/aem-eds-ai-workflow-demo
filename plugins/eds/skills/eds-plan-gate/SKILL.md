@@ -198,16 +198,19 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write each surviving finding first, one short paragraph each, naming its requirement id, step id
+or path first — this is the commentary the block-emission rule below sanctions putting *before*
+the heading. Only once every finding is written, emit the `## Result` block as plain `key: value`
+lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or
+backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading,
+and never followed by anything else — not even a summary explicitly labeled as commentary or "not
+part of the envelope". Fields:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) stating that all four criteria are answered yes, and how many findings
   were recorded.
 - `artifacts: []`
 - `next_action: none`
-
-Follow the block with each surviving finding, one short paragraph each, naming its requirement id,
-step id or path first.
 
 ### Report pass
 
