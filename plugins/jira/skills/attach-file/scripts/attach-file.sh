@@ -53,7 +53,10 @@ fi
 
 OUT_DIR=".ai/tracker"
 mkdir -p "$OUT_DIR"
-OUT_FILE="${OUT_DIR}/attach-file-${ITEM_ID}-response.json"
+# Keyed on the item AND the file being uploaded — a run attaching more than
+# one file to the same item must retain a distinct response (and therefore a
+# distinct attachment id) per file, never just the last one written.
+OUT_FILE="${OUT_DIR}/attach-file-${ITEM_ID}-${FILE_PATH##*/}-response.json"
 
 HTTP_CODE="$(curl -sS -K - -X POST -H "X-Atlassian-Token: no-check" -F "file=@${FILE_PATH}" \
   -o "$OUT_FILE" -w '%{http_code}' <<EOF
