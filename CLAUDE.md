@@ -21,6 +21,10 @@ works against that rule.
 
 Neither is auto-imported, so nothing loads them for you.
 
+**Writing, reviewing or rewriting a Jira work item?** Invoke the `write-specs` skill
+(`.claude/skills/write-specs/`) rather than writing it by hand — it owns the ticket shape and
+proves conformance with its own checker before anything is pasted in.
+
 <!-- This file carries project POLICY plus an INDEX of documents to read on a trigger.
      Reference material — how EDS works, how a tool behaves — belongs in the referenced
      file, never here: every line loads into every session. Keep it under 200 lines. -->
