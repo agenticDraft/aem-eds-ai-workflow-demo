@@ -240,7 +240,12 @@ Capture its entire output. Read the captured envelope's `verdict` and, when pres
    Continue to step 3 either way, with or without one.
 
 3. **Attach every file the manifest's `attachments:` list names, in order, before posting the note
-   below** (D86's own obligation) — only when a manifest was found in step 2:
+   below** (D86's own obligation) — only when a manifest was found in step 2, **and only when
+   `.ai/run-context/evidence-attached-by-verify` does not exist.** That file's presence means
+   `eds-verify` itself already attached this same manifest's `attachments:` directly, on its own
+   `warn` verdict (Phase 7 / Task 9) — attaching them again here would be exactly the double-attach
+   D88 forbids. Skip straight to attaching `delivery-report.md` (below) when the marker is present;
+   note in the delivery report that the manifest's own attachments were already carried by `verify`.
    - For each entry, confirm its `path` still exists on disk. **Missing — report it and skip; never
      drop it silently.** Record which entries were skipped and why, for the delivery report and the
      downgrade check below.
