@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # validate-evidence-manifest.sh — Deterministic conformance check for the
 # delivery evidence manifest a platform pack's `evidence_manifest` key may
-# name (01-core-contracts.md §11, §13 validator 16). No model involved: this
-# is the CI floor a manifest must clear before a delivery stage reads it.
+# name (see shared/evidence-manifest.md). No model involved: this is the CI
+# floor a manifest must clear before a delivery stage reads it.
 #
 # Checks the fixed shape: seven required top-level fields — version,
 # item_id, target, target_reachable, target_reachable_reason, coverage_gaps,

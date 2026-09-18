@@ -27,8 +27,9 @@ plan**, `../../../agentic-core/shared/plan-criteria.md` for `plan.yaml`'s `requi
 shape, `../../../agentic-core/shared/project-config.md` and `../../../agentic-core/shared/pack-manifest.md`
 for the shapes referenced in **Resolve the browser pack**, `../shared/draft-server.md` for why a
 located `drafts/` fixture needs this stage's own dedicated server rather than the regular preview
-origin, and `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage
-must end with.
+origin, `../../../agentic-core/shared/evidence-manifest.md` for the shape **Report warn** and
+**Report pass** write, and `../../../agentic-core/shared/result-envelope.md` for the `## Result`
+block this stage must end with.
 
 ## Input
 
@@ -455,6 +456,87 @@ target came from Generate a fixture**, state plainly that the target was a gener
 fixture, not authored content, naming the written file — a report that reads the same for real and
 generated content makes every later run's evidence untrustworthy.
 
+**Write the evidence manifest**, `.ai/run-context/evidence-manifest.json`, in the shape
+`../../../agentic-core/shared/evidence-manifest.md` fixes:
+
+- `version`: the literal string `"1.0"`.
+- `item_id`: the fact record's own `item_id`.
+- `target`: the same target URL **Render the target page** built.
+- `target_reachable` / `target_reachable_reason`: **this stage's own dedicated reachability
+  script does not exist yet (Phase 7 / Task 11)** — until it does, decide only what needs no
+  network call: the target's host is `localhost`, `127.0.0.1`, `::1`, or a private/link-local
+  address — `target_reachable: false`, `target_reachable_reason: "loopback address — condition 1
+  of the reachability rule, decided with no network call"`. Any other host — `target_reachable:
+  false`, `target_reachable_reason: "not yet confirmed — the reachability script (Phase 7 / Task
+  11) does not exist yet"`. Never `true` from this stage today: nothing here has proven a
+  non-loopback target answers, and `../../../agentic-core/shared/evidence-manifest.md` forbids
+  guessing it.
+- `coverage_gaps`: one string per downgraded/skipped condition that applied above, matching what
+  the paragraph just written into `verify-report.md` says for the same condition — never fewer
+  entries than that paragraph names:
+  - no baseline comparison → `"no baseline comparison ran: no baseline capture artifact existed
+    for <block name>"`
+  - no design comparison → `"no design comparison ran: design_source/design_mentioned is true but
+    no design reference artifact existed yet"`
+  - a plan-named selector not found → `"selector '<selector>' named in the plan was not found on
+    the rendered page"`
+  - a target block with no renderable content → `"target block '<block name>' has no renderable
+    content anywhere in this checkout"`
+  - no `plan.yaml` → `"no plan.yaml existed; checks ran against the block's rendered state alone"`
+  - no behaviour check through `interact` → `"no behaviour check ran through interact: <the
+    specific reason — unsupported operation, no interactive element identified, or which check's
+    own interact call did not complete>"`
+  - a generated fixture target → `"the rendered target was a generated placeholder fixture
+    (<file>), not authored content"`
+  - `[]` only when, contradictorily, this node was reached with no condition actually true — it
+    should not be possible to reach **Report warn** with an empty list; if it happens, that is a
+    bug in this stage's own downgrade detection, not a valid empty run.
+- `attachments`: one entry per capture file **Capture and measure the rendered page** wrote —
+  `{ "path": "<the file>", "width": 375|768|1440, "label": "mobile width"|"tablet width"|"desktop
+  width" }` — never the measurement or interaction output files, which carry no natural width.
+
+If `.ai/run-context/evidence-manifest.json` already exists (a design-verification stage earlier in
+this same run may have written it — `../../../agentic-core/shared/evidence-manifest.md`'s merge
+rule), merge into it rather than overwriting: union `attachments`, union `coverage_gaps`, and this
+stage's own `target`/`target_reachable`/`target_reachable_reason`/`item_id` win as the more recent
+measurement.
+
+```bash
+if [[ -f .ai/run-context/evidence-manifest.json ]]; then
+  jq --slurpfile existing .ai/run-context/evidence-manifest.json \
+     --arg item_id "<item id>" \
+     --arg target "<target URL>" \
+     --argjson target_reachable <true or false> \
+     --arg target_reachable_reason "<reason>" \
+     --argjson new_gaps '[<coverage gap strings>]' \
+     --argjson new_attachments '[<attachment objects>]' \
+     -n '$existing[0] * {
+       item_id: $item_id, target: $target,
+       target_reachable: $target_reachable,
+       target_reachable_reason: $target_reachable_reason,
+       coverage_gaps: ($existing[0].coverage_gaps + $new_gaps),
+       attachments: ($existing[0].attachments + $new_attachments)
+     }' > .ai/run-context/evidence-manifest.json.tmp
+  mv .ai/run-context/evidence-manifest.json.tmp .ai/run-context/evidence-manifest.json
+else
+  jq -n --arg item_id "<item id>" --arg target "<target URL>" \
+     --argjson target_reachable <true or false> \
+     --arg target_reachable_reason "<reason>" \
+     --argjson coverage_gaps '[<coverage gap strings>]' \
+     --argjson attachments '[<attachment objects>]' \
+     '{version: "1.0", item_id: $item_id, target: $target,
+       target_reachable: $target_reachable,
+       target_reachable_reason: $target_reachable_reason,
+       coverage_gaps: $coverage_gaps, attachments: $attachments}' \
+     > .ai/run-context/evidence-manifest.json
+fi
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/validate-evidence-manifest.sh \
+  .ai/run-context/evidence-manifest.json
+```
+
+The validator call's own exit code must be `0` before continuing — a manifest this stage itself
+cannot validate is not evidence worth carrying forward.
+
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: warn`
@@ -465,7 +547,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   (e.g. "interact check downgraded") rather than spelling out why — the reasons already live in
   `verify-report.md`.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot, measurement and interaction file the operations wrote, plus
-  `.ai/run-context/verify-report.md`.
+  `.ai/run-context/verify-report.md` and `.ai/run-context/evidence-manifest.json`.
 - `next_action: none`
 
 ### Report pass
@@ -477,6 +559,12 @@ would claim more than the evidence supports.
 
 Run **Teardown**. Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
 
+**Write the evidence manifest**, same procedure as **Report warn**'s, with one difference:
+`coverage_gaps` is `[]` — a genuine pass, by construction (**Any check downgraded or skipped?**
+answered "no" to reach this node), has nothing to report as missed. `target_reachable` /
+`target_reachable_reason` and `attachments` are derived exactly as **Report warn** describes; the
+merge-if-exists behaviour and the validator call are identical.
+
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: pass`
@@ -484,5 +572,5 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   summary fails validation and takes the whole run to `failed`), naming the item id and the
   target block(s) checked.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot, measurement and interaction file the operations wrote, plus
-  `.ai/run-context/verify-report.md`.
+  `.ai/run-context/verify-report.md` and `.ai/run-context/evidence-manifest.json`.
 - `next_action: none`
