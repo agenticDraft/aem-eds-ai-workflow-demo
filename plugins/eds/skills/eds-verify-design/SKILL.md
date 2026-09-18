@@ -26,9 +26,10 @@ Read `../../../agentic-core/shared/fact-record.md` for the fact record's shape,
 `../../../agentic-core/shared/project-config.md` and `../../../agentic-core/shared/pack-manifest.md`
 for the shapes referenced in **Resolve the browser pack** and **Start the draft server**,
 `../shared/draft-server.md` for why this stage cannot reuse `eds-serve`'s own server and the exact
-start/stop/sandbox contract its own dedicated one follows, and
-`../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage must end
-with.
+start/stop/sandbox contract its own dedicated one follows,
+`../../../agentic-core/shared/evidence-manifest.md` for the shape **Report warn** and **Report
+pass** write, and `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this
+stage must end with.
 
 ## Input
 
@@ -335,12 +336,85 @@ new/existing state, the final attempt's own mismatch list (empty, unless reached
 remaining mismatch a content-asset gap?**, in which case every remaining `[content-asset gap]`
 entry), every file edited across any earlier attempt, and which degradation(s) applied.
 
+**Write the evidence manifest**, `.ai/run-context/evidence-manifest.json`, in the shape
+`../../../agentic-core/shared/evidence-manifest.md` fixes:
+
+- `version`: the literal string `"1.0"`.
+- `item_id`: the fact record's own `item_id`.
+- `target`: the draft server target URL **Render the draft page** used for the final attempt.
+- `target_reachable` / `target_reachable_reason`: same interim rule `eds-verify` uses (Phase 7 /
+  Task 6) — **this stage's own dedicated reachability script does not exist yet (Phase 7 / Task
+  11)**. The target's host is `localhost`, `127.0.0.1`, `::1`, or a private/link-local address —
+  `target_reachable: false`, `target_reachable_reason: "loopback address — condition 1 of the
+  reachability rule, decided with no network call"`. Any other host — `target_reachable: false`,
+  `target_reachable_reason: "not yet confirmed — the reachability script (Phase 7 / Task 11) does
+  not exist yet"`. Never `true` from this stage today.
+- `coverage_gaps`: one string per degradation that applied above, matching what the paragraph just
+  written into `verify-design-report.md` says for the same condition:
+  - a remaining `[content-asset gap]` mismatch → `"content-asset gap: <what content is missing,
+    verbatim from the mismatch entry>"` — one entry per remaining mismatch, never folded into one
+    combined string
+  - `has_values: false` on the design reference → `"design comparison was visual-only: the design
+    reference has no resolved token values to check quantitatively (image-only source)"`
+  - a `variables` entry naming spacing/geometry → `"design variable '<name>' was judged visually
+    only, not confirmed numerically — no corresponding measured property"`
+  - an edit to an already-existing block → `"this run edited an already-existing block's CSS/JS
+    ('<name>') ahead of plan approval"`
+  - `[]` only when this node is reached with no degradation actually true — should not happen; if
+    it does, that is a bug in this stage's own degradation detection.
+- `attachments`: one entry per screenshot **Capture and measure the draft page** wrote, across
+  every attempt (up to two) — `{ "path": "<the file>", "width": 1440, "label": "design comparison,
+  attempt <n>" }`. Never the measurement file, which carries no natural width.
+
+If `.ai/run-context/evidence-manifest.json` already exists (unusual for this stage, which normally
+runs before `eds-verify` in route order and so is normally the first writer — but a stale file from
+an earlier, interrupted run is possible), merge into it rather than overwriting, per
+`../../../agentic-core/shared/evidence-manifest.md`'s merge rule: union `attachments`, union
+`coverage_gaps`, and this stage's own `target`/`target_reachable`/`target_reachable_reason`/
+`item_id` win.
+
+```bash
+if [[ -f .ai/run-context/evidence-manifest.json ]]; then
+  jq --slurpfile existing .ai/run-context/evidence-manifest.json \
+     --arg item_id "<item id>" \
+     --arg target "<target URL>" \
+     --argjson target_reachable <true or false> \
+     --arg target_reachable_reason "<reason>" \
+     --argjson new_gaps '[<coverage gap strings>]' \
+     --argjson new_attachments '[<attachment objects>]' \
+     -n '$existing[0] * {
+       item_id: $item_id, target: $target,
+       target_reachable: $target_reachable,
+       target_reachable_reason: $target_reachable_reason,
+       coverage_gaps: ($existing[0].coverage_gaps + $new_gaps),
+       attachments: ($existing[0].attachments + $new_attachments)
+     }' > .ai/run-context/evidence-manifest.json.tmp
+  mv .ai/run-context/evidence-manifest.json.tmp .ai/run-context/evidence-manifest.json
+else
+  jq -n --arg item_id "<item id>" --arg target "<target URL>" \
+     --argjson target_reachable <true or false> \
+     --arg target_reachable_reason "<reason>" \
+     --argjson coverage_gaps '[<coverage gap strings>]' \
+     --argjson attachments '[<attachment objects>]' \
+     '{version: "1.0", item_id: $item_id, target: $target,
+       target_reachable: $target_reachable,
+       target_reachable_reason: $target_reachable_reason,
+       coverage_gaps: $coverage_gaps, attachments: $attachments}' \
+     > .ai/run-context/evidence-manifest.json
+fi
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/validate-evidence-manifest.sh \
+  .ai/run-context/evidence-manifest.json
+```
+
+The same shape `eds-verify`'s own **Report warn** writes (Phase 7 / Task 6) — the validator call's
+own exit code must be `0` before continuing.
+
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and which degradation applied.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot and measurement file the operations wrote, every block file edited,
-  plus `.ai/run-context/verify-design-report.md`.
+  plus `.ai/run-context/verify-design-report.md` and `.ai/run-context/evidence-manifest.json`.
 - `next_action: none`
 
 ### Report pass
@@ -348,13 +422,20 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Run **Teardown**. Write `.ai/run-context/verify-design-report.md`, same content as **Report
 warn**'s, with an empty degradation list.
 
+**Write the evidence manifest**, same procedure as **Report warn**'s, with one difference:
+`coverage_gaps` is `[]` — a genuine pass, by construction (**Any degradation to report?** answered
+"no" to reach this node), has nothing to report as degraded. `target_reachable` /
+`target_reachable_reason` and `attachments` are derived exactly as **Report warn** describes; the
+merge-if-exists behaviour and the validator call are identical.
+
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and how many attempts the
   comparison took to find no mismatch.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot and measurement file the operations wrote, every block file edited
-  (empty if the first attempt already matched), plus `.ai/run-context/verify-design-report.md`.
+  (empty if the first attempt already matched), plus `.ai/run-context/verify-design-report.md` and
+  `.ai/run-context/evidence-manifest.json`.
 - `next_action: none`
 
 ## Known limitations
