@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "item_id": "4001",
+  "target": "https://main--example--example.example.test/drafts/4001",
+  "target_reachable": true,
+  "coverage_gaps": [
+    "keyboard activation of the carousel's own controls was not exercised"
+  ],
+  "attachments": [
+    {
+      "path": "captures/375.png",
+      "width": 375,
+      "label": "mobile width"
+    },
+    {
+      "path": "captures/1024.png",
+      "width": 1024,
+      "label": "desktop width"
+    }
+  ]
+}

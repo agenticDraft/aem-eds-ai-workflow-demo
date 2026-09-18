@@ -1,0 +1,9 @@
+{
+  "version": "1.0",
+  "item_id": "4002",
+  "target": "https://main--example--example.example.test/drafts/4002",
+  "target_reachable": false,
+  "target_reachable_reason": "loopback address, decided with no network call",
+  "coverage_gaps": [],
+  "attachments": []
+}
