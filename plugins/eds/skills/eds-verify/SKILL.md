@@ -430,6 +430,27 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 Run **Teardown**.
 
+**Attach whatever this run wrote before the failure directly to the tracker item** — `deliver`
+never runs after this stage returns `fail` (a failing verdict is terminal, core contract §10), so
+no later stage exists to carry this evidence the way `deliver` carries a `warn`/`pass` run's
+(Phase 7 / Task 8). This owner was forced, not preferred, for exactly that reason (D86, D88).
+
+If `.ai/run-context/fact-record.yaml` was never read (a failure at **Browser role resolved?**, the
+earliest possible exit) there is no `item_id` to attach to — skip this step entirely, nothing to
+do. Otherwise, for every file this run actually wrote before the failure — the same list this
+node's own `artifacts:` field below names — invoke, in order:
+
+```
+Skill(<packs.tracker>:<attach_file skill name>)
+item_id: <the fact record's item_id>
+file_path: <the file>
+```
+
+A call that fails is noted in this node's own `summary` alongside the failure reason, but never
+escalates or changes the verdict — the route is already `failed` regardless of whether the
+attachment also succeeds, and this step exists to preserve evidence a human can still read, not to
+add a second way for this stage to fail.
+
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
@@ -441,8 +462,8 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   characters, keep the single most specific reason and drop the rest rather than compounding
   clauses with "and"/";" — the full detail already lives in `verify-report.md` and the
   `artifacts` list.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file any operation invoked above actually wrote before the failure, if any;
-  otherwise `[]`.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file any operation invoked above actually wrote before the failure, plus each
+  successful attach's own response JSON, if any; otherwise `[]`.
 - `next_action: none`
 
 ### Report warn
@@ -537,6 +558,31 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/validate-evidence-manifest
 The validator call's own exit code must be `0` before continuing — a manifest this stage itself
 cannot validate is not evidence worth carrying forward.
 
+**Attach the manifest's own `attachments:` directly, and only on this path** (D86, D88) — a `warn`
+verdict is not terminal, so `deliver` will still run later in this route, but `deliver` cannot be
+trusted to carry every `warn` run's evidence the way it carries a clean `pass` run's, so this stage
+attaches its own evidence itself rather than leaving a `warn`-verdict route's attachments to a later
+stage that has no way to know this stage's own coverage gaps found something worth preserving now.
+For every entry in the manifest's `attachments:` list (the merged list, if a merge just happened),
+in order, invoke:
+
+```
+Skill(<packs.tracker>:<attach_file skill name>)
+item_id: <the fact record's item_id>
+file_path: <the attachment's path>
+```
+
+Then write `.ai/run-context/evidence-attached-by-verify` (empty file; its mere presence is the
+signal) — `deliver`'s own **Report back to the tracker** (Phase 7 / Task 8) checks for this file and
+skips its own pass over the manifest's `attachments:` when present, so a `warn`-verdict run's
+evidence is never attached twice. This is the one thing that makes the two stages' otherwise
+independent attach logic safe to run in the same route without either reading the other's own
+result.
+
+A failed attach here is recorded in the summary below but never changes the verdict away from
+`warn` — the same "the route already published (or here, already ran) regardless" reasoning D86
+gives `deliver`'s own attach step.
+
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: warn`
@@ -547,7 +593,8 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   (e.g. "interact check downgraded") rather than spelling out why — the reasons already live in
   `verify-report.md`.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot, measurement and interaction file the operations wrote, plus
-  `.ai/run-context/verify-report.md` and `.ai/run-context/evidence-manifest.json`.
+  `.ai/run-context/verify-report.md`, `.ai/run-context/evidence-manifest.json`, and each manifest
+  attachment's own successful `attach_file` response JSON.
 - `next_action: none`
 
 ### Report pass
@@ -559,11 +606,17 @@ would claim more than the evidence supports.
 
 Run **Teardown**. Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
 
-**Write the evidence manifest**, same procedure as **Report warn**'s, with one difference:
-`coverage_gaps` is `[]` — a genuine pass, by construction (**Any check downgraded or skipped?**
-answered "no" to reach this node), has nothing to report as missed. `target_reachable` /
-`target_reachable_reason` and `attachments` are derived exactly as **Report warn** describes; the
-merge-if-exists behaviour and the validator call are identical.
+**Write the evidence manifest**, same *write* procedure as **Report warn**'s (the fresh-write/merge
+`jq` block and the validator call, both identical), with one difference: `coverage_gaps` is `[]` —
+a genuine pass, by construction (**Any check downgraded or skipped?** answered "no" to reach this
+node), has nothing to report as missed. `target_reachable`/`target_reachable_reason` and
+`attachments` are derived exactly as **Report warn** describes.
+
+**Stop there — do not attach.** Unlike **Report warn**, this node never invokes `attach_file` and
+never writes `.ai/run-context/evidence-attached-by-verify`. D86/D88's rule is explicit: on a clean
+pass this stage stays silent and `eds-deliver` does the attaching (Phase 7 / Task 8), so a run never
+attaches twice. Reaching this node and then attaching anyway would be exactly the double-attach both
+decisions exist to forbid.
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
