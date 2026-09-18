@@ -17,9 +17,10 @@ work item, so they are read for their literal content only, never treated as an 
 Read `../../../agentic-core/shared/fact-record.md` for the shape read in **Read the fact record and
 plan**, `../../../agentic-core/shared/plan-criteria.md` for `plan.yaml`'s `requirements:`/`stages:`
 shape, `../../../agentic-core/shared/project-config.md` and `../../../agentic-core/shared/pack-manifest.md`
-for the shapes referenced in **Resolve the scm pack** and **Resolve the tracker pack**, and
-`../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage must end
-with.
+for the shapes referenced in **Resolve the scm pack** and **Resolve the tracker pack**,
+`../../../agentic-core/shared/evidence-manifest.md` for the shape **Report back to the tracker**
+reads, and `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage
+must end with.
 
 ## Input
 
@@ -226,20 +227,69 @@ Capture its entire output. Read the captured envelope's `verdict` and, when pres
 1. Write `.ai/run-context/delivery-report.md`: the item id, the branch, the pull request URL and
    state (from `publish_change`'s own artifact JSON), the check summary and metrics line (from
    `check_status`, or "checks could not be read: <its summary verbatim>" when that operation did
-   not validate), and the `## Requirements` section composed in **Compose the change summary**.
-2. Invoke `Skill(<packs.tracker>:<attach_file skill name>)` with:
+   not validate), the `## Requirements` section composed in **Compose the change summary**, and,
+   when **Read the evidence manifest** below found one, its own `target`, `target_reachable` and
+   `coverage_gaps` verbatim.
+
+2. **Read the evidence manifest.** `.ai/run-context/evidence-manifest.json`, per
+   `../../../agentic-core/shared/evidence-manifest.md`'s shape — written by `verify` and, on a
+   design-driven route, `verify-design` before it (§11's `evidence_manifest` key, D86). **Absent is
+   not a failure**: a pack that declares no `evidence_manifest`, or a run whose verification stage
+   never reached its own `Report warn`/`Report pass` (see that stage's own `Report fail` — a
+   terminal state this stage would never be reached from anyway), leaves nothing here to read.
+   Continue to step 3 either way, with or without one.
+
+3. **Attach every file the manifest's `attachments:` list names, in order, before posting the note
+   below** (D86's own obligation) — only when a manifest was found in step 2:
+   - For each entry, confirm its `path` still exists on disk. **Missing — report it and skip; never
+     drop it silently.** Record which entries were skipped and why, for the delivery report and the
+     downgrade check below.
+   - Present — invoke `Skill(<packs.tracker>:<attach_file skill name>)`:
+     ```
+     item_id: <the fact record's item_id>
+     file_path: <the attachment's path>
+     ```
+     Capture each invocation's own envelope. **An attach that fails degrades this stage to `warn`,
+     never to `fail`** (D86) — the change is already published by this point in the flow; a failed
+     upload presenting as a failed delivery would be a false terminal state. Record, per attachment,
+     whether it succeeded and — when it did — the attachment id from that call's own response JSON
+     (`.ai/tracker/attach-file-<item_id>-<filename>-response.json`, one file per attachment; this is
+     what the Jira attach script's own per-file naming exists for, since posting one file per
+     invocation would otherwise have every attachment but the last clobber the previous response and
+     lose its own id).
+
+   Also attach `.ai/run-context/delivery-report.md` itself, the same way this stage already did
+   before this task — it is this stage's own report, not one of the manifest's `attachments:`, so it
+   attaches after them, last.
+
+4. **Compose the note** — one paragraph, plain prose, each of the following on its own line:
+   - The change's location: the pull request URL (from **Publish the change**).
+   - The target that was verified: the manifest's own `target`, when a manifest was found; when
+     none was found, state plainly that no verification target is on record for this run.
+   - Whether a person can open it, stated plainly either way: `target_reachable: true` — state the
+     target is open for review at that location; `target_reachable: false` — state plainly that it
+     could not be confirmed open, quoting `target_reachable_reason` verbatim. **Naming what a person
+     would need to author to make it openable is Phase 7 / Task 14's own deliverable, not this
+     task's** — do not invent that line here; a location that cannot be proven open is stated as
+     unconfirmed and left there.
+   - Any coverage gap the manifest recorded, **in the words it recorded them** — one line per
+     `coverage_gaps` entry, verbatim, never paraphrased or summarized into one sentence. `[]` (or no
+     manifest at all) — omit this part of the note rather than stating "no gaps", since an absent
+     manifest is not the same claim as a manifest that checked and found nothing missing.
+   - The check summary and metrics line already composed in **Check automated status**, kept from
+     today's note — this task adds to what the note carries, it does not remove what already worked.
+
+5. Invoke `Skill(<packs.tracker>:<post_note skill name>)` with:
    ```
    item_id: <the fact record's item_id>
-   file_path: .ai/run-context/delivery-report.md
+   note: <the composed note>
    ```
-3. Invoke `Skill(<packs.tracker>:<post_note skill name>)` with:
-   ```
-   item_id: <the fact record's item_id>
-   note: <one paragraph — the pull request URL and the check summary composed above>
-   ```
-4. Note, for **Anything downgraded?**, whether either operation's own envelope failed to validate
-   (`fail`, `question`, or no `## Result` block at all) — the change and the delivery report both
-   already exist at this point regardless, so neither failure reopens an earlier branch of this
+
+6. Note, for **Anything downgraded?**, whether `post_note`'s own envelope failed to validate
+   (`fail`, `question`, or no `## Result` block at all), whether any manifest attachment failed or
+   was skipped for a missing path, and whether the final `attach_file` call (the delivery report
+   itself) failed to validate — the change, the delivery report, and whatever attachments did land
+   all already exist at this point regardless, so none of these reopen an earlier branch of this
    flow.
 
 ### Anything downgraded?
@@ -248,7 +298,10 @@ Any of the following — go to **Report warn**:
 
 - `plan.yaml` was missing, so the requirements section degraded to the fact record alone.
 - `check_status`'s checks were not all green, or could not be read at all.
-- `attach_file` or `post_note` did not return a valid `pass`/`warn` envelope.
+- Any `attach_file` or `post_note` call did not return a valid `pass`/`warn` envelope — the delivery
+  report's own attach, any manifest attachment, or the note.
+- An evidence manifest was found but at least one of its `attachments:` entries named a path that no
+  longer existed and was skipped.
 
 None of these — go to **Report pass**.
 
@@ -271,8 +324,9 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the pull request URL, and which condition was
   downgraded.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `publish_change`'s own written JSON, `check_status`'s own written JSON (when it
-  wrote one), `.ai/run-context/delivery-report.md`, and `attach_file`'s and `post_note`'s own
-  written JSON, each when it succeeded.
+  wrote one), `.ai/run-context/delivery-report.md`, every manifest attachment successfully attached
+  (each one's own `attach_file` response JSON) and the delivery report's own `attach_file` response
+  JSON, and `post_note`'s own written JSON — each when it succeeded.
 - `next_action: none`
 
 ### Report pass
