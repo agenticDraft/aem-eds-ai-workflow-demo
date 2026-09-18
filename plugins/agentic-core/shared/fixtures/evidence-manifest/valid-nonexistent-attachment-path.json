@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "item_id": "4001",
+  "target": "https://main--example--example.example.test/drafts/4001",
+  "target_reachable": true,
+  "target_reachable_reason": "loaded through the browser role, HTTP 200",
+  "coverage_gaps": [],
+  "attachments": [
+    { "path": "captures/does-not-exist-anywhere-on-disk.png", "width": 375, "label": "mobile width" }
+  ]
+}
