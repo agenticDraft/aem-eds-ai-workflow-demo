@@ -70,6 +70,21 @@ echo "[accept] a platform manifest declaring onboarding_state_path and audit_fin
 OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-valid-onboarding/pack.yaml" 2>&1); ST=$?
 assert_exit "platform-valid-onboarding accepted (exit 0)" 0 $ST "$OUT"
 
+echo "[accept] validator 16 — evidence_manifest naming an artifact this pack registers (D86)"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-valid-evidence-manifest/pack.yaml" 2>&1); ST=$?
+assert_exit "platform-valid-evidence-manifest accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "still passes the trailing unexpected-content check" "valid: platform" "$OUT"
+
+echo "[reject] validator 16 — evidence_manifest naming an artifact this pack does not register"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/evidence-manifest-unregistered/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the unregistered id" "not-a-real-artifact" "$OUT"
+assert_contains "reason names the failure precisely" "does not register" "$OUT"
+[[ "$OUT" != *"unexpected content"* ]]
+assert_exit "reason does not misdiagnose as unexpected content" 0 $? ""
+[[ "$OUT" != *"expected "* ]]
+assert_exit "reason does not misdiagnose as a parse error" 0 $? ""
+
 echo "[accept] a well-formed provider manifest"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/provider-valid/pack.yaml" 2>&1); ST=$?
 assert_exit "provider-valid accepted (exit 0)" 0 $ST "$OUT"
