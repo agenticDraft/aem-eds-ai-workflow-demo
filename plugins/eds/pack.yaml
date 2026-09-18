@@ -82,6 +82,9 @@ artifacts:
   - id: verify-report
     produced_by: verify
     path: ".ai/run-context/verify-report.md"
+  - id: evidence-manifest
+    produced_by: verify
+    path: ".ai/run-context/evidence-manifest.json"
   - id: lint-report
     produced_by: lint
     path: ".ai/run-context/lint-report.md"
@@ -90,3 +93,4 @@ artifacts:
     path: ".ai/run-context/delivery-report.md"
 onboarding_state_path: "styles/design-system.md"
 audit_findings_path: ".ai/design/audit.md"
+evidence_manifest: evidence-manifest
