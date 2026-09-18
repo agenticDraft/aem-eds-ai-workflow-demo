@@ -8,9 +8,10 @@ context: fork
 This skill is not one of the core's fifteen stage ids and not a `tracker`/`scm`/`design`/`browser`
 role operation — none of the four roles has a content-generation verb, and "generate a fixture" is
 not in the closed stage vocabulary either. It is a standalone helper this pack ships alongside its
-stage adapters, invoked by name (`Skill(eds:eds-fixture)`) by whatever needs one: a stage adapter
-that finds nothing to render, or a human preparing a unit for local development. See D70 for why
-it is shaped this way, and G48 for what does not call it yet.
+stage adapters, invoked by name (`Skill(eds:eds-fixture)`) by whatever needs one: `eds-verify`
+invokes it as a fallback from its own **Renderable content found?** node when nothing exists yet to
+render, and a human preparing a unit for local development can invoke it the same way. See D70 for
+why it is shaped this way.
 
 Read `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this skill must
 end with.
