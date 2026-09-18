@@ -6,3 +6,8 @@
   left: 0;
   font-size: 24px;
 }
+
+.zoran-block .zoran-block-callout {
+  font-weight: 700;
+  font-size: 28px;
+}
