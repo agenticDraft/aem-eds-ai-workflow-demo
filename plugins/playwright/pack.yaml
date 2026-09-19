@@ -6,3 +6,5 @@ operations:
   measure: measure
   interact: interact
 unsupported: []
+scripts:
+  render: "skills/render/scripts/render.cjs"

@@ -26,7 +26,11 @@
 #     `operations` and every entry in `unsupported` is an operation that
 #     role actually has; the two sets are disjoint; together they cover
 #     every operation the role has; every skill named in `operations`
-#     resolves. The tracker role may carry `text_conventions`.
+#     resolves. An optional `scripts` key (D95) maps an operation already in
+#     `operations` to a script path, relative to the pack root, that must
+#     also resolve — the shell-executable form of that operation, for a
+#     caller that must run it as a subprocess rather than through `Skill()`.
+#     The tracker role may carry `text_conventions`.
 #
 # The pack root is the directory containing the manifest, matching
 # "pack.yaml at the pack root".
@@ -114,6 +118,19 @@ fi
 
 skill_exists() {
   [[ -f "$PACK_ROOT/skills/$1/SKILL.md" ]]
+}
+
+# A declared value is a legitimate relative path: non-empty, not absolute, no
+# '..' segment. Shared by every optional path-shaped key this manifest
+# carries — platform's onboarding_state_path/audit_findings_path (D80) and
+# provider's scripts (D95) alike.
+validate_declared_path() {
+  local key="$1" value="$2"
+  [[ -n "$value" ]] || fail "'$key' is present but empty — omit the key instead"
+  [[ "$value" != /* ]] || fail "'$key' must be a relative path, not absolute: '$value'"
+  case "/$value/" in
+    */../*) fail "'$key' may not contain a '..' path segment: '$value'" ;;
+  esac
 }
 
 # Every skill a platform pack's stage list names must declare isolated
@@ -343,15 +360,6 @@ if [[ "$kind" == "platform" ]]; then
   # structural read (pre-flight) may test for existence against a real
   # project's working tree. This validator never touches disk for either: a
   # pack has no fixed project to check against.
-  validate_declared_path() {
-    local key="$1" value="$2"
-    [[ -n "$value" ]] || fail "'$key' is present but empty — omit the key instead"
-    [[ "$value" != /* ]] || fail "'$key' must be a relative path, not absolute: '$value'"
-    case "/$value/" in
-      */../*) fail "'$key' may not contain a '..' path segment: '$value'" ;;
-    esac
-  }
-
   if [[ "${LINES[cursor]:-}" =~ ^onboarding_state_path:\ \"(.*)\"$ ]]; then
     validate_declared_path "onboarding_state_path" "${BASH_REMATCH[1]}"
     cursor=$((cursor + 1))
@@ -522,6 +530,40 @@ if [[ "$kind" == "provider" ]]; then
       fail "operation '$op' is neither implemented nor declared unsupported"
     fi
   done
+
+  # --- scripts (validator 17, D95) -------------------------------------------
+  # Optional. Maps an operation already in `operations:` to the path, relative
+  # to the pack root, of a script implementing that same operation for a
+  # caller that must run it as a subprocess rather than through `Skill()`.
+  # Unlike onboarding_state_path/audit_findings_path (a *project's* path,
+  # unresolvable here), a scripts: path names a file shipped inside this pack
+  # itself, so it is resolved and checked the same way an operations: skill
+  # name already is.
+  if [[ "${LINES[cursor]:-}" =~ ^scripts:$ ]]; then
+    cursor=$((cursor + 1))
+    SCRIPT_OPS=()
+    SCRIPT_PATHS=()
+    while [[ "${LINES[cursor]:-}" =~ ^\ \ ([A-Za-z0-9_]+):\ \"(.*)\"$ ]]; do
+      SCRIPT_OPS+=("${BASH_REMATCH[1]}")
+      SCRIPT_PATHS+=("${BASH_REMATCH[2]}")
+      cursor=$((cursor + 1))
+    done
+    [[ ${#SCRIPT_OPS[@]} -eq 0 ]] \
+      && fail "'scripts:' is present but declares no entries — omit the key instead"
+    for i in "${!SCRIPT_OPS[@]}"; do
+      op_name="${SCRIPT_OPS[$i]}"
+      script_path="${SCRIPT_PATHS[$i]}"
+      found=0
+      for implemented in "${OP_NAMES[@]:-}"; do
+        [[ "$implemented" == "$op_name" ]] && found=1
+      done
+      [[ "$found" -eq 1 ]] \
+        || fail "scripts.$op_name names an operation this pack does not implement in 'operations:'"
+      validate_declared_path "scripts.$op_name" "$script_path"
+      [[ -f "$PACK_ROOT/$script_path" ]] \
+        || fail "scripts.$op_name names a script that does not exist: '$script_path'"
+    done
+  fi
 
   # --- text_conventions (tracker only, optional) ----------------------------
   if [[ "${LINES[cursor]:-}" =~ ^text_conventions:$ ]]; then
