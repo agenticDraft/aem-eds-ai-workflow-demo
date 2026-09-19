@@ -64,7 +64,7 @@ digraph eds_baseline {
     "Target component identified?" -> "Report fail" [label="no"];
     "Locate existing content for the component" -> "Renderable content found?";
     "Renderable content found?" -> "Render the target page" [label="yes"];
-    "Renderable content found?" -> "Report fail" [label="no"];
+    "Renderable content found?" -> "Report warn" [label="no"];
     "Render the target page" -> "Page rendered?";
     "Page rendered?" -> "Capture the rendered page at each width" [label="pass/warn"];
     "Page rendered?" -> "Report fail" [label="fail/question/invalid envelope"];
@@ -125,9 +125,15 @@ around.
 
 At least one target component resolved to a page path — continue to **Render the target page**
 with that path (the first one found, in fact-record component order, if more than one component
-resolved to a page). No target component resolved to any page — go to **Report fail**, naming every
-target component name that had nothing to render: this stage has no existing rendered state to
-capture, and does not fabricate one.
+resolved to a page). No target component resolved to any page — go to **Report warn**, naming
+every target component name that had nothing to render. A component with no renderable content
+anywhere in this checkout is a gap in this checkout's own fixture content, not evidence this change
+broke anything, and this stage has no more of a way to fabricate one here than to invent content
+that does not exist. This stage writes no baseline capture artifact in that case — there is nothing
+to capture. `eds-verify` already treats "no baseline capture artifact existed, even though this
+stage expected one might" as one of its own downgrade conditions (`eds-verify/SKILL.md`'s **Any
+check downgraded or skipped?**), so the two stages compose without either needing a second
+mechanism.
 
 ### Render the target page
 
@@ -207,10 +213,13 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: warn`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, every component captured, and which width or
-  component selector came back missing.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, and either (reached from **Every component
+  measured and every width captured?**) every component captured and which width or component
+  selector came back missing, or (reached from **Renderable content found?**) every target
+  component name that had no renderable content anywhere in this checkout.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/run-context/baseline-capture.json`, plus every screenshot the capture operation
-  actually wrote.
+  actually wrote, when this run captured anything at all; `[]` when no target component had any
+  renderable content to render in the first place — this stage wrote nothing.
 - `next_action: none`
 
 ### Report pass
