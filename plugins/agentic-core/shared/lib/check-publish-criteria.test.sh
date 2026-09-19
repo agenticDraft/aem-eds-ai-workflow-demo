@@ -150,6 +150,45 @@ WORK="$(new_fixture accept-with-gitignore)"
 OUT=$(bash "$CHECK" "$WORK" 2>&1); ST=$?
 assert_exit "unrelated .gitignore rule does not block a clean change (exit 0)" 0 $ST "$OUT"
 
+echo "[accept] a clean change is unaffected by which directory the checker's own process was started from (G96)"
+WORK="$(new_fixture g96-cwd-independence)"
+(
+  cd "$WORK"
+  git checkout --quiet -b task-branch
+  echo "sub/artifacts/" > .gitignore
+  git add .gitignore
+  git commit --quiet -m "add gitignore"
+  mkdir -p artifacts sub
+  echo "line2" >> README.md
+  echo "not a secret" > artifacts/note.txt
+  git add README.md artifacts/note.txt
+)
+# check-ignore resolves a relative pathspec against the calling process's
+# own cwd, not --work-tree — invoking from "$WORK/sub" reproduces exactly
+# the failure a linked worktree nested under the project root hit live: a
+# real, unignored path ("artifacts/note.txt") got tested as though it were
+# "sub/artifacts/note.txt", which the .gitignore rule above does match.
+OUT=$(cd "$WORK/sub" && bash "$CHECK" "$WORK" 2>&1); ST=$?
+assert_exit "clean change accepted regardless of the checker's own cwd (exit 0)" 0 $ST "$OUT"
+assert_contains "reports file count" "valid: publish (3 files changed)" "$OUT"
+
+echo "[accept] a linked worktree is a reviewable project root, not a usage error (G89)"
+WORK="$(new_fixture g89-worktree-root)"
+(
+  cd "$WORK"
+  git worktree add --quiet -b wt-branch ../wt >/dev/null 2>&1
+  cd ../wt
+  echo "worktree line" >> README.md
+  git add README.md
+) >/dev/null 2>&1
+# A linked worktree's .git is a file holding a gitdir pointer, not a
+# directory — testing for a directory rejected every worktree root before
+# this check asked git for the real path instead.
+WT="$(cd "$WORK/../wt" && pwd)"
+OUT=$(bash "$CHECK" "$WT" 2>&1); ST=$?
+assert_exit "worktree root reaches a real verdict, not exit 2" 0 $ST "$OUT"
+assert_contains "reports the worktree's own change" "valid: publish (1 files changed)" "$OUT"
+
 echo "[accept] an untracked file matching .gitignore is not part of the change at all"
 WORK="$(new_fixture accept-untracked-ignored)"
 (

@@ -83,7 +83,9 @@ skill-scoped `hooks:`, and the enforced isolation `validate-pack-manifest.sh` ch
 the body hands the subagent the instructions without the sandbox those instructions assume, and
 does it silently. An unloaded pack is a configuration error to report, not a gap to route around.
 
-`intake` is the only stage that takes an invocation argument. Pass it exactly one line:
+Two stage ids take an invocation argument; every other stage takes none.
+
+`intake` takes exactly one line:
 
 ```
 item_id: <item_id>
@@ -95,11 +97,27 @@ into a fact record, so it is the only stage that has not read one yet, and it is
 mode the run is in — mode is this skill's own concern, consumed at the question boundary, not a
 stage's input.
 
+**`plan-gate` and `publish-gate`** each take exactly one line:
+
+```
+project_root: <this skill's own working directory, absolute>
+```
+
+They need it because they are the only stages that cannot reach `.ai/run-context/` by themselves:
+their adapters run in an isolated checkout, which holds tracked files only, and every location
+they could otherwise consult names the wrong directory whenever this route is not being driven
+from the repository's main checkout (`shared/gate-contract.md`, "The run context is given, never
+inferred"). You know your own working directory with certainty; they do not. Pass it verbatim.
+
+This stays within "a stage is never told the shape of the run" below: where a run lives is not
+which stages ran, which were skipped, or what any of them returned. A gate learns a path and
+nothing else.
+
 Every other stage takes **no** invocation argument at all: its own `SKILL.md` declares `## Input:
 None` and reads `.ai/run-context/fact-record.yaml`, `.ai/run-context/question-answer.yaml` (when
 the previous stage asked one), and any prior stage's own artifacts, at their fixed paths, itself —
-the `.ai/run-context/` half of **Fixed paths** above is what makes that possible. Spawn every stage
-after `intake` with no argument text at all.
+the `.ai/run-context/` half of **Fixed paths** above is what makes that possible. Spawn every such
+stage with no argument text at all.
 
 A stage is never told the shape of the run it is part of. It reads the fact record itself and,
 when one was asked, the previous stage's answer from its own fixed path; which stages ran before
@@ -380,8 +398,9 @@ it was.
 
 ### Invoke adapter, capture envelope
 
-Invoke it (see "How a stage adapter is invoked" above). Capture its envelope to
-`.ai/run-context/envelope-<stage id>.txt`. Go to **Validate envelope**.
+Invoke it (see "How a stage adapter is invoked" above) — with no argument text, except for
+`plan-gate` and `publish-gate`, which each take the single `project_root:` line named there.
+Capture its envelope to `.ai/run-context/envelope-<stage id>.txt`. Go to **Validate envelope**.
 
 ### Validate envelope
 
