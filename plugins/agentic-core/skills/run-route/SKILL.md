@@ -251,6 +251,14 @@ ${CLAUDE_PLUGIN_ROOT}/shared/lib/check-preflight.sh .ai/project-config.yaml \
   platform=<path> tracker=<path> scm=<path> browser=<path> [design=<path>]
 ```
 
+**On exit `0`, print any `serve:` line it produced to the human, verbatim, before going on.** That
+line is the one part of pre-flight's output written for a person rather than for your branching
+(`shared/pre-flight.md`): it names the preview this run will need and what is configured to start
+it, and you are the last point at which a human sees anything before the run disappears into its
+stages. Print it as it came, add no verdict of your own to it, and never withhold a
+`serve: warn — …` line because the run is proceeding anyway — proceeding is exactly what makes
+saying it worthwhile.
+
 ### Pre-flight passed?
 
 If it exits non-zero: no branch, run state, or marker exists yet, so there is nothing to finalize.

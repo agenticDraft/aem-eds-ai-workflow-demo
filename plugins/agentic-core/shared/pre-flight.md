@@ -1,5 +1,5 @@
 ---
-description: The pre-flight capability probe — what it checks, in what order, and why it never spawns a process to check availability. Every reader of a pre-flight result references this file rather than restating the checks inline.
+description: The pre-flight capability probe — what it checks, in what order, why it never spawns a process to check availability, and the one notice it prints rather than checks. Every reader of a pre-flight result references this file rather than restating the checks inline.
 ---
 
 # Pre-flight
@@ -20,6 +20,11 @@ against the project's own working tree. The third read stays inside the same dis
 first two: it tests whether a path the pack itself already named is present, never what a live
 process reports about itself.
 
+A fourth item is not a check at all but a **notice** (D94): when the platform pack declares a
+`serve` stage, pre-flight says which preview that run will need and what is configured to start
+it. It reads two values the project config already declares, reaches nothing, and has no failing
+verdict.
+
 ## Why never a health check
 
 A capability probe that shells out to test whether a tool process is alive is coupled to how that
@@ -33,6 +38,15 @@ declarations: its manifest's `stages:` map and `operations:`/`unsupported:` list
 operation the pipeline will actually use" means the operation is declared implemented in the
 manifest, never that a live call to it happened to succeed once.
 
+**The need a health check would serve is real, and the notice is what answers it.** A run whose
+preview never answers fails several stages in, long after a branch exists and outbound calls have
+been made, and the human watching it had no way to know a server was wanted. That is an
+information problem, not a verification one, and information can be given from a declaration: the
+notice names the preview and the configured serve command before `intake`, without asking anything
+of a live process. Where nothing is configured to start that preview, it says so as a warning —
+never a block, because a preview that is already answering makes an unconfigured serve command
+harmless, and only the probe this file refuses could tell those two apart.
+
 **A declared-path file test (the third check, below) is not a health check either, though it does
 touch the project's own disk.** The first two checks read what a process reports about itself,
 which can go wrong for reasons the pack does not control. Testing whether a path the pack itself
@@ -41,7 +55,7 @@ states the path; the test asks nothing about a running process, a network condit
 own liveness — only whether a file the pack expects is there. This is what "structural" still means
 for a check that, unlike the first two, is not purely about the pack in isolation.
 
-## The three checks
+## The three checks, and the notice
 
 1. **Every pack project config requires is installed.** For every role `packs:` names — `platform`,
    `tracker`, `scm`, `browser` always; `design` only when its value is not `none` — a pack manifest
@@ -70,6 +84,22 @@ for a check that, unlike the first two, is not purely about the pack in isolatio
      file or outbound call exists — naming that finding, the file it names, and that it must be
      resolved through the project's own onboarding-completion flow before this run can proceed. A
      `cosmetic` finding never blocks.
+4. **The serve notice, when the platform pack declares a `serve` stage (D94).** A pack whose
+   `stages:` list has no `serve` stage runs this as a no-op — the same shape checks 2 and 3
+   already use for an undeclared thing. For a pack that does declare one, two values the project
+   config already carries are read — `paths.preview` and `commands.serve` — and one line is
+   printed alongside the `ready` output:
+   - **A serve command is configured** — the line names the preview and the command that will
+     start it. Nothing is required of the human; this is the run saying what it is about to need.
+   - **`commands.serve` is empty** — a warning, never a block. Nothing in this project can start
+     that preview, so it must already be answering by the time the run reaches the `serve` stage.
+     The run still proceeds, because that is a perfectly ordinary situation and pre-flight cannot
+     tell it apart from the failing one without probing.
+
+   The notice is the one part of pre-flight's output that exists for a human rather than for the
+   runner's own branching. It is emitted before `intake`, which is the whole point of putting it
+   here: the `serve` stage runs some way into a route, and a route that will need a preview should
+   say so before it starts spending outbound calls.
 
 ## What a failure produces
 
@@ -80,6 +110,11 @@ poisoning finding and the file it names. This reason is what a caller hands to
 failure is one of that contract's three `blocked` causes, not a fourth state of its own. Check 3's
 `onboarding_state_path` half never produces this exit; an absent onboarding-state file is reported
 as a `onboarding: warn — …` line alongside the `ready` output instead, and the run still proceeds.
+
+**The notice never produces this exit either, on any project.** It has no failing verdict: an
+unconfigured serve command warns, and everything else reports. A non-zero exit from the notice's
+own script is therefore never a statement about the project — both of its inputs were validated by
+the checks above it — and is reported as what it is, a check that could not run.
 
 ## Anti-patterns
 
@@ -101,11 +136,16 @@ as a `onboarding: warn — …` line alongside the `ready` output instead, and t
   checks behave differently on purpose, and collapsing them into one severity defeats it.
 - Running the onboarding gate against a pack that declares neither path. Undeclared means ungated,
   the same rule this file already applies to a provider's `unsupported:` list.
+- **Letting the serve notice grow a verdict.** Polling the preview to decide what it says, or
+  blocking a run because no serve command is configured, turns the one part of this file's output
+  that costs nothing into the health check the rest of it refuses. It reports; it does not decide.
+- Printing the serve notice for a platform pack whose stage list has no `serve` stage. The core
+  acts on the declaration, not on an assumption that every project has a preview to serve.
 
 ## Reference, not restatement
 
 A skill or script that runs or reads a pre-flight result references this file with one line rather
-than restating the three checks inline, the same convention `pack-manifest.md` and
+than restating the three checks or the notice inline, the same convention `pack-manifest.md` and
 `project-config.md` use for their own contracts.
 
 ## Fixtures
@@ -126,6 +166,13 @@ absent, present with only a `cosmetic` finding, or present with one `poisoning` 
 these directly; `check-preflight.test.sh` reuses `fixtures/pack-manifest/platform-valid-onboarding/`
 (the same two keys, on an otherwise-conformant manifest) for its own integration cases.
 
+`fixtures/pre-flight/serve/` — the notice's own inputs: `pack-with-serve.yaml` and
+`pack-without-serve.yaml` (a stage list with and without a `serve` stage), and
+`config-serve-empty.yaml` (`config-valid.yaml` with `commands.serve` empty). The configured case
+reuses `config-valid.yaml` itself. `check-preflight.test.sh` reuses
+`fixtures/pack-manifest/platform-valid-full-route/`, which declares every stage including `serve`,
+for its own integration cases.
+
 ## Verification
 
 `lib/check-preflight.sh <project-config path> <role>=<path-to-pack.yaml> [<role>=<path> …]` — one
@@ -133,8 +180,9 @@ these directly; `check-preflight.test.sh` reuses `fixtures/pack-manifest/platfor
 `design`, `browser`). No model involved, no side effects. Exits `0` and prints `ready` plus one
 `<role>: ok` line per role checked (`design: none` when config declares no design pack is
 required), then check 3's own line(s) when the platform pack declares either onboarding path
-(omitted entirely when it declares neither); `1` with `invalid: <reason>` on stderr for the first
-check that fails; `2` for a usage error (no config argument, config not found, a malformed
+(omitted entirely when it declares neither), then the notice's own line when that pack declares a
+`serve` stage (omitted entirely when it does not); `1` with `invalid: <reason>` on stderr for the
+first check that fails; `2` for a usage error (no config argument, config not found, a malformed
 `role=path` pair, an unrecognized role name).
 
 `lib/check-onboarding-gate.sh <path-to-platform-pack.yaml>` is check 3 on its own — reusable
@@ -143,7 +191,13 @@ current working directory. Exits `0` and prints `not-gated` (neither key declare
 declared key (`onboarding: ok|warn — …`, `audit: ok|ok — no audit yet — …`); `1` with
 `invalid: <reason>` on stderr naming the open poisoning finding; `2` for a usage error.
 
+`lib/check-serve-notice.sh <project-config path> <path-to-platform-pack.yaml>` is the notice on its
+own — reusable standalone, and what `check-preflight.sh` delegates to. Exits `0` and prints
+`not-declared` (the pack declares no `serve` stage) or one line (`serve: ok — …`,
+`serve: warn — …`); `2` for a usage error. **It has no exit `1`** — the notice cannot fail a run.
+
 ```bash
 bash plugins/agentic-core/shared/lib/check-preflight.test.sh
 bash plugins/agentic-core/shared/lib/check-onboarding-gate.test.sh
+bash plugins/agentic-core/shared/lib/check-serve-notice.test.sh
 ```
