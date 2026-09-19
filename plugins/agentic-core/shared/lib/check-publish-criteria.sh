@@ -49,14 +49,19 @@ if [[ ! -d "$ROOT" ]]; then
   exit 2
 fi
 
-GIT_COMMON_DIR="$ROOT/.git"
-if [[ ! -d "$GIT_COMMON_DIR" ]]; then
-  echo "invalid: not a git checkout (no .git directory): $ROOT" >&2
+# Asked of git rather than assumed to be "$ROOT/.git": in a linked
+# worktree that path is a *file* holding a gitdir pointer, not a
+# directory, so testing for a directory rejects every worktree root
+# outright — including the one a route driven from a worktree asks this
+# script to review.
+GIT_DIR_RESOLVED="$(git -C "$ROOT" rev-parse --path-format=absolute --absolute-git-dir 2>/dev/null)"
+if [[ -z "$GIT_DIR_RESOLVED" || ! -d "$GIT_DIR_RESOLVED" ]]; then
+  echo "invalid: not a git checkout: $ROOT" >&2
   exit 2
 fi
 
 git_root() {
-  git --git-dir="$GIT_COMMON_DIR" --work-tree="$ROOT" "$@"
+  git --git-dir="$GIT_DIR_RESOLVED" --work-tree="$ROOT" "$@"
 }
 
 BASE_SYMREF="$(git_root symbolic-ref refs/remotes/origin/HEAD 2>/dev/null)" || {
@@ -116,7 +121,15 @@ fi
 # case this check exists to catch — a secret or run-scratch file that
 # reached the diff only because something force-added it past .gitignore.
 for f in "${CHANGED_FILES[@]+"${CHANGED_FILES[@]}"}"; do
-  if git_root check-ignore -q --no-index -- "$f"; then
+  # An absolute path, not "$f" relative to whatever directory this script's
+  # own process happens to be running from: check-ignore resolves a
+  # relative pathspec against the caller's actual cwd, not --work-tree, so
+  # a script invoked from inside a linked worktree nested under the
+  # project root (e.g. .claude/worktrees/<name>) would otherwise test
+  # "$ROOT/.claude/worktrees/<name>/$f" instead of "$ROOT/$f" — a path
+  # .git/info/exclude's own worktree-ignoring pattern always matches,
+  # producing a false positive on every changed file, every time (G96).
+  if git_root check-ignore -q --no-index -- "$ROOT/$f"; then
     echo "invalid: '$f' matches a pattern in .gitignore — never publish a path the project marked never-tracked" >&2
     exit 1
   fi

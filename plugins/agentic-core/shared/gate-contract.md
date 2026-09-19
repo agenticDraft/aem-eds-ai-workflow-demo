@@ -55,6 +55,39 @@ in rather than everything it noticed — confidence-based filtering, not exhaust
 are obligations on whichever pack supplies the gate's adapter skill; this contract states them,
 it does not enforce them mechanically.
 
+## The run context is given, never inferred
+
+A gate runs in an isolated worktree, which holds tracked files only — so the run's own
+`.ai/run-context/` is absent from it, and the gate has to read that directory from the checkout the
+run is actually in. **That location is passed to the gate; the gate never derives it.** The runner
+knows its own working directory with certainty and hands it over as the gate's one invocation
+argument, `project_root:`.
+
+Deriving it instead is what this rule exists to forbid, because every ambient source a gate can
+reach names the wrong directory. A gate's own working directory is its temp worktree, not the
+run's; its gitdir pointer resolves back to that same temp worktree; and a repository's shared
+metadata directory — `git rev-parse --git-common-dir` — is by definition identical for every
+worktree, so its parent is always the **main** checkout, whichever checkout the run is in. Each of
+these is right exactly when the run happens to be in the main checkout, and silently wrong
+otherwise.
+
+**Before reviewing anything, a gate proves the given root belongs to its own run.** Read
+`<project root>/.ai/run-context/fact-record.yaml` and compare its `item_id` against the one the
+artifact under review carries. On a mismatch — or if either file is absent — report a contract
+violation naming both paths, and review nothing.
+
+Know what this check does and does not catch (G97). It catches a gate that ignored the root it was
+given. It does **not** separate two runs of the *same* work item: re-running one item from a second
+checkout leaves two run contexts that both name that item, and the comparison passes on either.
+Until a run-scoped identity replaces it, a gate that finds itself reading a context it was not
+handed should say so rather than assume a matching `item_id` proves anything.
+
+This check is not defensive padding. A wrong root does not produce a missing file: it produces a
+*plausible* one, of the right shape, belonging to a different run, which every later step then
+reads without complaint — confirmed by direct measurement, twice, on both gates (G89). A gate that
+skips the comparison can return a confident verdict about a change it never saw. Plausibility is
+not identity, and only an explicit comparison turns that silent wrong answer into a loud one.
+
 ## Reference, not restatement
 
 A skill or script that resolves or reads a gate's outcome references this file with one line

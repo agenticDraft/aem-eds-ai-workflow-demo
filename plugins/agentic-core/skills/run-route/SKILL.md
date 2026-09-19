@@ -1,7 +1,7 @@
 ---
 description: Runs one whole delivery route end to end — the route driver. Resolves pre-flight and the route, then for every stage spawns that stage's adapter as an isolated forked subagent, validates its result envelope, branches on the verdict, persists run state and progress after every stage, and drives the run to exactly one of the three terminal states (delivered, blocked, failed). This is the only component allowed to spawn a stage adapter. Use only to actually execute a configured route against a real work item — never to author a stage adapter, a contract, or project config, and never as a substitute for running one stage standalone.
 disable-model-invocation: true
-argument-hint: "<work item id or URL>"
+argument-hint: "<work item id or URL> [autonomous]"
 hooks:
   PreToolUse:
     - matcher: Read
@@ -83,20 +83,41 @@ skill-scoped `hooks:`, and the enforced isolation `validate-pack-manifest.sh` ch
 the body hands the subagent the instructions without the sandbox those instructions assume, and
 does it silently. An unloaded pack is a configuration error to report, not a gap to route around.
 
-`intake` is the only stage that takes an invocation argument. Pass it exactly one line:
+Two stage ids take an invocation argument; every other stage takes none.
+
+`intake` takes exactly one line:
 
 ```
-item_id: <the work item id or URL this run was itself invoked with>
+item_id: <item_id>
 ```
 
-— this skill's own `argument-hint` value, threaded through unchanged; `intake` is what turns it
-into a fact record, so it is the only stage that has not read one yet.
+— `<item_id>` is `$ARGUMENTS` with the mode token, when one was present, already stripped (see
+**Determine mode** in **Fresh start: write flag, run intake** below); `intake` is what turns it
+into a fact record, so it is the only stage that has not read one yet, and it is never told which
+mode the run is in — mode is this skill's own concern, consumed at the question boundary, not a
+stage's input.
+
+**`plan-gate` and `publish-gate`** each take exactly one line:
+
+```
+project_root: <this skill's own working directory, absolute>
+```
+
+They need it because they are the only stages that cannot reach `.ai/run-context/` by themselves:
+their adapters run in an isolated checkout, which holds tracked files only, and every location
+they could otherwise consult names the wrong directory whenever this route is not being driven
+from the repository's main checkout (`shared/gate-contract.md`, "The run context is given, never
+inferred"). You know your own working directory with certainty; they do not. Pass it verbatim.
+
+This stays within "a stage is never told the shape of the run" below: where a run lives is not
+which stages ran, which were skipped, or what any of them returned. A gate learns a path and
+nothing else.
 
 Every other stage takes **no** invocation argument at all: its own `SKILL.md` declares `## Input:
 None` and reads `.ai/run-context/fact-record.yaml`, `.ai/run-context/question-answer.yaml` (when
 the previous stage asked one), and any prior stage's own artifacts, at their fixed paths, itself —
-the `.ai/run-context/` half of **Fixed paths** above is what makes that possible. Spawn every stage
-after `intake` with no argument text at all.
+the `.ai/run-context/` half of **Fixed paths** above is what makes that possible. Spawn every such
+stage with no argument text at all.
 
 A stage is never told the shape of the run it is part of. It reads the fact record itself and,
 when one was asked, the previous stage's answer from its own fixed path; which stages ran before
@@ -263,14 +284,20 @@ fresh?"* using the fields `check-run-state.sh` reported.
 
 ### Fresh start: write flag, run intake
 
-1. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-2. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
-   invocation argument `item_id: $ARGUMENTS` — this skill's own frontmatter declares
-   `argument-hint: "<work item id or URL>"`, and `$ARGUMENTS` is that value, unchanged, exactly as
-   this route itself was invoked with; `intake` needs no `fact_record`/`route` input yet, since it
-   is what produces the fact record. Capture its envelope to
+1. **Determine mode.** This skill's own frontmatter declares
+   `argument-hint: "<work item id or URL> [autonomous]"`. Core contract §8 requires mode to be
+   "set by a flag, never inferred from the wording of a request" — so check only the literal last
+   whitespace-separated token of `$ARGUMENTS`: if it is exactly `autonomous`, set `<mode>` to
+   `autonomous` and `<item_id>` to `$ARGUMENTS` with that trailing token removed; otherwise
+   `<mode>` is `interactive` (the default) and `<item_id>` is `$ARGUMENTS` unchanged. Carry
+   `<item_id>` and `<mode>` forward in your own working memory for the rest of the run, the same
+   way `<start_time>` is carried (**Record intake stage**, step 2).
+2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
+3. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
+   invocation argument `item_id: <item_id>`; `intake` needs no `fact_record`/`route`/mode input
+   yet, since it is what produces the fact record. Capture its envelope to
    `.ai/run-context/envelope-intake.txt`.
-3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
+4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
    → go to **Intake decision?**.
 
 ### Intake decision?
@@ -371,8 +398,9 @@ it was.
 
 ### Invoke adapter, capture envelope
 
-Invoke it (see "How a stage adapter is invoked" above). Capture its envelope to
-`.ai/run-context/envelope-<stage id>.txt`. Go to **Validate envelope**.
+Invoke it (see "How a stage adapter is invoked" above) — with no argument text, except for
+`plan-gate` and `publish-gate`, which each take the single `project_root:` line named there.
+Capture its envelope to `.ai/run-context/envelope-<stage id>.txt`. Go to **Validate envelope**.
 
 ### Validate envelope
 
@@ -474,3 +502,5 @@ terminal state.
 - Calling `finalize-run-state.sh` on `blocked` or `failed` — only `delivered` deletes `run-state.json`.
 - Printing `print-status-table.sh` more than once, or before the run reaches `delivered`.
 - Restating any shared contract's shape here instead of referencing its file.
+- Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
+  a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).

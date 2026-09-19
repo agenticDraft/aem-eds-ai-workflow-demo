@@ -74,19 +74,22 @@ digraph eds_plan_gate {
 
 ### Locate the run context
 
-Resolve the checkout the plan belongs to, which is not necessarily this stage's own:
+The checkout the plan belongs to is **given, not derived**: this stage's invocation carries exactly
+one line,
 
 ```
-git rev-parse --path-format=absolute --git-common-dir
+project_root: <absolute path>
 ```
 
-The directory this prints is the repository's shared metadata directory; its parent is the checkout
-under review. Call that parent `<project root>` for the rest of this stage.
+Use that value verbatim as `<project root>` for the rest of this stage. Do not try to work it out
+from this stage's own surroundings — `../../../agentic-core/shared/gate-contract.md` ("The run
+context is given, never inferred") records why every such source names the wrong directory, and
+what the wrong directory silently produces.
 
-Resolving it this way rather than assuming the current directory costs one line and is correct in
-both cases: in an isolated checkout it names the original, and in a plain checkout it names the
-checkout itself, because a repository's metadata directory and its only working tree share a
-parent.
+Then prove the given root belongs to *this* run before reading anything else from it: read
+`<project root>/.ai/run-context/fact-record.yaml` and compare its `item_id` against the one
+`plan.yaml` carries. If they differ, or either file is missing, go to **Report fail** with the
+mismatch as the reason, naming both paths — do not review what you found there.
 
 For the rest of this stage: read `.ai/run-context/` from `<project root>`, and read everything
 tracked — project source, block folders, `.ai/project-config.yaml` — from this stage's own
@@ -198,16 +201,19 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write each surviving finding first, one short paragraph each, naming its requirement id, step id
+or path first — this is the commentary the block-emission rule below sanctions putting *before*
+the heading. Only once every finding is written, emit the `## Result` block as plain `key: value`
+lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or
+backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading,
+and never followed by anything else — not even a summary explicitly labeled as commentary or "not
+part of the envelope". Fields:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) stating that all four criteria are answered yes, and how many findings
   were recorded.
 - `artifacts: []`
 - `next_action: none`
-
-Follow the block with each surviving finding, one short paragraph each, naming its requirement id,
-step id or path first.
 
 ### Report pass
 
