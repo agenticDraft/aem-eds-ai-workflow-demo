@@ -17,6 +17,13 @@
 #      no-op unless that manifest declares onboarding_state_path and/or
 #      audit_findings_path. An absent onboarding-state file only warns; an
 #      open poisoning finding at the audit-findings path blocks.
+#   4. the serve notice (core contract §6.4, D94), delegated to
+#      check-serve-notice.sh against the same manifest and the project
+#      config — a no-op unless the platform pack declares a `serve` stage.
+#      It never blocks: it says which preview the run will need and what
+#      will start it, so a human learns that before intake rather than
+#      several stages in. Like every other check here it reads declarations
+#      only; nothing polls the preview.
 #
 # Usage:
 #   check-preflight.sh <project-config path> <role>=<path-to-pack.yaml> [...]
@@ -28,7 +35,8 @@
 #       when config requires no design pack), then check 3's own line(s)
 #       ("onboarding: ok|warn — …", "audit: ok — …") when the platform pack
 #       declares either onboarding path — omitted entirely when it declares
-#       neither.
+#       neither — then check 4's own line ("serve: ok|warn — …") when that
+#       pack declares a `serve` stage, omitted entirely when it does not.
 #   1 — "invalid: <reason>" on stderr, naming the first missing pack, role
 #       mismatch, unavailable operation, or open poisoning finding
 #   2 — usage error: no config argument, config not found, a malformed
@@ -40,6 +48,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VALIDATE_CONFIG="$SCRIPT_DIR/validate-project-config.sh"
 VALIDATE_MANIFEST="$SCRIPT_DIR/validate-pack-manifest.sh"
 CHECK_ONBOARDING="$SCRIPT_DIR/check-onboarding-gate.sh"
+CHECK_SERVE_NOTICE="$SCRIPT_DIR/check-serve-notice.sh"
 
 usage() {
   echo "usage: check-preflight.sh <project-config path> <role>=<path-to-pack.yaml> [...]" >&2
@@ -171,6 +180,17 @@ elif [[ $GATE_STATUS -ne 0 ]]; then
   fail "onboarding gate could not run — ${GATE_OUT}"
 fi
 
+# --- check 4: the serve notice, when the platform pack declares that stage -
+# This check has no failing verdict — it reports, it never blocks. A
+# non-zero exit is therefore not a verdict about the project but a fault in
+# a check whose two inputs this script has already validated, and it is
+# reported as one.
+SERVE_OUT="$("$CHECK_SERVE_NOTICE" "$CONFIG" "$PLATFORM_PATH" 2>&1)"
+SERVE_STATUS=$?
+if [[ $SERVE_STATUS -ne 0 ]]; then
+  fail "serve notice could not run — ${SERVE_OUT}"
+fi
+
 # --- ready -------------------------------------------------------------
 echo "ready"
 echo "platform: ok"
@@ -184,5 +204,8 @@ fi
 echo "browser: ok"
 if [[ "$GATE_OUT" != "not-gated" ]]; then
   echo "$GATE_OUT"
+fi
+if [[ "$SERVE_OUT" != "not-declared" ]]; then
+  echo "$SERVE_OUT"
 fi
 exit 0

@@ -149,6 +149,36 @@ else
   PASS=$((PASS + 1)); echo "  ok: ungated pack prints no onboarding/audit line"
 fi
 
+# --- check 4: the serve notice (D94) ----------------------------------------
+# platform-valid declares no `serve` stage, so every case above proves the
+# no-op path already — nothing there prints a serve line. These two cover the
+# pack that does declare one. The check itself is tested in full by
+# check-serve-notice.test.sh; what is proven here is that pre-flight runs it
+# and that its line reaches pre-flight's own ready output.
+SERVE_PLATFORM="$PACKFIXDIR/platform-valid-full-route/pack.yaml"
+
+echo "[accept] a platform pack declaring no serve stage prints no serve line"
+if [[ "$OUT" == *"serve:"* ]]; then
+  FAIL=$((FAIL + 1)); echo "  FAIL: ungated pack prints no serve line"
+  echo "    got: $OUT"
+else
+  PASS=$((PASS + 1)); echo "  ok: ungated pack prints no serve line"
+fi
+
+echo "[accept] a platform pack declaring a serve stage gets the notice, still ready"
+OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \
+  "platform=$SERVE_PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER" 2>&1); ST=$?
+assert_exit "ready (exit 0)" 0 $ST "$OUT"
+assert_contains "serve notice reaches pre-flight's output" "serve: ok" "$OUT"
+assert_contains "notice names the preview URL" "http://localhost:0000/preview" "$OUT"
+assert_contains "notice names the serve command" "run-serve" "$OUT"
+
+echo "[accept] a serve stage with no configured serve command warns, never blocks"
+OUT=$(bash "$CHECK" "$FIXDIR/serve/config-serve-empty.yaml" \
+  "platform=$SERVE_PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER" 2>&1); ST=$?
+assert_exit "still ready (exit 0)" 0 $ST "$OUT"
+assert_contains "serve warns" "serve: warn" "$OUT"
+
 echo "[usage] no arguments"
 OUT=$(bash "$CHECK" 2>&1); ST=$?
 assert_exit "no args -> usage error (exit 2)" 2 $ST "$OUT"

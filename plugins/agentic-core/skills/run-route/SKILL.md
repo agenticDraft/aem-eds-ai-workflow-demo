@@ -258,7 +258,14 @@ Report `terminal: blocked` immediately, naming exactly what pre-flight's `invali
 missing and that it was never recorded anywhere (core contract §4 — pre-flight failure is one of
 `shared/terminal-states.md`'s `blocked` causes). Route to **blocked**; do not proceed.
 
-If it passes, go to **Check run-state**.
+If it passes: **print any `serve:` line it produced to the human, verbatim, before going on.** That
+line is the one part of pre-flight's output written for a person rather than for your branching
+(`shared/pre-flight.md`), and this is the only point at which it can be given — nothing inside a
+stage can print to this conversation while you wait on it. Print it as it came, add no verdict of
+your own, and never withhold a `serve: warn — …` line because the run is proceeding anyway;
+proceeding is what makes saying it worthwhile.
+
+Then go to **Check run-state**.
 
 ### Check run-state
 
