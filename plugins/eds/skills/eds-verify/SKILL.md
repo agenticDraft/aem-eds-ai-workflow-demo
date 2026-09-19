@@ -188,7 +188,15 @@ Invoke `Skill(eds:eds-fixture)` with:
 ```
 block: <the first target block name from Target block identified?>
 item_id: <the fact record's own item id>
+image_cells: <1 when the target block's own source queries for a picture, otherwise omitted>
 ```
+
+Decide `image_cells` by grepping the target block's own JS for `picture` — a block whose
+decoration calls something like `querySelector('picture')` or `querySelectorAll('picture > img')`
+finds nothing in a text-only fixture, so every check about what it does to an image observes an
+empty list and reports nothing rather than failing. This is a grep, not a judgement about what the
+block is for: a block whose source never mentions a picture keeps getting the text-only fixture it
+gets today.
 
 `pass` — take the written path from its `artifacts` list (`drafts/<item_id>.plain.html`) as this
 stage's own located page path and continue to **Located path a drafts/ fixture?** with it, the same
