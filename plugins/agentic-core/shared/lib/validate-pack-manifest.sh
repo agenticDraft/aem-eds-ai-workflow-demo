@@ -620,9 +620,23 @@ if [[ "$kind" == "provider" ]]; then
 
       [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ probe:\ \[(.*)\]$ ]] \
         || fail "requires.$req_tool: expected 'probe: [<argv>, …]' as a list, got '${LINES[cursor]:-<end of file>}'"
-      bracket_list "${BASH_REMATCH[1]}"
+      probe_raw="${BASH_REMATCH[1]}"
+      bracket_list "$probe_raw"
       [[ ${#LIST[@]} -gt 0 && -n "${LIST[0]:-}" ]] \
         || fail "requires.$req_tool: 'probe' is an empty list — a probe that runs nothing cannot answer whether the tool is present"
+      # An argument prefixed `<pack>/` names a file the pack itself ships —
+      # how a pack whose "is it present" question needs real logic declares
+      # that logic. It is resolved and checked here exactly as a `scripts:`
+      # path is, because a probe pointing at a file that is not there is a
+      # check that will never run, and a check that never runs must not look
+      # like one that passed.
+      for probe_arg in "${LIST[@]}"; do
+        [[ "$probe_arg" == "<pack>/"* ]] || continue
+        probe_path="${probe_arg#<pack>/}"
+        validate_declared_path "requires.$req_tool.probe" "$probe_path"
+        [[ -f "$PACK_ROOT/$probe_path" ]] \
+          || fail "requires.$req_tool: 'probe' names a file this pack does not ship: '$probe_path'"
+      done
       cursor=$((cursor + 1))
 
       [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ remedy:\ \"(.*)\"$ ]] \

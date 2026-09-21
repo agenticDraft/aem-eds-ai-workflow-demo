@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(gh issue *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(git fetch *)",
+      "Bash(git check-ignore *)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts,null,2\\)\\)\")",
+      "Bash(python3 -c ' *)",
+      "Skill(claude-api)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:api.anthropic.com)",
+      "WebFetch(domain:mcp-proxy.anthropic.com)",
+      "WebFetch(domain:sidekick-library--aem-block-collection--adobe.aem.page)",
+      "WebFetch(domain:main--aem-block-collection--adobe.aem.page)"
     ]
   },
   "enabledPlugins": {
@@ -14,12 +24,14 @@
     "playwright@aem-eds-ai-workflow-demo": true
   },
   "sandbox": {
+    "enabled": true,
     "network": {
       "allowedDomains": [
         "github.com",
         "api.github.com",
         "api.atlassian.com",
-        "www.figma.com"
+        "www.figma.com",
+        "zmarkoni.atlassian.net"
       ]
     }
   }

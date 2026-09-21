@@ -7,10 +7,11 @@ on:
       - 'plugins/agentic-core/**'
       - '.github/workflows/validate-agentic-core.yaml'
   pull_request:
-    # A long-lived integration branch takes per-task PRs that never target
-    # main until the whole sequence lands, so gating on main alone would let
-    # every one of those tasks merge with none of these suites run.
-    branches: [main, 'phase-*']
+    # No branch filter on purpose. A pull request into a long-lived
+    # integration branch changes these files just as much as one into the
+    # default branch does, and a list of target branches goes stale the next
+    # time someone opens one — silently, by letting those merges through
+    # unchecked. The paths filter below is what keeps this cheap.
     paths:
       - 'plugins/agentic-core/**'
       - '.github/workflows/validate-agentic-core.yaml'
@@ -68,6 +69,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/generate-pack.test.sh
       - name: Generate provider pack
         run: bash plugins/agentic-core/shared/lib/generate-provider-pack.test.sh
+      - name: Check requires
+        run: bash plugins/agentic-core/shared/lib/check-requires.test.sh
       - name: Validate contracts (skill-authoring)
         run: bash plugins/agentic-core/shared/lib/validate-contracts.test.sh
       - name: Validate plugin manifest

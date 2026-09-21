@@ -301,6 +301,52 @@ OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason says a missing tool with no remedy is a dead end" "dead end" "$OUT"
 
+echo "[accept] validator 18 — a probe naming a script the pack ships (<pack>/ prefix)"
+mkdir -p "$PROV_TMP/scripts"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$PROV_TMP/scripts/probe-tool.sh"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: example-tool
+    probe: [bash, <pack>/scripts/probe-tool.sh, module]
+    remedy: "install example-tool"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
+echo "[reject] validator 18 — a <pack>/ probe naming a file the pack does not ship"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: example-tool
+    probe: [bash, <pack>/scripts/does-not-exist.sh]
+    remedy: "install example-tool"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the missing file" "does not ship" "$OUT"
+
+echo "[reject] validator 18 — a <pack>/ probe escaping the pack root"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: example-tool
+    probe: [bash, <pack>/../escape.sh]
+    remedy: "install example-tool"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the path segment" "'..'" "$OUT"
+
 echo "[reject] validator 18 — requires present but empty"
 cat > "$PROV_TMP/pack.yaml" <<'EOF'
 kind: provider

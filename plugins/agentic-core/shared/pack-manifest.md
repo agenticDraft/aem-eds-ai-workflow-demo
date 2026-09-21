@@ -268,7 +268,15 @@ digraph route {
   three things.
   - `tool` — a non-empty identifier for what must be present. It names the thing, and it is what a
     report says is missing.
-  - `probe` — how "present" is answered, as a **list of arguments, never a string**. A string would
+  - `probe` — how "present" is answered, as a **list of arguments, never a string**. An argument may
+    carry the literal prefix `<pack>/`, which resolves against the pack root — the way a pack whose
+    "is it present" question needs real logic (a fallback search path, a second artifact the first
+    one says nothing about) ships that logic as its own script instead of asking the core to guess
+    on its behalf. The prefix is required for that: a bare relative path would resolve against
+    whatever directory the caller happened to run from. Such a path is checked exactly as a
+    `scripts:` path is — no `..` segment, and the file must exist — because a probe pointing at a
+    file that is not there is a check that will never run, and a check that never runs must not look
+    like one that passed. A string would
     have to reach a shell to be run, and a shell is the one thing a precondition check must not
     need. Only the exit status is read: zero means present. The output is never parsed and a version
     is never compared — a version requirement is a second question this key deliberately cannot ask,

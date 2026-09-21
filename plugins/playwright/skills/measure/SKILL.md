@@ -1,5 +1,5 @@
 ---
-description: browser.measure — loads a target URL and returns each named CSS selector's geometry and computed style values (color, background-color, font-family, font-size, font-weight, line-height) from a real headless Chromium. Requires the playwright npm package installed on this machine and its Chromium browser binary downloaded (npx playwright install chromium).
+description: browser.measure — loads a target URL and returns each named CSS selector's geometry and computed style values (color, background-color, font-family, font-size, font-weight, line-height) from a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
 ---
 
 # measure
