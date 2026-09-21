@@ -202,6 +202,129 @@ OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason says omit the key" "omit the key instead" "$OUT"
 
+echo "[accept] validator 18 — requires declaring a tool, an argv probe and a remedy (D97)"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: browser
+operations: {}
+unsupported: [render, capture, measure, interact]
+requires:
+  - tool: example-tool
+    probe: [example-tool, --version]
+    remedy: "install example-tool, then download its runtime"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "still reports the kind" "valid: provider" "$OUT"
+
+echo "[accept] validator 18 — two entries, and a pack declaring none"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: browser
+operations: {}
+unsupported: [render, capture, measure, interact]
+requires:
+  - tool: example-tool
+    probe: [example-tool, --version]
+    remedy: "install example-tool"
+  - tool: example-runtime
+    probe: [example-tool, list-runtimes]
+    remedy: "download the runtime through example-tool"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "two entries accepted (exit 0)" 0 $ST "$OUT"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "absent requires still accepted — absent means ungated (exit 0)" 0 $ST "$OUT"
+
+echo "[reject] validator 18 — probe given as a string rather than argv"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: example-tool
+    probe: "example-tool --version"
+    remedy: "install example-tool"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the tool and the expected shape" "requires.example-tool: expected 'probe: [<argv>" "$OUT"
+
+echo "[reject] validator 18 — an empty probe list"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: example-tool
+    probe: []
+    remedy: "install example-tool"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says a probe that runs nothing answers nothing" "cannot answer whether the tool is present" "$OUT"
+
+echo "[reject] validator 18 — a missing remedy"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: example-tool
+    probe: [example-tool, --version]
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names remedy" "remedy" "$OUT"
+
+echo "[reject] validator 18 — an empty remedy"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: example-tool
+    probe: [example-tool, --version]
+    remedy: ""
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says a missing tool with no remedy is a dead end" "dead end" "$OUT"
+
+echo "[reject] validator 18 — requires present but empty"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says omit the key" "omit the key instead" "$OUT"
+
+echo "[reject] validator 18 — requires on a platform pack"
+PLAT_TMP="$(mktemp -d "${TMPDIR:-/tmp}/validate-pack-manifest-platform.XXXXXX")"
+cp -R "$FIXDIR/platform-valid/." "$PLAT_TMP/"
+printf 'requires:\n  - tool: example-tool\n    probe: [example-tool, --version]\n    remedy: "install example-tool"\n' \
+  >> "$PLAT_TMP/pack.yaml"
+OUT=$(bash "$VALIDATOR" "$PLAT_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the kind it belongs to" "requires belongs to a provider pack, not a platform pack" "$OUT"
+[[ "$OUT" != *"unexpected content"* ]]
+assert_exit "reason does not misdiagnose as unexpected content" 0 $? ""
+rm -rf "$PLAT_TMP"
+
 rm -rf "$PROV_TMP"
 
 # --- committed rejection fixtures -------------------------------------------

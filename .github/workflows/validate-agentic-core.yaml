@@ -7,7 +7,10 @@ on:
       - 'plugins/agentic-core/**'
       - '.github/workflows/validate-agentic-core.yaml'
   pull_request:
-    branches: [main]
+    # A long-lived integration branch takes per-task PRs that never target
+    # main until the whole sequence lands, so gating on main alone would let
+    # every one of those tasks merge with none of these suites run.
+    branches: [main, 'phase-*']
     paths:
       - 'plugins/agentic-core/**'
       - '.github/workflows/validate-agentic-core.yaml'

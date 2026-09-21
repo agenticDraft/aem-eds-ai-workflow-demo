@@ -30,7 +30,11 @@
 #     `operations` to a script path, relative to the pack root, that must
 #     also resolve — the shell-executable form of that operation, for a
 #     caller that must run it as a subprocess rather than through `Skill()`.
-#     The tracker role may carry `text_conventions`.
+#     The tracker role may carry `text_conventions`. A fifth optional key,
+#     `requires` (D97), declares what the pack needs present on the machine
+#     that runs it — per entry a non-empty `tool`, a `probe` given as argv
+#     rather than a string, and a non-empty `remedy`. Shape only: nothing
+#     here runs a probe or tests a machine.
 #
 # The pack root is the directory containing the manifest, matching
 # "pack.yaml at the pack root".
@@ -384,6 +388,14 @@ if [[ "$kind" == "platform" ]]; then
     cursor=$((cursor + 1))
   fi
 
+  # `requires:` is a provider key (validator 18, D97). A platform pack binds
+  # stages, never a role's operations, so it has no tool of its own to
+  # declare. Checked before the trailing catch-all below, which would
+  # otherwise reject it as a parse error that says nothing about why.
+  if [[ "${LINES[cursor]:-}" == "requires:" ]]; then
+    fail "requires belongs to a provider pack, not a platform pack"
+  fi
+
   if (( cursor < n )); then
     fail "unexpected content after the last platform key: '${LINES[cursor]}'"
   fi
@@ -582,6 +594,47 @@ if [[ "$kind" == "provider" ]]; then
     done
     [[ $conv_count -eq 0 ]] \
       && fail "text_conventions is present but declares none of 'design_keywords', 'reproduction_headings' or 'acceptance_criteria_headings'"
+  fi
+
+  # --- requires (validator 18, D97) -----------------------------------------
+  # Optional. What this pack needs present on the machine that runs it, as
+  # data a script can read: per entry a `tool`, a `probe` given as argv, and
+  # a `remedy` a human runs. Absent means ungated, the same rule an
+  # undeclared `unsupported:` list already follows.
+  #
+  # Nothing here probes anything. This validator checks the shape of the
+  # declaration; who reads it, and when, is D97's business — the read-only
+  # diagnostic and the operation's own first step, never pre-flight.
+  #
+  # `probe` must be a bracketed list, never a bare string: a string would
+  # have to reach a shell to be run, and a shell is the one thing an
+  # operation's precondition check must not need.
+  if [[ "${LINES[cursor]:-}" =~ ^requires:$ ]]; then
+    cursor=$((cursor + 1))
+    req_count=0
+    while [[ "${LINES[cursor]:-}" =~ ^\ \ -\ tool:\ (.+)$ ]]; do
+      req_tool="${BASH_REMATCH[1]}"
+      [[ -n "${req_tool//[[:space:]]/}" ]] \
+        || fail "requires: an entry declares an empty 'tool'"
+      cursor=$((cursor + 1))
+
+      [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ probe:\ \[(.*)\]$ ]] \
+        || fail "requires.$req_tool: expected 'probe: [<argv>, …]' as a list, got '${LINES[cursor]:-<end of file>}'"
+      bracket_list "${BASH_REMATCH[1]}"
+      [[ ${#LIST[@]} -gt 0 && -n "${LIST[0]:-}" ]] \
+        || fail "requires.$req_tool: 'probe' is an empty list — a probe that runs nothing cannot answer whether the tool is present"
+      cursor=$((cursor + 1))
+
+      [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ remedy:\ \"(.*)\"$ ]] \
+        || fail "requires.$req_tool: expected 'remedy: \"<what a human runs>\"', got '${LINES[cursor]:-<end of file>}'"
+      [[ -n "${BASH_REMATCH[1]//[[:space:]]/}" ]] \
+        || fail "requires.$req_tool: 'remedy' is empty — a missing tool with no remedy is a dead end for whoever hits it"
+      cursor=$((cursor + 1))
+
+      req_count=$((req_count + 1))
+    done
+    [[ $req_count -eq 0 ]] \
+      && fail "'requires:' is present but declares no entries — omit the key instead"
   fi
 
   if (( cursor < n )); then
