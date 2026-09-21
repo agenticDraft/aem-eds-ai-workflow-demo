@@ -7,7 +7,11 @@ on:
       - 'plugins/agentic-core/**'
       - '.github/workflows/validate-agentic-core.yaml'
   pull_request:
-    branches: [main]
+    # No branch filter on purpose. A pull request into a long-lived
+    # integration branch changes these files just as much as one into the
+    # default branch does, and a list of target branches goes stale the next
+    # time someone opens one — silently, by letting those merges through
+    # unchecked. The paths filter below is what keeps this cheap.
     paths:
       - 'plugins/agentic-core/**'
       - '.github/workflows/validate-agentic-core.yaml'
