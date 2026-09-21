@@ -201,6 +201,47 @@ else
   PASS=$((PASS + 1)); echo "  ok: the probe did not reach a shell"
 fi
 
+echo "[pack-relative] a probe may name a script the pack itself ships"
+# The point of the <pack>/ prefix: a pack whose "is it present" question
+# needs real logic ships that logic, and the probe still runs from anywhere.
+OWNPROBE="$TMPDIR_TEST/ownprobe"
+mkdir -p "$OWNPROBE/scripts"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$OWNPROBE/scripts/probe-ok.sh"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$OWNPROBE/scripts/probe-absent.sh"
+chmod +x "$OWNPROBE/scripts/probe-ok.sh" "$OWNPROBE/scripts/probe-absent.sh"
+cat > "$OWNPROBE/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: own-probe
+    probe: [<pack>/scripts/probe-ok.sh]
+    remedy: "install own-probe"
+EOF
+OUT=$("$CHECKER" "$OWNPROBE/pack.yaml" 2>&1); RC=$?
+assert_exit "a <pack>/ probe resolves and runs -> exit 0" 0 "$RC" "$OUT"
+assert_contains "reports it present" "ok: own-probe" "$OUT"
+
+# Run it from an unrelated directory: a bare relative path would resolve
+# against the caller's cwd, which is exactly what the prefix rules out.
+OUT=$(cd "$TMPDIR_TEST" && "$CHECKER" "$OWNPROBE/pack.yaml" 2>&1); RC=$?
+assert_exit "resolves against the pack root, not the caller's directory" 0 "$RC" "$OUT"
+
+cat > "$OWNPROBE/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: own-probe
+    probe: [<pack>/scripts/probe-absent.sh]
+    remedy: "install own-probe"
+EOF
+OUT=$("$CHECKER" "$OWNPROBE/pack.yaml" 2>&1); RC=$?
+assert_exit "a pack's own probe answering 'absent' is honoured" 1 "$RC" "$OUT"
+assert_contains "names the tool" "missing: own-probe" "$OUT"
+
 echo "[malformed] refuses to guess"
 BAD="$TMPDIR_TEST/bad.yaml"
 cat > "$BAD" <<'EOF'

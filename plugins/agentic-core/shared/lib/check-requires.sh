@@ -17,6 +17,11 @@
 # a shell, because a component that could install its own dependency is a
 # component that changes the machine it was asked only to inspect.
 #
+# A probe argument may carry the literal prefix `<pack>/`, which resolves
+# against the directory holding the manifest. That is how a pack whose
+# "is it present" question needs real logic ships that logic as its own
+# script and still declares a probe that runs from anywhere.
+#
 # The probe runs as argv, exactly as declared, with no shell between. Only
 # its exit status is read: zero is present. Its output is discarded rather
 # than parsed, and no version is compared — the manifest key cannot express a
@@ -51,6 +56,10 @@ if [[ ! -f "$FILE" ]]; then
   echo "invalid: file not found: $FILE" >&2
   exit 2
 fi
+
+# The pack root is the directory holding the manifest, matching "pack.yaml at
+# the pack root". A probe argument prefixed `<pack>/` resolves against it.
+PACK_ROOT="$(cd "$(dirname "$FILE")" && pwd)"
 
 malformed() {
   echo "invalid: malformed 'requires:' block — $1" >&2
@@ -109,6 +118,16 @@ while (( i < n )); do
     arg="${arg#"${arg%%[![:space:]]*}"}"
     arg="${arg%"${arg##*[![:space:]]}"}"
     [[ -z "$arg" ]] && continue
+    # A pack may need its own resolution logic to answer whether its tool is
+    # present — a rule no fixed argv can express. It ships that as a script
+    # and names it with the literal prefix `<pack>/`, which resolves here
+    # against the pack root, the same root a `scripts:` path resolves
+    # against. The prefix is required: a bare relative path would resolve
+    # against whatever directory this happened to be invoked from, which is
+    # the caller's business and never the pack's.
+    if [[ "$arg" == "<pack>/"* ]]; then
+      arg="$PACK_ROOT/${arg#<pack>/}"
+    fi
     ARGV+=("$arg")
   done
   [[ ${#ARGV[@]} -eq 0 ]] && malformed "'$tool' declares an empty probe"
