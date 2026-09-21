@@ -51,6 +51,8 @@ readiness_criteria:
     require: [has_description, has_acceptance_criteria]
   Bug:
     require: [has_description, has_reproduction_url, has_reproduction_steps]
+  Task:
+    require: [has_description, has_acceptance_criteria]
 artifacts:
   - id: fact-record
     produced_by: intake
