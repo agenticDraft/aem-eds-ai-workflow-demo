@@ -63,6 +63,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/run-stage.test.sh
       - name: Generate pack
         run: bash plugins/agentic-core/shared/lib/generate-pack.test.sh
+      - name: Generate provider pack
+        run: bash plugins/agentic-core/shared/lib/generate-provider-pack.test.sh
       - name: Validate contracts (skill-authoring)
         run: bash plugins/agentic-core/shared/lib/validate-contracts.test.sh
       - name: Validate plugin manifest
