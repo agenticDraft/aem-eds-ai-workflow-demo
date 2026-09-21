@@ -1,0 +1,47 @@
+.pricing-table {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pricing-table .pricing-table-plan {
+  border: 1px solid var(--dividers-divider-1);
+  background-color: var(--background-color);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pricing-table .pricing-table-name {
+  font-weight: 700;
+}
+
+.pricing-table .pricing-table-price {
+  font-size: 1.5em;
+  font-weight: 700;
+}
+
+.pricing-table .pricing-table-features ul {
+  margin: 0;
+  padding-inline-start: 1.2em;
+}
+
+/* the call-to-action link is authored bold (wrapped in strong) in its own
+   paragraph; scripts.js's decorateButtons() only buttonizes a link wrapped
+   in strong or em, and then applies the project's global .button classes.
+   This block only positions the cell, it never styles .button/.button-wrapper. */
+.pricing-table .pricing-table-cta {
+  margin-top: auto;
+}
+
+@media (width >= 900px) {
+  .pricing-table {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .pricing-table .pricing-table-plan {
+    flex: 1;
+  }
+}
