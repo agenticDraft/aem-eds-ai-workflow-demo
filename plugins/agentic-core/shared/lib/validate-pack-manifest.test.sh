@@ -90,9 +90,20 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/provider-valid/pack.yaml" 2>&1); ST=$?
 assert_exit "provider-valid accepted (exit 0)" 0 $ST "$OUT"
 assert_contains "reports kind" "provider" "$OUT"
 
-echo "[accept] text_conventions carrying only the new acceptance_criteria_headings key"
+echo "[accept] a provider that implements nothing yet — 'operations: {}', every operation unsupported"
 PROV_TMP="$(mktemp -d "${TMPDIR:-/tmp}/validate-pack-manifest-provider.XXXXXX")"
 cp -R "$FIXDIR/provider-valid/." "$PROV_TMP/"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "empty operations map accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "reports kind" "valid: provider" "$OUT"
+
+echo "[accept] text_conventions carrying only the new acceptance_criteria_headings key"
 cat > "$PROV_TMP/pack.yaml" <<'EOF'
 kind: provider
 role: tracker

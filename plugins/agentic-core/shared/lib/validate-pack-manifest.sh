@@ -498,6 +498,11 @@ if [[ "$kind" == "provider" ]]; then
     done
   fi
   for name in "${OP_NAMES[@]:-}"; do
+    # An empty name is the expansion of an empty list, not a declared
+    # operation: `operations: {}` is a pack that implements nothing yet, which
+    # the format allows and a generated skeleton always produces. The
+    # unsupported loop below has always guarded this; this one had not.
+    [[ -z "$name" ]] && continue
     op_known "$name" || fail "operations declares an operation unknown to role '$role': '$name'"
   done
   for i in "${!OP_NAMES[@]}"; do
