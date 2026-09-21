@@ -133,13 +133,22 @@ this stage only starts one when **Located path a drafts/ fixture?** says yes).
    whether it resolved (`interact_available: true | false`) and continue either way. §6 makes
    `interact` an ordinary, declinable operation; a pack that cannot drive a real input device still
    leaves this stage's load-time checks fully able to run.
+5. Also read that same manifest's optional `scripts.render` value
+   (`../../../agentic-core/shared/pack-manifest.md`, D95) — the path, relative to the pack root, of
+   `render`'s own directly-executable script form, for a caller (this stage's reachability check,
+   below) that must run it as a subprocess rather than through `Skill()`. Present — resolve it to
+   `${CLAUDE_PLUGIN_ROOT}/../<packs.browser>/<scripts.render value>` and carry it forward as
+   `render_script`. Absent — carry forward `render_script: none` and continue either way; this is
+   never a reason to fail this stage, only a reason **Report warn**'s reachability check below falls
+   back to a weaker one.
 
 ### Browser role resolved?
 
 `render`, `capture` and `measure` all resolved to a skill name — continue to **Read the fact record
-and plan**, carrying forward whatever `interact_available` came out to. Any of the three missing or
-unsupported — go to **Report fail**. `interact` alone being unavailable never reaches this
-decision; it was already handled in the node above.
+and plan**, carrying forward whatever `interact_available` and `render_script` came out to. Any of
+the three missing or unsupported — go to **Report fail**. `interact` alone being unavailable never
+reaches this decision; it was already handled in the node above, and neither does `render_script`
+being unresolved — it never fails this stage, only weakens the reachability check below.
 
 ### Read the fact record and plan
 
@@ -414,6 +423,15 @@ Any of the following is true — go to **Report warn**:
   interaction; it proves nothing about any acceptance criterion concerning real copy or real
   content shape, since the fixture's own cells name only their row and column. Always a downgrade
   when it applies, never foldable into a clean pass.
+- **Resolve the browser pack** carried forward `render_script: none` — the configured browser pack
+  declares no `scripts.render` (D95), so the reachability check below could not run
+  `check-reachability.sh`'s condition 2 (a load attempt) at all and fell back to condition 1 only (the
+  loopback/link-local string test, no network call). `target_reachable`/`target_reachable_reason`
+  reflect the weaker fallback in this case, never a script-confirmed outcome. **`target_reachable:
+  false` from a genuine `check-reachability.sh` run — `unreachable` or `unconfirmed` — is never itself
+  a reason to land here**: a local-only verification target is an ordinary, expected outcome of local
+  development, not a coverage gap in this stage's own checks; only `eds-deliver` (Phase 7 / Task 13)
+  turns that value into something a human reads.
 
 None of these — go to **Report pass**.
 
@@ -491,15 +509,39 @@ generated content makes every later run's evidence untrustworthy.
 - `version`: the literal string `"1.0"`.
 - `item_id`: the fact record's own `item_id`.
 - `target`: the same target URL **Render the target page** built.
-- `target_reachable` / `target_reachable_reason`: **this stage's own dedicated reachability
-  script does not exist yet (Phase 7 / Task 11)** — until it does, decide only what needs no
-  network call: the target's host is `localhost`, `127.0.0.1`, `::1`, or a private/link-local
-  address — `target_reachable: false`, `target_reachable_reason: "loopback address — condition 1
-  of the reachability rule, decided with no network call"`. Any other host — `target_reachable:
-  false`, `target_reachable_reason: "not yet confirmed — the reachability script (Phase 7 / Task
-  11) does not exist yet"`. Never `true` from this stage today: nothing here has proven a
-  non-loopback target answers, and `../../../agentic-core/shared/evidence-manifest.md` forbids
-  guessing it.
+- `target_reachable` / `target_reachable_reason`: **traced to `check-reachability.sh`'s own outcome
+  in this same run, never inferred (D87, Phase 7 / Task 11).**
+
+  **`render_script` resolved** (**Resolve the browser pack**) — run, with
+  `dangerouslyDisableSandbox: true` on this call (the same requirement **Start the dedicated draft
+  server** already carries: `render_script` launches a real browser, which a default sandbox blocks
+  outright — confirmed live 2026-09-19, both against a loopback target and against this project's own
+  remote preview host):
+
+  ```bash
+  bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-reachability.sh \
+    "<the target URL Render the target page built>" "<render_script>"
+  ```
+
+  Read its two stdout lines, `status:` and `reason:`, and map the outcome directly:
+  - `status: reachable` → `target_reachable: true`, `target_reachable_reason:` the script's own
+    `reason:` line, verbatim.
+  - `status: unreachable` or `status: unconfirmed` → `target_reachable: false`,
+    `target_reachable_reason:` the script's own `reason:` line, verbatim — the two are kept
+    distinct in the reason text even though both set the same boolean, because D87 forbids
+    collapsing "known unreachable" and "could not confirm either way" into one meaning.
+
+  **`render_script` did not resolve** (the configured browser pack declares no `scripts.render`,
+  D95) — this stage cannot run the script at all, so it falls back to condition 1 alone (the same
+  loopback/link-local string test `check-reachability.sh` itself runs, no network call, applied here
+  by hand since the script cannot be invoked): the target's host is `localhost`, `127.0.0.1`, `::1`,
+  or a private/link-local address — `target_reachable: false`, `target_reachable_reason: "loopback
+  address — condition 1 of the reachability rule, decided with no network call"`. Any other host —
+  `target_reachable: false`, `target_reachable_reason: "not yet confirmed — the configured browser
+  pack declares no script-executable form of render (scripts.render, D95)"`. Never `true` from this
+  fallback: nothing in it has proven a non-loopback target answers, and
+  `../../../agentic-core/shared/evidence-manifest.md` forbids guessing it. This fallback is also a
+  coverage gap (**Any check downgraded or skipped?**), so this path never reaches **Report pass**.
 - `coverage_gaps`: one string per downgraded/skipped condition that applied above, matching what
   the paragraph just written into `verify-report.md` says for the same condition — never fewer
   entries than that paragraph names:
@@ -517,6 +559,8 @@ generated content makes every later run's evidence untrustworthy.
     own interact call did not complete>"`
   - a generated fixture target → `"the rendered target was a generated placeholder fixture
     (<file>), not authored content"`
+  - no `scripts.render` resolved → `"the configured browser pack declares no script-executable form
+    of render (scripts.render, D95); reachability confirmation used condition 1 only"`
   - `[]` only when, contradictorily, this node was reached with no condition actually true — it
     should not be possible to reach **Report warn** with an empty list; if it happens, that is a
     bug in this stage's own downgrade detection, not a valid empty run.

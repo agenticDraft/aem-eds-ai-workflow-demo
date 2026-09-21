@@ -123,6 +123,74 @@ EOF
 OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the role" "belongs to the tracker role, not 'scm'" "$OUT"
+
+echo "[accept] scripts naming an implemented operation whose path resolves (D95)"
+mkdir -p "$PROV_TMP/skills/fetch/scripts"
+echo '#!/usr/bin/env bash' > "$PROV_TMP/skills/fetch/scripts/fetch.sh"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+  list_types: list
+unsupported: []
+scripts:
+  fetch_item: "skills/fetch/scripts/fetch.sh"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
+echo "[reject] scripts names an operation this pack does not implement"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+unsupported: [list_types]
+scripts:
+  list_types: "skills/fetch/scripts/fetch.sh"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the operation" "scripts.list_types names an operation this pack does not implement" "$OUT"
+
+echo "[reject] scripts names a script that does not exist"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+  list_types: list
+unsupported: []
+scripts:
+  fetch_item: "skills/fetch/scripts/does-not-exist.sh"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the missing script" "does not exist" "$OUT"
+
+echo "[reject] scripts present but empty"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+  list_types: list
+unsupported: []
+scripts:
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says omit the key" "omit the key instead" "$OUT"
+
 rm -rf "$PROV_TMP"
 
 # --- committed rejection fixtures -------------------------------------------

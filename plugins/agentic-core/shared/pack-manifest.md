@@ -44,6 +44,8 @@ operations:
   <operation name>: <skill name>
   …
 unsupported: [<operation name>, …]
+scripts:                        # optional
+  <operation name>: "<path, relative to the pack root>"
 text_conventions:               # tracker role only
   design_keywords: [<string>, …]
   reproduction_headings: [<string>, …]
@@ -59,8 +61,9 @@ Fixed per kind, in order.
   an empty `artifacts` list is present on every result envelope rather than omitted.
   `onboarding_state_path` and `audit_findings_path` (D80) are the two exceptions to "all required" —
   both optional, and a pack may declare neither, one, or both.
-- **provider** — `kind`, `role`, `operations`, `unsupported`, and `text_conventions` for the
-  `tracker` role. The first four are required; `unsupported` may be empty (`[]`) but must be present.
+- **provider** — `kind`, `role`, `operations`, `unsupported`, `scripts`, and `text_conventions` for
+  the `tracker` role. The first four are required; `unsupported` may be empty (`[]`) but must be
+  present. `scripts` and `text_conventions` are both optional.
 
 ## The stage vocabulary
 
@@ -217,6 +220,9 @@ digraph route {
 - `operations` or `unsupported` naming an operation outside the declared role's set; an operation in
   both; a role operation in neither.
 - A skill name with no `<pack root>/skills/<skill name>/SKILL.md` on disk.
+- `scripts` naming an operation absent from `operations`, or a path that does not resolve to a real
+  file under the pack root.
+- `scripts` present but empty. Omit the key instead.
 - A stage skill's frontmatter omitting `context: fork`.
 - A top-level key outside the fixed set for the manifest's `kind`, or a required key missing.
 - `onboarding_state_path` or `audit_findings_path` present but empty, absolute (a leading `/`), or
@@ -239,6 +245,14 @@ digraph route {
   that role has, and must not also be a key of `operations`.
 - **Completeness.** Every operation the declared role has must appear in one of the two. One in
   neither is silently missing — the runner would only discover it mid-run.
+- `scripts` — optional. A mapping of operation name to a path, relative to the pack root, of a
+  directly-executable script implementing that same operation for a caller that must run it as a
+  subprocess rather than through `Skill()` — most operations are only ever invoked the latter way, so
+  a provider with no such caller declares nothing here. Every key must also be a key of `operations`
+  (naming a script for an operation this pack does not implement is meaningless), and every path must
+  resolve to a real file under the pack root, the same way an `operations:` skill name must resolve.
+  A caller that needs an operation's script form and finds `scripts` silent about it degrades rather
+  than guessing one — this is never inferred from a skill's own prose.
 - `text_conventions` — `tracker` role only. Describes how one tracker's items are written: the word
   list that sets `design_mentioned` (`design_keywords`) and the heading names that set
   `has_reproduction_steps` (`reproduction_headings`) and `has_acceptance_criteria`
@@ -287,6 +301,22 @@ operations:
 unsupported: []
 ```
 
+A `browser`-role provider that also has a script-level caller declares `scripts` for the operation
+that caller needs:
+
+```yaml
+kind: provider
+role: browser
+operations:
+  render: render
+  capture: capture
+  measure: measure
+  interact: interact
+unsupported: []
+scripts:
+  render: "skills/render/scripts/render.cjs"
+```
+
 ## Reference, not restatement
 
 A skill or script that reads a pack manifest references this file with one line rather than
@@ -311,8 +341,9 @@ with an otherwise-conformant manifest.
 `no-readiness-criteria`, `readiness-criteria-unknown-field`, `digraph-node-not-a-stage`,
 `digraph-missing-node`, `digraph-label-mismatch`, `onboarding-path-absolute`,
 `onboarding-path-traversal` and `onboarding-path-empty`. `fixtures/pack-manifest/provider-invalid/`
-holds `missing-operation`, `unknown-operation` and `dangling-skill`. Remaining shape errors inside a
-single block are written inline in the validator's test suite rather than given a directory each.
+holds `missing-operation`, `unknown-operation` and `dangling-skill`. `scripts`'s own rejection cases
+(unknown operation, dangling script, present-but-empty) are inline in the validator's test suite,
+alongside the remaining shape errors that fit a single block.
 
 ## Verification
 
