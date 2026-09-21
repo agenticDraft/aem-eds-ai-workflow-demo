@@ -273,10 +273,26 @@ Capture its entire output. Read the captured envelope's `verdict` and, when pres
      none was found, state plainly that no verification target is on record for this run.
    - Whether a person can open it, stated plainly either way: `target_reachable: true` — state the
      target is open for review at that location; `target_reachable: false` — state plainly that it
-     could not be confirmed open, quoting `target_reachable_reason` verbatim. **Naming what a person
-     would need to author to make it openable is Phase 7 / Task 14's own deliverable, not this
-     task's** — do not invent that line here; a location that cannot be proven open is stated as
-     unconfirmed and left there.
+     could not be confirmed open, quoting `target_reachable_reason` verbatim.
+
+     **When it is also `false`, check the manifest's own `coverage_gaps` for an entry matching**
+     `"the rendered target was a generated placeholder fixture (<file>), not authored content"` —
+     the exact string `eds-verify/SKILL.md`'s own **Report warn** node writes when this run never
+     located any existing content for the target block. This is the one case this stage can name a
+     remedy for without guessing: the manifest itself already recorded that nothing real stands
+     behind the target, and named the file. **Present** — add one further line, in this
+     project's own terms, never a generic instruction: name the target block(s) — `fact-record.yaml`'s
+     `components` when non-empty, otherwise the `<name>` in `files_named` matching `blocks/<name>/…`,
+     the same resolution **Read the fact record and plan** already has on hand — and the fixture path
+     `<file>` the coverage-gap entry named, phrased as what a person would need to author, for
+     example: "To make this openable, author and publish real `<block>` content — the only content
+     behind this target right now is the generated placeholder fixture at `<file>`." **Absent** — add
+     nothing further; real content already stands behind this target, so there is nothing to author,
+     and inventing a remedy anyway would be exactly the generic-boilerplate line this task's own
+     "Reject if" forbids. Either way, **this stage never authors, generates or publishes anything to
+     make the note read better** (D87) — it only names what the manifest already proved is missing.
+     A location that cannot be proven open, with no remedy line added, is stated as unconfirmed and
+     left there, the same as before this addition.
    - Any coverage gap the manifest recorded, **in the words it recorded them** — one line per
      `coverage_gaps` entry, verbatim, never paraphrased or summarized into one sentence. `[]` (or no
      manifest at all) — omit this part of the note rather than stating "no gaps", since an absent
