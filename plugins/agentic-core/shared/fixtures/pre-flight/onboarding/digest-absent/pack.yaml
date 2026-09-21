@@ -1,0 +1,3 @@
+kind: platform
+audit_findings_path: "audit.md"
+audit_digest_path: "audit-digest.txt"

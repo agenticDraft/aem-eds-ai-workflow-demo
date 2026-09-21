@@ -33,6 +33,7 @@ artifacts:
     path: "<relative path>"
 onboarding_state_path: "<relative path>"   # optional
 audit_findings_path: "<relative path>"     # optional
+audit_digest_path: "<relative path>"       # optional
 ```
 
 ## Format — provider pack
@@ -59,8 +60,9 @@ Fixed per kind, in order.
 - **platform** — `kind`, `stages`, `always_autonomous`, `readiness_criteria`, `artifacts`. All
   required; `always_autonomous` and `artifacts` may be empty (`[]`) but must be present, the same way
   an empty `artifacts` list is present on every result envelope rather than omitted.
-  `onboarding_state_path` and `audit_findings_path` (D80) are the two exceptions to "all required" —
-  both optional, and a pack may declare neither, one, or both.
+  `onboarding_state_path`, `audit_findings_path` (D80) and `audit_digest_path` (G500) are the
+  exceptions to "all required" — all three optional, and a pack may declare any subset of them,
+  including none.
 - **provider** — `kind`, `role`, `operations`, `unsupported`, `scripts`, and `text_conventions` for
   the `tracker` role. The first four are required; `unsupported` may be empty (`[]`) but must be
   present. `scripts` and `text_conventions` are both optional.
@@ -96,11 +98,16 @@ open class.
   naming a field the record does not carry could never be satisfied.
 - `artifacts` — every entry's `produced_by` must be a stage id present in `stages`. `id` names the
   artifact; `path` is the relative path it is written to.
-- `onboarding_state_path`, `audit_findings_path` (D80) — both optional. When present, each must be a
+- `onboarding_state_path`, `audit_findings_path` (D80), `audit_digest_path` (G500) — all three
+  optional. When present, each must be a
   non-empty, quoted, relative path: no leading `/`, and no `..` path segment. This validator checks
   only that the string is a well-formed relative path — never that it exists in any project's
   working tree, since a pack has no fixed project to check against. A declared path is read at
   runtime by pre-flight's third check (`pre-flight.md`), never by anything in this validator.
+- `audit_digest_path` (G500) — the file the platform pack's own audit writes recording what each
+  file it judged hashed to when it judged it: one `<sha256>  <relative path>` line per file. The
+  core never learns what any listed path is for; it re-hashes the paths the digest itself names,
+  which is how a freshness check stays platform-neutral (D28). Declared here, read only at runtime.
 - Every skill named in `stages` must resolve to `<pack root>/skills/<skill name>/SKILL.md`. A skill
   name with no matching directory is a **dangling skill reference**.
 - Every skill named in `stages` must declare isolated execution in its own frontmatter — the literal
@@ -225,8 +232,8 @@ digraph route {
 - `scripts` present but empty. Omit the key instead.
 - A stage skill's frontmatter omitting `context: fork`.
 - A top-level key outside the fixed set for the manifest's `kind`, or a required key missing.
-- `onboarding_state_path` or `audit_findings_path` present but empty, absolute (a leading `/`), or
-  containing a `..` path segment.
+- `onboarding_state_path`, `audit_findings_path` or `audit_digest_path` present but empty, absolute
+  (a leading `/`), or containing a `..` path segment.
 - Any file under the pack root containing the literal sequence `{{`, the reserved marker for an
   unfilled template placeholder. A generated pack that still carries one is a failed setup, not a
   pack with a hole in it.
@@ -331,9 +338,9 @@ for their own contracts.
 `fixtures/pack-manifest/provider-valid/` is the provider one. Each is a small pack root with a
 matching `skills/` directory.
 
-`fixtures/pack-manifest/platform-valid-onboarding/` is `platform-valid` with both
-`onboarding_state_path` and `audit_findings_path` declared — proof the two optional keys coexist
-with an otherwise-conformant manifest.
+`fixtures/pack-manifest/platform-valid-onboarding/` is `platform-valid` with all three of
+`onboarding_state_path`, `audit_findings_path` and `audit_digest_path` declared — proof the optional
+keys coexist with an otherwise-conformant manifest, and in that order.
 
 `fixtures/pack-manifest/platform-invalid/` holds one directory per rejection case:
 `unknown-stage-always-autonomous`, `unknown-stage-artifact-producer`, `dangling-skill`,

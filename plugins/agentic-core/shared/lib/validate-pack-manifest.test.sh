@@ -69,6 +69,7 @@ assert_exit "platform-valid-full-route accepted (exit 0)" 0 $ST "$OUT"
 echo "[accept] a platform manifest declaring onboarding_state_path and audit_findings_path (D80)"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-valid-onboarding/pack.yaml" 2>&1); ST=$?
 assert_exit "platform-valid-onboarding accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "still reaches the trailing unexpected-content check" "valid: platform" "$OUT"
 
 echo "[accept] validator 16 — evidence_manifest naming an artifact this pack registers (D86)"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-valid-evidence-manifest/pack.yaml" 2>&1); ST=$?
@@ -266,6 +267,12 @@ echo "[reject] validator 15 — audit_findings_path contains a '..' segment"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/onboarding-path-traversal/pack.yaml" 2>&1); ST=$?
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the segment" "'..' path segment" "$OUT"
+
+echo "[reject] validator 15 — audit_digest_path is absolute (G500)"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/digest-path-absolute/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the key" "audit_digest_path" "$OUT"
+assert_contains "reason says absolute" "not absolute" "$OUT"
 
 echo "[reject] validator 15 — onboarding_state_path present but empty"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/platform-invalid/onboarding-path-empty/pack.yaml" 2>&1); ST=$?

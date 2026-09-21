@@ -19,4 +19,4 @@ artifacts:
     path: ".ai/run-context/change-summary.md"
 onboarding_state_path: "onboarding/manifest.md"
 audit_findings_path: "onboarding/audit.md"
-audit_digest_path: "onboarding/audit-digest.txt"
+audit_digest_path: "/etc/onboarding/audit-digest.txt"
