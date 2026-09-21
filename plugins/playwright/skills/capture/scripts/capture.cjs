@@ -13,6 +13,9 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+// A missing tool is reported with the remedy this pack's own manifest
+// declares, so the operation and the diagnostic cannot drift apart.
+const { missingToolSummary } = require('../../../scripts/requires.cjs');
 
 function printEnvelope(fields) {
   const lines = ['## Result', `verdict: ${fields.verdict}`, `summary: ${fields.summary}`];
@@ -78,7 +81,7 @@ async function main() {
 
   const playwright = resolvePlaywright();
   if (!playwright) {
-    fail('playwright is not installed on this machine (npm install -g playwright, or add it as a project devDependency).');
+    fail(missingToolSummary('playwright'));
     return;
   }
 
@@ -87,7 +90,7 @@ async function main() {
     browser = await playwright.chromium.launch({ headless: true });
   } catch (e) {
     if (/Executable doesn't exist/.test(e.message)) {
-      fail('the Chromium browser binary is not installed (run: npx playwright install chromium).');
+      fail(missingToolSummary('chromium'));
       return;
     }
     fail(`could not launch Chromium: ${e.message.split('\n')[0]}`);

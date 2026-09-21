@@ -47,6 +47,13 @@ of a live process. Where nothing is configured to start that preview, it says so
 never a block, because a preview that is already answering makes an unconfigured serve command
 harmless, and only the probe this file refuses could tell those two apart.
 
+**Where the tool question is answered instead.** A provider pack may need something present on the
+machine that runs it. It declares that in its own manifest, as data; a read-only diagnostic probes
+those declarations on demand and reports each missing tool with the remedy the pack itself
+declared; and the operation refuses to run without its tool, returning the envelope's `fail` status
+carrying that same remedy. Pre-flight reads none of it. This is the split that lets the ban above
+stand without the question going unanswered — and nothing in either place ever installs anything.
+
 **A declared-path file test (the third check, below) is not a health check either, though it does
 touch the project's own disk.** The first two checks read what a process reports about itself,
 which can go wrong for reasons the pack does not control. Testing whether a path the pack itself

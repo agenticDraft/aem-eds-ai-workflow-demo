@@ -1,5 +1,5 @@
 ---
-description: browser.interact — loads a target URL, acts on it (click, press a key, type into a field), and returns the resulting state (geometry, a fixed set of computed style values, and every aria-* attribute plus class) for one or more named selectors, snapshotted both before the first action and after the last one, from a real headless Chromium. Requires the playwright npm package installed on this machine and its Chromium browser binary downloaded (npx playwright install chromium).
+description: browser.interact — loads a target URL, acts on it (click, press a key, type into a field), and returns the resulting state (geometry, a fixed set of computed style values, and every aria-* attribute plus class) for one or more named selectors, snapshotted both before the first action and after the last one, from a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
 ---
 
 # interact
