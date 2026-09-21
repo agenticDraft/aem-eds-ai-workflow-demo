@@ -57,7 +57,14 @@ new_fixture() {
   local root
   root="$(mktemp -d "${TMPDIR:-/tmp}/check-publish-criteria-${name}.XXXXXX")"
   FIXTURE_ROOTS+=("$root")
-  git init --quiet --bare "$root/upstream.git" >/dev/null
+  # The default branch is named explicitly at both ends. Left to the
+  # environment, the bare repository's own HEAD is whatever that machine
+  # configures as its initial branch, while the push below always creates
+  # `main` — and on a machine where those two differ, `set-head -a` cannot
+  # resolve a remote default at all, so every fixture built here ends up
+  # without origin/HEAD and every case using one fails for a reason that has
+  # nothing to do with what it was testing.
+  git init --quiet --bare --initial-branch=main "$root/upstream.git" >/dev/null
   git clone --quiet "$root/upstream.git" "$root/work" >/dev/null 2>&1
   (
     cd "$root/work"
@@ -67,7 +74,9 @@ new_fixture() {
     git add README.md
     git commit --quiet -m "initial"
     git push --quiet origin HEAD:main
-    git remote set-head origin -a >/dev/null
+    # Named rather than asked for (`-a`): this fixture built the remote, so
+    # what its default branch is was decided here, not discovered.
+    git remote set-head origin main >/dev/null
   ) >/dev/null 2>&1
   echo "$root/work"
 }
