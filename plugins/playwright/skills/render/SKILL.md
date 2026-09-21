@@ -1,5 +1,5 @@
 ---
-description: browser.render — loads a target URL in a real headless Chromium and reports its load state (final URL, HTTP status, title, console errors). Requires the playwright npm package installed on this machine and its Chromium browser binary downloaded (npx playwright install chromium).
+description: browser.render — loads a target URL in a real headless Chromium and reports its load state (final URL, HTTP status, title, console errors). Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
 ---
 
 # render
