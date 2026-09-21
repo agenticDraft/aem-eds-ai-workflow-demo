@@ -13,5 +13,10 @@ export default async function decorate(block) {
     ul.append(li);
   });
   ul.querySelectorAll('picture > img').forEach((img, index) => img.closest('picture').replaceWith(createOptimizedPicture(img.src, img.alt, index === 0, [{ width: '750' }])));
+  /* an authored card button (project's own button convention) opens its link in a new tab */
+  ul.querySelectorAll('.cards-card-body a.button').forEach((a) => {
+    a.target = '_blank';
+    a.rel = 'noopener';
+  });
   block.replaceChildren(ul);
 }
