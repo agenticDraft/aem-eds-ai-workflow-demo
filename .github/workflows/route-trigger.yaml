@@ -36,6 +36,23 @@ jobs:
             echo "malformed dispatch; empty or missing:$missing" >&2
             exit 1
           fi
+
+          # Strict shape, defense in depth: every field but AUTHOR_NAME has a
+          # known shape and is rejected here if it doesn't match. AUTHOR_NAME
+          # is a human display name and is deliberately left unvalidated —
+          # it may legitimately contain quotes, spaces and non-Latin script;
+          # it is made safe downstream by JSON-encoding, not by pattern
+          # policing.
+          fail_shape() {
+            echo "malformed dispatch; $1 does not match the expected shape: '$2'" >&2
+            exit 1
+          }
+          [[ "$ITEM_ID" =~ ^[A-Za-z][A-Za-z0-9_]*-[0-9]+$ ]] || fail_shape "ITEM_ID" "$ITEM_ID"
+          [[ "$COMMENT_ID" =~ ^[0-9]+$ ]] || fail_shape "COMMENT_ID" "$COMMENT_ID"
+          [[ "$RULE_VERSION" =~ ^[0-9]+$ ]] || fail_shape "RULE_VERSION" "$RULE_VERSION"
+          [[ "$AUTHOR_ID" =~ ^[A-Za-z0-9:_-]+$ ]] || fail_shape "AUTHOR_ID" "$AUTHOR_ID"
+          [[ "$ITEM_TYPE" =~ ^[A-Za-z][A-Za-z0-9\ _-]*$ ]] || fail_shape "ITEM_TYPE" "$ITEM_TYPE"
+
           echo "payload shape ok"
 
       # Precondition for the identity gate. The gate reads the allowlist out
@@ -63,7 +80,7 @@ jobs:
               echo ""
               echo "- item: \`$ITEM_ID\`"
               echo "- comment: \`$COMMENT_ID\`"
-              echo "- author: $AUTHOR_NAME"
+              printf -- '- author: `%s`\n' "$AUTHOR_NAME"
               echo ""
               echo "The author is not in \`trigger.allowed_identities\`. No run was started."
             } >> "$GITHUB_STEP_SUMMARY"
@@ -105,21 +122,24 @@ jobs:
         run: |
           set -u
           mkdir -p handoff
-          cat > handoff/handoff.json <<EOF
-          {
-            "item_id": "${ITEM_ID}",
-            "comment_id": "${COMMENT_ID}",
-            "author_name": "${AUTHOR_NAME}",
-            "item_type": "${ITEM_TYPE}"
-          }
-          EOF
+          # Built with jq, not a heredoc: every value is JSON-encoded rather
+          # than pasted into the string, so a quote in AUTHOR_NAME (a free-text
+          # field this workflow does not and must not validate) cannot break
+          # out of its string and inject a duplicate/forged key.
+          jq -n \
+            --arg item_id     "$ITEM_ID" \
+            --arg comment_id  "$COMMENT_ID" \
+            --arg author_name "$AUTHOR_NAME" \
+            --arg item_type   "$ITEM_TYPE" \
+            '{item_id: $item_id, comment_id: $comment_id, author_name: $author_name, item_type: $item_type}' \
+            > handoff/handoff.json
           {
             echo "### Trigger accepted"
             echo ""
             echo "- item: \`$ITEM_ID\`"
             echo "- type: $ITEM_TYPE"
             echo "- comment: \`$COMMENT_ID\`"
-            echo "- author: $AUTHOR_NAME"
+            printf -- '- author: `%s`\n' "$AUTHOR_NAME"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload handoff
