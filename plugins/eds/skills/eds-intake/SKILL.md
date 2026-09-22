@@ -34,6 +34,7 @@ digraph eds_intake {
     "Fetch succeeded?" [shape=diamond];
     "Compute the fact record" [shape=box];
     "Fact record computed?" [shape=diamond];
+    "Write the design source kind" [shape=box];
     "Report fail" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
 
@@ -42,8 +43,10 @@ digraph eds_intake {
     "Fetch succeeded?" -> "Compute the fact record" [label="pass/warn"];
     "Fetch succeeded?" -> "Report fail" [label="fail/question/invalid envelope"];
     "Compute the fact record" -> "Fact record computed?";
-    "Fact record computed?" -> "Report pass" [label="exit 0"];
+    "Fact record computed?" -> "Write the design source kind" [label="exit 0"];
     "Fact record computed?" -> "Report fail" [label="exit 1/2"];
+    "Write the design source kind" -> "Report pass" [label="exit 0"];
+    "Write the design source kind" -> "Report fail" [label="exit 2"];
 }
 ```
 
@@ -113,6 +116,28 @@ deciding anything from it.
   to **Report fail**.
 - Exit `2` — a usage error in this skill's own invocation of the script, not the tracker's fault.
   Go to **Report fail**, naming the usage error.
+
+### Write the design source kind
+
+Run:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/write-design-source-kind.sh \
+  .ai/run-context/fact-record.yaml \
+  .ai/run-context/sanitized-spec.md \
+  <fetched-item-json-path>
+```
+
+reusing the same fetched-item path **Compute the fact record** already used. This runs
+`resolve-design-source.py` — the identical script `extract` calls later, against the identical
+artifacts this stage just wrote — and appends its decision to the fact record as
+`design_source_kind` (`../../../agentic-core/shared/fact-record.md`, D100, G503). Not a second
+opinion: both stages read the same deterministic inputs, so they can never disagree.
+
+- Exit `0` — appended. Go to **Report pass**.
+- Exit `2` — a usage error (the resolver itself could not run to a verdict). Go to **Report fail**,
+  naming the error. This should not happen if **Compute the fact record** just succeeded against
+  the same files, but is not assumed away.
 
 ### Report fail
 

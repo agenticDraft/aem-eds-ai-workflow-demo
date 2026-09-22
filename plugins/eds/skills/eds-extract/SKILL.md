@@ -76,7 +76,7 @@ digraph eds_extract {
 Run:
 
 ```
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-extract/scripts/resolve-design-source.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/resolve-design-source.py \
   .ai/run-context/fact-record.yaml \
   .ai/run-context/sanitized-spec.md \
   .ai/tracker/fetch-item-<item_id>.json

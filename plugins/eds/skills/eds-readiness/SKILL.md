@@ -5,8 +5,10 @@ context: fork
 
 # eds-readiness
 
-This stage always runs. It has no `tracker`/`scm`/`design`/`browser` role dependency — it reads the
-fact record a prior stage wrote and this pack's own manifest.
+This stage always runs. It has no `tracker`/`scm`/`design`/`browser` role dependency — it never
+resolves or calls a provider pack. It reads the fact record a prior stage wrote, this pack's own
+manifest, run state, project config, and — by path only, as a manifest file — the configured design
+pack's own manifest (D100).
 
 Read `../../../agentic-core/shared/readiness-criteria.md` for the criteria this stage checks and
 why this gate carries no reviewing-model half, `../../../agentic-core/shared/fact-record.md` for
@@ -16,14 +18,18 @@ this stage must end with.
 ## Input
 
 None. This stage reads `.ai/run-context/fact-record.yaml` at its fixed path — the artifact `intake`
-always writes — and `${CLAUDE_PLUGIN_ROOT}/pack.yaml`, this platform pack's own manifest.
+always writes — `${CLAUDE_PLUGIN_ROOT}/pack.yaml`, this platform pack's own manifest, `.ai/run-state.json`
+(`shared/run-state.md`), `.ai/project-config.yaml`'s `packs.design` value, and, when that value names
+a pack, `${CLAUDE_PLUGIN_ROOT}/../<packs.design>/pack.yaml` — the same sibling-directory convention
+`eds-intake`'s own "Resolve the tracker pack" step already uses.
 
 **This stage writes nothing, anywhere.** It produces no artifact, and the pack manifest declares
 none for it. Its whole output is the verdict in its `## Result` block. Unlike `plan-gate` and
 `publish-gate`, this stage does not run in an isolated worktree: it never reads project source,
-never reads a diff, and never reads anything outside `.ai/run-context/fact-record.yaml` and its own
-plugin's manifest, both of which are identical whether read from this checkout or any other. There
-is nothing here an isolated checkout would protect.
+never reads a diff, and reads nothing outside the fixed-path files named above — the fact record,
+run state, project config, this pack's own manifest and (by path only) another pack's manifest —
+every one of which is identical whether read from this checkout or any other. There is nothing here
+an isolated checkout would protect.
 
 ## Flow
 
@@ -33,6 +39,9 @@ digraph eds_readiness {
     "Fact record present?" [shape=diamond];
     "Run the deterministic criteria check" [shape=box];
     "Criteria hold?" [shape=diamond];
+    "Resolve the configured design pack" [shape=box];
+    "Run the non-interactive check" [shape=box];
+    "Check verdict?" [shape=diamond];
     "Report fail" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
 
@@ -40,9 +49,14 @@ digraph eds_readiness {
     "Fact record present?" -> "Run the deterministic criteria check" [label="present and non-empty"];
     "Fact record present?" -> "Report fail" [label="missing or empty"];
     "Run the deterministic criteria check" -> "Criteria hold?";
-    "Criteria hold?" -> "Report pass" [label="exit 0"];
+    "Criteria hold?" -> "Resolve the configured design pack" [label="exit 0"];
     "Criteria hold?" -> "Report fail" [label="exit 1"];
     "Criteria hold?" -> "Report fail" [label="exit 2"];
+    "Resolve the configured design pack" -> "Run the non-interactive check";
+    "Run the non-interactive check" -> "Check verdict?";
+    "Check verdict?" -> "Report pass" [label="exit 0"];
+    "Check verdict?" -> "Report fail" [label="exit 1"];
+    "Check verdict?" -> "Report fail" [label="exit 2"];
 }
 ```
 
@@ -75,7 +89,7 @@ after it (`readiness-criteria.md`).
 
 ### Criteria hold?
 
-- Exit `0` — every criterion holds. Go to **Report pass**.
+- Exit `0` — every criterion holds. Go to **Resolve the configured design pack**.
 - Exit `1` — a criterion fails, and stderr names the undeclared item_type or the exact field that
   did not hold. Go to **Report fail**.
 - Exit `2` — a usage error: the check did not run to a verdict at all (no usable `item_type` in the
@@ -84,14 +98,51 @@ after it (`readiness-criteria.md`).
   has told you nothing about the item, and treating "did not run" as "passed" is how a gate becomes
   decorative.
 
+### Resolve the configured design pack
+
+Read `.ai/project-config.yaml`'s `packs.design` value. Absent or the literal `none` — the third
+argument to **Run the non-interactive check** below is the literal string `none`. Otherwise it is
+`${CLAUDE_PLUGIN_ROOT}/../<packs.design>/pack.yaml` — the same "installed pack = sibling directory
+of the plugin root" convention `eds-intake`'s own "Resolve the tracker pack" step uses. Do not check
+this path exists yourself; the script below reports that as its own usage error if it does not.
+
+### Run the non-interactive check
+
+Run:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-non-interactive-readiness.sh \
+  .ai/run-context/fact-record.yaml \
+  .ai/run-state.json \
+  <design-pack.yaml-path-or-none>
+```
+
+D100, G503. Reads `design_source_kind` (written by `intake`, `fact-record.md`) and `mode`
+(`run-state.md`) from files this gate already trusts, and the resolved design pack's manifest —
+never a live call to the design role, never OAuth, never anything that would give this gate the
+`design` role dependency its own description says it does not have.
+
+### Check verdict?
+
+- Exit `0` — proceed: not a `url` source, not `autonomous` mode, no design pack configured, or the
+  configured pack does not declare `fetch_reference` under `requires_interactive_session`. Go to
+  **Report pass**.
+- Exit `1` — refuse: a `url`-sourced item, `autonomous` mode, and the configured design pack
+  declares it cannot complete `fetch_reference` without an interactive session. Stdout names the
+  item id and the reason. Go to **Report fail**.
+- Exit `2` — a usage error (a file this stage itself should have supplied could not be read). Go to
+  **Report fail**, naming the error — not the same failure as exit `1` and must not be reported as
+  one, for the same reason **Criteria hold?**'s own exit `2` is not.
+
 ### Report fail
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-fact-record reason; or the checker's `invalid: <reason>`
-  from stderr, verbatim, never reworded into something more general; or that the checker could not
-  run to a verdict, naming its usage error.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-fact-record reason; the criteria checker's `invalid: <reason>`
+  from stderr, verbatim, never reworded into something more general; the non-interactive check's own
+  `refuse: <reason>` line, verbatim, when that is what fired; or that a checker could not run to a
+  verdict, naming its usage error.
 - `artifacts: []` — this stage writes nothing.
 - `next_action: none`
 
@@ -109,7 +160,12 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 This adapter answers `readiness-criteria.md`'s criteria 1–3 only. It never returns
 `verdict: question` for an item whose only design source is an ambiguous image attachment (core
-contract §6.1, gap G36) — the fact record does not carry enough to tell an image-only source from a
-URL-backed one, and this gate is forbidden from re-reading the raw item to recover that distinction.
+contract §6.1, gap G36). **Distinguishing a URL-backed source from an image-only one is no longer
+part of this limitation** — `design_source_kind` (`fact-record.md`, D100, G503) now carries that
+distinction, written by `intake`, so this gate reads it from the fact record rather than re-reading
+the raw item; the "forbidden from re-reading the raw item" rule stands unchanged, it is simply no
+longer the obstacle here. What G36 still names is narrower and still open: when more than one image
+is attached and irreducibly ambiguous which is the reference, this gate has no way to ask a human
+which one — it can refuse the whole item (readiness criteria) but not pose that specific question.
 See `readiness-criteria.md`'s own "Known limitation" section and the gap register entry it
 references.

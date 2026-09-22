@@ -372,6 +372,68 @@ assert_contains "reason names the kind it belongs to" "requires belongs to a pro
 assert_exit "reason does not misdiagnose as unexpected content" 0 $? ""
 rm -rf "$PLAT_TMP"
 
+mkdir -p "$PROV_TMP/skills/fetch-reference"
+touch "$PROV_TMP/skills/fetch-reference/SKILL.md"
+
+echo "[accept] validator 19 — requires_interactive_session naming a real operation (D100)"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations:
+  fetch_reference: fetch-reference
+unsupported: []
+requires_interactive_session: [fetch_reference]
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "still reports the kind" "valid: provider" "$OUT"
+
+echo "[accept] validator 19 — absent means every operation runs headless (D100)"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations:
+  fetch_reference: fetch-reference
+unsupported: []
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
+echo "[reject] validator 19 — names an operation this pack does not implement"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations:
+  fetch_reference: fetch-reference
+unsupported: []
+requires_interactive_session: [fetch_reference, render]
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the unimplemented operation" "requires_interactive_session names an operation this pack does not implement in 'operations:': 'render'" "$OUT"
+
+echo "[reject] validator 19 — present but empty"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations:
+  fetch_reference: fetch-reference
+unsupported: []
+requires_interactive_session: []
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says omit the key" "omit the key instead" "$OUT"
+
+echo "[reject] validator 19 — requires_interactive_session on a platform pack"
+PLAT_TMP="$(mktemp -d "${TMPDIR:-/tmp}/validate-pack-manifest-platform.XXXXXX")"
+cp -R "$FIXDIR/platform-valid/." "$PLAT_TMP/"
+printf 'requires_interactive_session: [intake]\n' >> "$PLAT_TMP/pack.yaml"
+OUT=$(bash "$VALIDATOR" "$PLAT_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the kind it belongs to" "requires_interactive_session belongs to a provider pack, not a platform pack" "$OUT"
+rm -rf "$PLAT_TMP"
+
 rm -rf "$PROV_TMP"
 
 # --- committed rejection fixtures -------------------------------------------

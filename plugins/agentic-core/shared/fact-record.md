@@ -25,6 +25,8 @@ has_description: true | false
 has_acceptance_criteria: true | false
 has_reproduction_url: true | false
 has_reproduction_steps: true | false
+
+design_source_kind: decline | url | image | ambiguous | missing
 ```
 
 ## Field rules
@@ -40,6 +42,15 @@ has_reproduction_steps: true | false
 - `has_description`, `has_acceptance_criteria`, `has_reproduction_url`, `has_reproduction_steps` —
   whether the item carries each. `true` or `false`. Consumed by the `readiness` gate's declared
   criteria.
+- `design_source_kind` — which of `resolve-design-source.py`'s five decisions this item resolves
+  to: `decline` (neither `design_source` nor `design_mentioned`), `url` (a design-tool URL in the
+  sanitized text), `image` (exactly one image attachment), `ambiguous` (more than one, irreducibly),
+  or `missing` (a design source was wanted but nothing resolvable was found). Written by `intake`
+  calling the same script `extract` already calls for its own resolution (`shared/scripts/`,
+  D100) — a second literal-match script, not a second opinion: both read the identical inputs
+  `intake` itself just wrote, so the two can never disagree. Exists so `readiness` can refuse a
+  `url`-sourced item up front (Phase 10 / Task 2, G503) without re-reading the raw fetched item,
+  which it is otherwise forbidden to do (see `eds-readiness/SKILL.md`'s "Known limitation").
 
 **`design_source` and `design_mentioned` are two different questions**, and the pair is what makes
 four cases separable. Present-and-wanted and neither-nor are the easy ones. **Wanted but absent** —
@@ -88,6 +99,8 @@ has_description: true
 has_acceptance_criteria: true
 has_reproduction_url: false
 has_reproduction_steps: false
+
+design_source_kind: decline
 ```
 
 ## Anti-patterns

@@ -42,17 +42,26 @@ Core contract §6.1 and gap G36 describe a fourth case: when an image attachment
 mockup are structurally identical — and `readiness` is specified to return `verdict: question`
 naming the attachments and asking which is the reference.
 
-That case cannot be built from the fact record as it stands today. `design_source` is a single
-boolean, `true` whether the reference is a resolvable design-tool URL, an image attachment, or
-both (`fact-record.md`'s own field rule: "whether a design reference is present, in any accepted
-form"). Nothing in the record distinguishes an image-only item from a URL-backed one, and nothing
+**Update, 2026-09-22 (Phase 10 / Task 2, D100, G503):** the paragraph below described the fact
+record as it stood before this date. `design_source_kind` now distinguishes `url` from `image` from
+`ambiguous`, so the first sentence of the next paragraph is no longer true — kept for its history,
+not its current accuracy. What is still true and still unbuilt: nothing in the record carries
+attachment identity (filenames), so a `question` naming *which* attachment still cannot be
+constructed. See G54's 2026-09-22 addendum for the full accounting.
+
+That case cannot be built from the fact record as it stood before 2026-09-22. `design_source` is a
+single boolean, `true` whether the reference is a resolvable design-tool URL, an image attachment,
+or both (`fact-record.md`'s own field rule: "whether a design reference is present, in any accepted
+form"). Nothing in the record distinguished an image-only item from a URL-backed one, and nothing
 carries the attachment names a `question` would need to name. Re-reading the raw fetched item to
 recover that distinction is exactly what §4 forbids this gate from doing ("it never re-reads the
-item's text, so its criteria stay deterministic").
+item's text, so its criteria stay deterministic") — which is why the fix (D100) added a field to
+the record instead, computed once by `intake`, rather than lifting that prohibition.
 
 Filed as its own gap, referencing G36, in the gap register — see that entry for what a fix would
-require. This check and this gate answer criteria 1–3 only; a `design_source: true` item is never
-asked about, regardless of whether its source is an image or a URL.
+require and G54's addendum for what's built now. This check and this gate answer criteria 1–3 only;
+a `design_source: true` item is never asked about, regardless of whether its source is an image or
+a URL — that part of the limitation stands even though the fact record can now tell the two apart.
 
 ## Field rules
 

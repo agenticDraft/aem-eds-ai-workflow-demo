@@ -88,11 +88,13 @@ STAGE_VOCAB=(intake readiness extract conventions serve baseline prototype
 FACT_FIELDS=(item_id item_type labels components files_named
              design_source design_mentioned
              has_description has_acceptance_criteria
-             has_reproduction_url has_reproduction_steps)
+             has_reproduction_url has_reproduction_steps
+             design_source_kind)
 FACT_KINDS=(string string list list list
             bool bool
             bool bool
-            bool bool)
+            bool bool
+            string)
 
 field_kind() {
   local want="$1" i
@@ -404,6 +406,14 @@ if [[ "$kind" == "platform" ]]; then
     fail "requires belongs to a provider pack, not a platform pack"
   fi
 
+  # `requires_interactive_session:` is a provider key too (validator 19,
+  # D100) — same reasoning as `requires:` just above: a platform pack binds
+  # stages, never a role's operations, so it has no operation of its own to
+  # declare interactive-only.
+  if [[ "${LINES[cursor]:-}" =~ ^requires_interactive_session:(\ |$) ]]; then
+    fail "requires_interactive_session belongs to a provider pack, not a platform pack"
+  fi
+
   if (( cursor < n )); then
     fail "unexpected content after the last platform key: '${LINES[cursor]}'"
   fi
@@ -657,6 +667,28 @@ if [[ "$kind" == "provider" ]]; then
     done
     [[ $req_count -eq 0 ]] \
       && fail "'requires:' is present but declares no entries — omit the key instead"
+  fi
+
+  # --- requires_interactive_session (validator 19, D100) ---------------------
+  # Optional. Names operations, already in `operations:`, this pack cannot
+  # complete without a session-bound connection. Same shape and same check as
+  # `scripts:` above — every entry must also be a key of `operations:` —
+  # because naming an operation this pack does not implement is meaningless
+  # either way.
+  if [[ "${LINES[cursor]:-}" =~ ^requires_interactive_session:\ \[(.*)\]$ ]]; then
+    bracket_list "${BASH_REMATCH[1]}"
+    RIS_OPS=("${LIST[@]:-}")
+    [[ ${#RIS_OPS[@]} -gt 0 && -n "${RIS_OPS[0]:-}" ]] \
+      || fail "'requires_interactive_session:' is present but declares no entries — omit the key instead"
+    for op_name in "${RIS_OPS[@]:-}"; do
+      found=0
+      for implemented in "${OP_NAMES[@]:-}"; do
+        [[ "$implemented" == "$op_name" ]] && found=1
+      done
+      [[ "$found" -eq 1 ]] \
+        || fail "requires_interactive_session names an operation this pack does not implement in 'operations:': '$op_name'"
+    done
+    cursor=$((cursor + 1))
   fi
 
   if (( cursor < n )); then

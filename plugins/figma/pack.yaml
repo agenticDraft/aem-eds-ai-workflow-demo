@@ -3,3 +3,4 @@ role: design
 operations:
   fetch_reference: fetch-reference
 unsupported: []
+requires_interactive_session: [fetch_reference]

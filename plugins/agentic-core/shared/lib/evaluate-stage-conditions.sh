@@ -56,11 +56,13 @@ fail() {
 FACT_FIELDS=(item_id item_type labels components files_named
              design_source design_mentioned
              has_description has_acceptance_criteria
-             has_reproduction_url has_reproduction_steps)
+             has_reproduction_url has_reproduction_steps
+             design_source_kind)
 FACT_KINDS=(string string list list list
             bool bool
             bool bool
-            bool bool)
+            bool bool
+            string)
 
 field_kind() {
   local want="$1" i

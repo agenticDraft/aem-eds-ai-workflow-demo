@@ -55,6 +55,7 @@ requires:                       # optional
   - tool: <identifier>
     probe: [<argv>, …]
     remedy: "<what a human runs to fix it>"
+requires_interactive_session: [<operation name>, …]   # optional
 ```
 
 ## Top-level keys
@@ -67,9 +68,10 @@ Fixed per kind, in order.
   `onboarding_state_path`, `audit_findings_path` (D80) and `audit_digest_path` (G500) are the
   exceptions to "all required" — all three optional, and a pack may declare any subset of them,
   including none.
-- **provider** — `kind`, `role`, `operations`, `unsupported`, `scripts`, and `text_conventions` for
-  the `tracker` role. The first four are required; `unsupported` may be empty (`[]`) but must be
-  present. `scripts` and `text_conventions` are both optional.
+- **provider** — `kind`, `role`, `operations`, `unsupported`, `scripts`, `text_conventions` for
+  the `tracker` role, and `requires_interactive_session`. The first four are required; `unsupported`
+  may be empty (`[]`) but must be present. `scripts`, `text_conventions` and
+  `requires_interactive_session` are all optional.
 
 ## The stage vocabulary
 
@@ -299,6 +301,17 @@ digraph route {
     than composing their own. The capability check that runs before a route starts reads manifests
     only and never probes a machine, so a missing tool is reported, never guessed at, and never
     discovered by a route that already created a branch.
+- `requires_interactive_session` — optional. Operation names this pack cannot complete without a
+  session-bound connection (an OAuth flow a human completes), as opposed to a credential that can
+  sit in an environment variable. Every entry must also be a key of `operations` — naming an
+  operation this pack does not implement is meaningless, the same rule `scripts` follows. **Absent
+  means every operation can run non-interactively**, the same "absent means ungated" rule
+  `requires` and `unsupported` already follow — a pack declaring nothing here makes no claim either
+  way that a caller may read as "verified headless-safe." Read by the `readiness` gate (D100) to
+  refuse a `url`-sourced design reference up front, in `autonomous` mode only, rather than let the
+  run die four stages later when the operation itself discovers it has no session (G503). Never
+  probed — a declaration, exactly like `requires`, never a live capability check (G15's reasoning:
+  a false negative here would be permanent and environment-dependent).
 - Every skill named in `operations` must resolve to `<pack root>/skills/<skill name>/SKILL.md`.
 
 ## Example — platform
@@ -355,6 +368,18 @@ operations:
 unsupported: []
 scripts:
   render: "skills/render/scripts/render.cjs"
+```
+
+A `design`-role provider whose only operation needs a session-bound connection declares that
+operation under `requires_interactive_session` (D100):
+
+```yaml
+kind: provider
+role: design
+operations:
+  fetch_reference: fetch-reference
+unsupported: []
+requires_interactive_session: [fetch_reference]
 ```
 
 ## Reference, not restatement
