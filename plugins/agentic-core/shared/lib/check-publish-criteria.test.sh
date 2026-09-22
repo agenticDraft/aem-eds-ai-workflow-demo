@@ -255,6 +255,40 @@ OUT=$(bash "$CHECK" "$WORK" 2>&1); ST=$?
 assert_exit "detached HEAD -> usage error (exit 2)" 2 $ST "$OUT"
 assert_contains "reason says detached" "detached HEAD" "$OUT"
 
+# --- drift: every consumer of "the change" resolves it the same way ----------
+# The contract's change-set definition has two halves — the merge-base diff and
+# the untracked, non-ignored files — and the second is the forgettable one,
+# because omitting it is invisible: the check still runs, still reports
+# truthfully, and is simply blind to every file created during the run.
+#
+# That is not hypothetical. A stage shipped with only the first half, passed a
+# change whose every file was new, and the defect surfaced stages later at this
+# gate. A one-time repair does not stop the next consumer repeating it, so the
+# rule is enforced here rather than remembered: anything that resolves a
+# changed-file set must union both halves.
+echo "[drift] every changed-file-set resolution unions the untracked half"
+ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+OFFENDERS=""
+while IFS= read -r candidate; do
+  [[ -z "$candidate" ]] && continue
+  # This test file itself names both halves while discussing them.
+  [[ "$candidate" == *"check-publish-criteria.test.sh" ]] && continue
+  if ! grep -q -- "ls-files --others" "$candidate"; then
+    OFFENDERS+="${candidate#"$ROOT"/} "
+  fi
+done < <(grep -rl -- "diff.*--name-only" "$ROOT" \
+           --include='*.sh' --include='*.md' --include='*.py' 2>/dev/null)
+
+if [[ -z "$OFFENDERS" ]]; then
+  PASS=$((PASS + 1))
+  echo "  ok: no resolution omits the untracked half"
+else
+  FAIL=$((FAIL + 1))
+  echo "  FAIL: these resolve a changed-file set without unioning untracked files"
+  echo "    ${OFFENDERS}"
+  echo "    add 'git ls-files --others --exclude-standard', per publish-criteria.md"
+fi
+
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
 exit $(( FAIL > 0 ? 1 : 0 ))
