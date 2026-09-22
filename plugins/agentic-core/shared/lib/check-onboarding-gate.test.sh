@@ -90,6 +90,56 @@ assert_exit "exit 0" 0 $ST "$OUT"
 assert_contains "onboarding ok" "onboarding: ok" "$OUT"
 assert_contains "audit ok" "audit: ok" "$OUT"
 
+echo "[accept] audit_digest_path declared, every hash matches"
+OUT=$(run_in digest-fresh); ST=$?
+assert_exit "exit 0" 0 $ST "$OUT"
+assert_contains "reports the digest ok" "audit-digest: ok" "$OUT"
+
+echo "[accept] audit_digest_path declared but absent — an audit written before digests existed"
+OUT=$(run_in digest-absent); ST=$?
+assert_exit "still exit 0" 0 $ST "$OUT"
+assert_contains "reports ok, no digest yet" "audit-digest: ok — no digest yet" "$OUT"
+
+echo "[accept] a trusted file changed since the audit — warns, never blocks (G500)"
+OUT=$(run_in digest-stale); ST=$?
+assert_exit "still exit 0" 0 $ST "$OUT"
+assert_contains "reports a warning" "audit-digest: warn" "$OUT"
+assert_contains "names the file that changed" "house-style.md" "$OUT"
+assert_contains "names confidence capped low" "confidence is capped low" "$OUT"
+
+echo "[accept] a trusted file named by the digest no longer exists — warns, never blocks"
+OUT=$(run_in digest-unreadable); ST=$?
+assert_exit "still exit 0" 0 $ST "$OUT"
+assert_contains "reports a warning" "audit-digest: warn" "$OUT"
+assert_contains "names the unreadable file" "house-style.md" "$OUT"
+
+echo "[reject] the digest file is not a digest list — the gate must not pass on input it cannot read"
+OUT=$(run_in digest-malformed); ST=$?
+assert_exit "invalid (exit 1)" 1 $ST "$OUT"
+assert_contains "says what is wrong" "not a digest list" "$OUT"
+assert_contains "names the digest path" "audit-digest.txt" "$OUT"
+
+echo "[reject] an open poisoning finding outranks a stale digest"
+OUT=$(run_in digest-stale-and-poisoning); ST=$?
+assert_exit "blocked (exit 1)" 1 $ST "$OUT"
+assert_contains "blocks on the finding" "F2" "$OUT"
+if [[ "$OUT" != *"audit-digest:"* ]]; then
+  PASS=$((PASS + 1)); echo "  ok: no digest line — the block came first"
+else
+  FAIL=$((FAIL + 1)); echo "  FAIL: no digest line — the block came first"
+  echo "    got: $OUT"
+fi
+
+echo "[accept] a pack declaring no audit_digest_path stays silent about digests"
+OUT=$(run_in audit-clean); ST=$?
+assert_exit "exit 0" 0 $ST "$OUT"
+if [[ "$OUT" != *"audit-digest"* ]]; then
+  PASS=$((PASS + 1)); echo "  ok: no digest line for an undeclared key"
+else
+  FAIL=$((FAIL + 1)); echo "  FAIL: no digest line for an undeclared key"
+  echo "    got: $OUT"
+fi
+
 echo "[usage] no argument"
 OUT=$(bash "$CHECK" 2>&1); ST=$?
 assert_exit "no arg -> usage error (exit 2)" 2 $ST "$OUT"

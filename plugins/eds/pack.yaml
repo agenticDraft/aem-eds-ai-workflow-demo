@@ -95,4 +95,5 @@ artifacts:
     path: ".ai/run-context/delivery-report.md"
 onboarding_state_path: "styles/design-system.md"
 audit_findings_path: ".ai/design/audit.md"
+audit_digest_path: ".ai/design/audit-digest.txt"
 evidence_manifest: evidence-manifest

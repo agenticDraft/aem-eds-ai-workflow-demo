@@ -76,8 +76,8 @@ for a check that, unlike the first two, is not purely about the pack in isolatio
    explicitly: "the runner treats a stage needing it as unrunnable and stops at pre-flight rather
    than mid-run."
 3. **The onboarding gate, when the platform pack declares it (D80, core contract §6.3).** A
-   platform pack's manifest may declare `onboarding_state_path` and/or `audit_findings_path`
-   (`pack-manifest.md`). Neither is required; a pack declaring neither runs this check as a no-op —
+   platform pack's manifest may declare `onboarding_state_path`, `audit_findings_path` and/or
+   `audit_digest_path` (`pack-manifest.md`). None is required; a pack declaring none runs this check as a no-op —
    the same shape check 2 already uses for a provider's `unsupported:` declaration: the core acts
    on a declaration, never on knowledge of the thing declared. For each path the pack does declare,
    resolved relative to the project root:
@@ -91,6 +91,21 @@ for a check that, unlike the first two, is not purely about the pack in isolatio
      file or outbound call exists — naming that finding, the file it names, and that it must be
      resolved through the project's own onboarding-completion flow before this run can proceed. A
      `cosmetic` finding never blocks.
+   - **`audit_digest_path`** (G500) — read only when the file exists; an audit written before the
+     pack declared a digest has none, and that is not a failure. The file is a digest list: one
+     `<sha256>  <relative path>` line per file the audit judged. The check re-hashes the paths the
+     digest itself names — so the core tests files whose meaning it never learns (D28) — and any
+     path whose content has moved, or that is no longer readable, produces a **warning** naming that
+     path, capping confidence `low` the same way an absent `onboarding_state_path` does. It never
+     blocks: a moved file is missing evidence, not a finding. A file that is not a digest list at
+     all is a different matter — the check reports `invalid` and stops, because a gate that cannot
+     read its own input must not report a pass.
+
+   Checks on `audit_findings_path` and `audit_digest_path` run in that order on purpose: an open
+   `poisoning` finding blocks and ends the run, so a freshness warning about the same project is
+   never reached. The digest's shape is decided by the check itself rather than by whichever
+   system checksum tool is installed, because the two in common use disagree — GNU `sha256sum -c`
+   warns and exits `0` on a malformed list where `shasum -a 256 -c` exits `1`.
 4. **The serve notice, when the platform pack declares a `serve` stage (D94).** A pack whose
    `stages:` list has no `serve` stage runs this as a no-op — the same shape checks 2 and 3
    already use for an undeclared thing. For a pack that does declare one, two values the project
@@ -138,11 +153,15 @@ the checks above it — and is reported as what it is, a check that could not ru
 - Writing a branch, a file, or any run state before every check passes.
 - Treating a pack's declared `unsupported:` operation as passable "because this project probably
   never needs it" — pre-flight has no fact record yet to know that.
-- Blocking a run because `onboarding_state_path` is absent. Absence warns and caps confidence; only
-  an open `poisoning` finding at `audit_findings_path` blocks — D80's whole point is that the two
-  checks behave differently on purpose, and collapsing them into one severity defeats it.
-- Running the onboarding gate against a pack that declares neither path. Undeclared means ungated,
-  the same rule this file already applies to a provider's `unsupported:` list.
+- Blocking a run because `onboarding_state_path` is absent, or because a digest at
+  `audit_digest_path` is stale. Both warn and cap confidence; only an open `poisoning` finding at
+  `audit_findings_path` blocks — D80's whole point is that the checks behave differently on purpose,
+  and collapsing them into one severity defeats it.
+- Running the onboarding gate against a pack that declares none of the three paths. Undeclared means
+  ungated, the same rule this file already applies to a provider's `unsupported:` list.
+- Deciding a stale digest from `git log` rather than from content. A trusted file edited in the
+  working tree and not yet committed is exactly the case this check exists for, and no commit
+  timestamp can see it.
 - **Letting the serve notice grow a verdict.** Polling the preview to decide what it says, or
   blocking a run because no serve command is configured, turns the one part of this file's output
   that costs nothing into the health check the rest of it refuses. It reports; it does not decide.
@@ -169,7 +188,11 @@ root" the declared paths resolve against: `ungated` (neither key declared), `onb
 `onboarding-absent` (`onboarding_state_path` declared, the file present or absent),
 `audit-absent` / `audit-clean` / `audit-poisoning` (`audit_findings_path` declared, the file
 absent, present with only a `cosmetic` finding, or present with one `poisoning` finding), and
-`both-declared` (both keys, both files present, clean). `check-onboarding-gate.test.sh` exercises
+`both-declared` (both keys, both files present, clean), and — for `audit_digest_path` —
+`digest-fresh` / `digest-stale` / `digest-absent` / `digest-unreadable` / `digest-malformed`
+(every hash matching, one hash moved, no digest written yet, a listed file deleted, and a file that
+is not a digest list), plus `digest-stale-and-poisoning`, which proves the finding outranks the
+freshness warning. `check-onboarding-gate.test.sh` exercises
 these directly; `check-preflight.test.sh` reuses `fixtures/pack-manifest/platform-valid-onboarding/`
 (the same two keys, on an otherwise-conformant manifest) for its own integration cases.
 

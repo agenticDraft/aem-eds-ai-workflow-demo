@@ -15,7 +15,8 @@
 #     every artifact's `produced_by` names a declared stage; every skill
 #     resolves and declares isolated execution; and route.dot agrees with the
 #     stage list node for node. Two further, optional keys — `onboarding_
-#     state_path` and `audit_findings_path` (D80) — each, when present, must
+#     state_path`, `audit_findings_path` and `audit_digest_path` (D80,
+#     G500) — each, when present, must
 #     be a well-formed relative path: non-empty, not absolute, no `..`
 #     segment. Neither is checked for existence here; that is pre-flight's
 #     job at runtime, against a real project. A third optional key,
@@ -126,7 +127,8 @@ skill_exists() {
 
 # A declared value is a legitimate relative path: non-empty, not absolute, no
 # '..' segment. Shared by every optional path-shaped key this manifest
-# carries — platform's onboarding_state_path/audit_findings_path (D80) and
+# carries — platform's onboarding_state_path/audit_findings_path/
+# audit_digest_path (D80, G500) and
 # provider's scripts (D95) alike.
 validate_declared_path() {
   local key="$1" value="$2"
@@ -358,7 +360,8 @@ if [[ "$kind" == "platform" ]]; then
     done
   fi
 
-  # --- onboarding-state and audit-findings paths (validator 15, D80) --------
+  # --- onboarding-state, audit-findings and audit-digest paths --------------
+  # (validator 15, D80; the digest key G500)
   # Both optional. The core never learns what either path is called beyond
   # this — only that a declared value is a legitimate relative path a later
   # structural read (pre-flight) may test for existence against a real
@@ -371,6 +374,11 @@ if [[ "$kind" == "platform" ]]; then
 
   if [[ "${LINES[cursor]:-}" =~ ^audit_findings_path:\ \"(.*)\"$ ]]; then
     validate_declared_path "audit_findings_path" "${BASH_REMATCH[1]}"
+    cursor=$((cursor + 1))
+  fi
+
+  if [[ "${LINES[cursor]:-}" =~ ^audit_digest_path:\ \"(.*)\"$ ]]; then
+    validate_declared_path "audit_digest_path" "${BASH_REMATCH[1]}"
     cursor=$((cursor + 1))
   fi
 

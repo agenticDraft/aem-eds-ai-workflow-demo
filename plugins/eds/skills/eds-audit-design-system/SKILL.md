@@ -1,5 +1,5 @@
 ---
-description: Design-system audit (core contract §6.2, D22, D23, D81; audit-taxonomy.md) — manual invocation, run any time after design-system onboarding has produced a manifest. Compares this platform's own documents and code against the adopted token set and against each other, classifies every discrepancy into one of four fix-cost classes, decides each one's severity by whether an agent reads its file as truth, demotes any mechanical finding whose file was edited since the boilerplate import to judgment rather than auto-fixing over a human's own change, and writes .ai/design/audit.md. Aborts before writing anything if the repository is a shallow clone, since that would make the demotion check itself untrustworthy. Invocable alone, or as a step inside eds-adopt-design-system's own flow (D17). Touches nothing outside .ai/design/.
+description: Design-system audit (core contract §6.2, D22, D23, D81; audit-taxonomy.md) — manual invocation, run any time after design-system onboarding has produced a manifest. Compares this platform's own documents and code against the adopted token set and against each other, classifies every discrepancy into one of four fix-cost classes, decides each one's severity by whether an agent reads its file as truth, demotes any mechanical finding whose file was edited since the boilerplate import to judgment rather than auto-fixing over a human's own change, and writes .ai/design/audit.md plus the trusted-context digest pre-flight re-checks for freshness. Aborts before writing anything if the repository is a shallow clone, since that would make the demotion check itself untrustworthy. Invocable alone, or as a step inside eds-adopt-design-system's own flow (D17). Touches nothing outside .ai/design/.
 context: fork
 ---
 
@@ -44,6 +44,7 @@ digraph eds_audit_design_system {
     "Repository shallow?" [shape=diamond];
     "Check auto-fix eligibility for mechanical findings" [shape=box];
     "Write the audit" [shape=box];
+    "Write the trusted-context digest" [shape=box];
     "Confirm nothing else changed" [shape=box];
     "Only .ai/design/ changed?" [shape=diamond];
     "Any poisoning finding?" [shape=diamond];
@@ -63,7 +64,8 @@ digraph eds_audit_design_system {
     "Repository shallow?" -> "Report fail" [label="yes"];
     "Repository shallow?" -> "Check auto-fix eligibility for mechanical findings" [label="no"];
     "Check auto-fix eligibility for mechanical findings" -> "Write the audit";
-    "Write the audit" -> "Confirm nothing else changed";
+    "Write the audit" -> "Write the trusted-context digest";
+    "Write the trusted-context digest" -> "Confirm nothing else changed";
     "Confirm nothing else changed" -> "Only .ai/design/ changed?";
     "Only .ai/design/ changed?" -> "Any poisoning finding?" [label="yes"];
     "Only .ai/design/ changed?" -> "Report fail" [label="no"];
@@ -204,6 +206,30 @@ empty — never an omitted or blank file.
 Run `../../../agentic-core/shared/lib/validate-findings.sh .ai/design/audit.md` to confirm the
 file this node just wrote actually conforms to that shape before reporting anything about it.
 
+### Write the trusted-context digest
+
+Write `.ai/design/audit-digest.txt`: one `<sha256>  <relative path>` line for every path on this
+skill's own `trusted-context-files.txt` — the same list `classify-severity.sh` read above, so the
+digest covers exactly the files whose contradictions this audit was able to judge.
+
+```
+while read -r p; do
+  [[ -z "$p" || "$p" == \#* ]] && continue
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$p"; else shasum -a 256 "$p"; fi
+done < <path to this skill's trusted-context-files.txt> > .ai/design/audit-digest.txt
+```
+
+**Why this file exists, and what it is not.** The findings list says what was wrong when the audit
+ran; it cannot say whether those files have moved since. `audit_digest_path` in this pack's manifest
+points pre-flight's third check at this file, and that check re-hashes each path named here and
+warns when one no longer matches (G500) — so a clean audit stops reading as a standing guarantee
+and starts reading as a dated one. It is not a findings file and carries no severity: a changed
+hash means *this audit's verdict no longer describes that file*, never *that file is now wrong*.
+
+A path on the list that does not exist in this project is skipped rather than recorded with a
+placeholder hash — pre-flight treats an unreadable path the digest names as a warning, and a
+fabricated line would turn a file this platform simply does not have into a permanent one.
+
 ### Confirm nothing else changed
 
 Run `git status --porcelain` at the project root. This is the check that makes this skill's own
@@ -231,7 +257,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many findings were recorded and that none is `poisoning`.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/design/audit.md`.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/design/audit.md`, `.ai/design/audit-digest.txt`.
 - `next_action: none`
 - `metrics: findings=<count>, poisoning=0`
 
@@ -241,7 +267,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many findings were recorded and how many are `poisoning`.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/design/audit.md`.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/design/audit.md`, `.ai/design/audit-digest.txt`.
 - `next_action`: a short phrase naming that `.ai/design/audit.md` holds findings still awaiting a
   human-reviewed change — `mechanical` findings ready to apply as-is, `judgment` and
   `needs-the-human` findings still needing an answer — and that the `poisoning` ones should not
