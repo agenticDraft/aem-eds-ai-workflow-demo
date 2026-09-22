@@ -5,7 +5,7 @@ operations:
   post_note: note
   attach_file: attach
   list_types: list
-unsupported: []
+unsupported: [create_item, update_item]
 text_conventions:
   design_keywords: [design, mock, mockup, visual]
   reproduction_headings: [Steps to reproduce]

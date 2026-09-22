@@ -113,7 +113,7 @@ operations:
   post_note: note
   attach_file: attach
   list_types: list
-unsupported: []
+unsupported: [create_item, update_item]
 text_conventions:
   acceptance_criteria_headings: [Acceptance Criteria, AC]
 EOF
@@ -147,7 +147,7 @@ operations:
   post_note: note
   attach_file: attach
   list_types: list
-unsupported: []
+unsupported: [create_item, update_item]
 scripts:
   fetch_item: "skills/fetch/scripts/fetch.sh"
 EOF
@@ -162,7 +162,7 @@ operations:
   fetch_item: fetch
   post_note: note
   attach_file: attach
-unsupported: [list_types]
+unsupported: [list_types, create_item, update_item]
 scripts:
   list_types: "skills/fetch/scripts/fetch.sh"
 EOF
@@ -179,7 +179,7 @@ operations:
   post_note: note
   attach_file: attach
   list_types: list
-unsupported: []
+unsupported: [create_item, update_item]
 scripts:
   fetch_item: "skills/fetch/scripts/does-not-exist.sh"
 EOF
@@ -196,12 +196,70 @@ operations:
   post_note: note
   attach_file: attach
   list_types: list
-unsupported: []
+unsupported: [create_item, update_item]
 scripts:
 EOF
 OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason says omit the key" "omit the key instead" "$OUT"
+
+# --- the authoring write operations -----------------------------------------
+# create_item and update_item joined the tracker role after the other four, so
+# these three cases pin the states a tracker pack can be in while the packs
+# catch up: implementing them, declining them, and saying nothing about them.
+# The third is the one that matters — a pack silently missing an operation is
+# how a caller discovers the gap at run time instead of at validation.
+
+echo "[accept] a tracker implementing the authoring write operations"
+mkdir -p "$PROV_TMP/skills/create" "$PROV_TMP/skills/update"
+: > "$PROV_TMP/skills/create/SKILL.md"
+: > "$PROV_TMP/skills/update/SKILL.md"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+  list_types: list
+  create_item: create
+  update_item: update
+unsupported: []
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
+echo "[reject] a tracker naming create_item but shipping no such skill"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+  list_types: list
+  create_item: nonexistent
+  update_item: update
+unsupported: []
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the missing skill" "operations.create_item names a nonexistent skill" "$OUT"
+
+echo "[reject] a tracker silent about the authoring write operations"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+  list_types: list
+unsupported: []
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the operation left out" "create_item" "$OUT"
 
 echo "[accept] validator 18 — requires declaring a tool, an argv probe and a remedy (D97)"
 cat > "$PROV_TMP/pack.yaml" <<'EOF'
