@@ -17,6 +17,7 @@ PLATFORM="$PACKFIXDIR/platform-valid/pack.yaml"
 TRACKER="$PACKFIXDIR/provider-valid/pack.yaml"
 SCM="$FIXDIR/providers/scm-valid/pack.yaml"
 SCM_MISSING="$FIXDIR/providers/scm-missing-operation/pack.yaml"
+TRACKER_MISSING="$FIXDIR/providers/tracker-missing-operation/pack.yaml"
 BROWSER="$FIXDIR/providers/browser-valid/pack.yaml"
 DESIGN="$FIXDIR/providers/design-valid/pack.yaml"
 
@@ -81,6 +82,26 @@ OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \
   "platform=$PLATFORM" "tracker=$TRACKER" "scm=$SCM_MISSING" "browser=$BROWSER" 2>&1); ST=$?
 assert_exit "unsupported operation rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the unavailable operation" "publish_change" "$OUT"
+
+# An operation no stage can reach must not block a run: the rule is that an
+# unsupported operation makes *a stage needing it* unrunnable, and nothing in a
+# route needs these. The pairing matters more than either case alone — the
+# first says the exemption works, the second says it did not swallow the check
+# it was carved out of.
+echo "[accept] a tracker declaring only the authoring operations unsupported"
+OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \
+  "platform=$PLATFORM" "tracker=$TRACKER" "scm=$SCM" "browser=$BROWSER" 2>&1); ST=$?
+assert_exit "not blocked (exit 0)" 0 $ST "$OUT"
+[[ "$OUT" != *"create_item"* && "$OUT" != *"update_item"* ]]
+assert_exit "and neither operation is mentioned" 0 $? "$OUT"
+
+echo "[reject] a tracker declaring an operation a stage does need unsupported"
+OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \
+  "platform=$PLATFORM" "tracker=$TRACKER_MISSING" "scm=$SCM" "browser=$BROWSER" 2>&1); ST=$?
+assert_exit "still blocked (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the reachable operation" "fetch_item" "$OUT"
+[[ "$OUT" != *"create_item"* ]]
+assert_exit "and does not name the exempt ones alongside it" 0 $? "$OUT"
 
 echo "[reject] a pack is installed under the wrong role"
 OUT=$(bash "$CHECK" "$FIXDIR/config-valid.yaml" \

@@ -11,7 +11,10 @@
 #      role=path argument naming a pack.yaml that validates as the right
 #      kind for that role.
 #   2. every operation core contract §6 declares for a configured provider
-#      role is implemented rather than declared unsupported.
+#      role that a stage could need is implemented rather than declared
+#      unsupported. Operations that exist only for callers upstream of the
+#      route are exempt — no stage reaches them, so their absence cannot make
+#      a stage unrunnable.
 #   3. the onboarding gate (core contract §6.3, D80), delegated to
 #      check-onboarding-gate.sh against the platform pack's manifest — a
 #      no-op unless that manifest declares onboarding_state_path and/or
@@ -159,15 +162,41 @@ for role in "${PROVIDER_ROLES[@]}"; do
     || fail "pack installed for role '$role' declares role '$manifest_role' instead: $path"
 done
 
-# --- check 2: every configured role's operations are all implemented -------
+# --- check 2: every operation a stage could need is implemented ------------
+# The contract's rule is that an unsupported operation makes *a stage needing
+# it* unrunnable. Not every operation can be needed by one: a few exist for
+# callers upstream of the route, which no stage reaches. Blocking a run because
+# one of those is unimplemented refuses work the run was never going to do.
+#
+# There is no declared stage-to-operation map to consult, so the set that no
+# stage can need is named here, once. An operation absent from this list is
+# assumed reachable, which is the safe direction: a new operation blocks until
+# someone states otherwise, rather than being silently exempt.
+AUTHORING_ONLY_OPS=(create_item update_item)
+
 for role in "${PROVIDER_ROLES[@]}"; do
   role_path "$role"
   path="$MATCH_PATH"
   unsupported_line="$(grep -m1 -E '^unsupported: \[' "$path")"
   unsupported_content="$(printf '%s' "$unsupported_line" | sed -E 's/^unsupported: \[(.*)\]$/\1/')"
   unsupported_trimmed="${unsupported_content//[[:space:]]/}"
-  if [[ -n "$unsupported_trimmed" ]]; then
-    fail "role '$role' cannot perform operation(s) '$unsupported_trimmed' — declared unsupported by $path"
+
+  blocking=""
+  IFS=',' read -r -a declared <<< "$unsupported_trimmed"
+  for op in "${declared[@]:-}"; do
+    [[ -z "$op" ]] && continue
+    reachable=1
+    for exempt in "${AUTHORING_ONLY_OPS[@]}"; do
+      [[ "$op" == "$exempt" ]] && reachable=0
+    done
+    if [[ "$reachable" -eq 1 ]]; then
+      [[ -n "$blocking" ]] && blocking+=","
+      blocking+="$op"
+    fi
+  done
+
+  if [[ -n "$blocking" ]]; then
+    fail "role '$role' cannot perform operation(s) '$blocking' — declared unsupported by $path"
   fi
 done
 
