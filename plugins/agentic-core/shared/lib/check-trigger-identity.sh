@@ -46,7 +46,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     in_trigger=1
     continue
   fi
-  if [[ "$line" =~ ^[a-z] ]]; then
+  if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_-]*:$ ]]; then
     # Hit another top-level key, so trigger block ended
     if (( in_trigger )); then
       break

@@ -56,6 +56,16 @@ echo "[usage] rule file not found"
 OUT=$(bash "$CHECKER" "$CFGDIR/valid.yaml" "$RULEDIR/nope.json" 2>&1); ST=$?
 assert_exit "missing rule file -> usage error (exit 2)" 2 $ST "$OUT"
 
+echo "[decoy] config with decoy token block before trigger:"
+OUT=$(bash "$CHECKER" "$CFGDIR/invalid/decoy-token.yaml" "$RULEDIR/rule-with-decoy-token.json" 2>&1); ST=$?
+assert_exit "decoy token rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "rejected because decoy is not real token" "@example-run" "$OUT"
+
+echo "[decoy] config with decoy block, rule carries real token"
+OUT=$(bash "$CHECKER" "$CFGDIR/invalid/decoy-token.yaml" "$RULEDIR/rule-with-token.json" 2>&1); ST=$?
+assert_exit "real token accepted even with decoy (exit 0)" 0 $ST "$OUT"
+assert_contains "real token found despite decoy" "agrees" "$OUT"
+
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
 exit $(( FAIL > 0 ? 1 : 0 ))

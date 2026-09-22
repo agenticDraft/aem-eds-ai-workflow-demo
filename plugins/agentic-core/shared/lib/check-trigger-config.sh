@@ -34,10 +34,23 @@ for f in "$CONFIG" "$RULE"; do
 done
 
 TOKEN=""
+in_trigger=0
 while IFS= read -r line || [[ -n "$line" ]]; do
-  if [[ "$line" =~ ^\ \ token:\ \"(.*)\"$ ]]; then
-    TOKEN="${BASH_REMATCH[1]}"
-    break
+  if [[ "$line" =~ ^trigger:$ ]]; then
+    in_trigger=1
+    continue
+  fi
+  if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_-]*:$ ]]; then
+    # Hit another top-level key, so trigger block ended
+    if (( in_trigger )); then
+      break
+    fi
+  fi
+  if (( in_trigger )); then
+    if [[ "$line" =~ ^\ \ token:\ \"(.*)\"$ ]]; then
+      TOKEN="${BASH_REMATCH[1]}"
+      break
+    fi
   fi
 done < "$CONFIG"
 
