@@ -8,3 +8,10 @@ operations:
 unsupported: []
 scripts:
   render: "skills/render/scripts/render.cjs"
+requires:
+  - tool: playwright
+    probe: [node, <pack>/scripts/probe-tool.cjs, module]
+    remedy: "npm install -g playwright, or add playwright as a project devDependency"
+  - tool: chromium
+    probe: [node, <pack>/scripts/probe-tool.cjs, browser]
+    remedy: "npx playwright install chromium"

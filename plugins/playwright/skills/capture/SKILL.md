@@ -1,5 +1,5 @@
 ---
-description: browser.capture — loads a target URL and captures a full-page screenshot at a given viewport width in a real headless Chromium. Requires the playwright npm package installed on this machine and its Chromium browser binary downloaded (npx playwright install chromium).
+description: browser.capture — loads a target URL and captures a full-page screenshot at a given viewport width in a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
 ---
 
 # capture

@@ -51,6 +51,10 @@ text_conventions:               # tracker role only
   design_keywords: [<string>, …]
   reproduction_headings: [<string>, …]
   acceptance_criteria_headings: [<string>, …]
+requires:                       # optional
+  - tool: <identifier>
+    probe: [<argv>, …]
+    remedy: "<what a human runs to fix it>"
 ```
 
 ## Top-level keys
@@ -245,7 +249,7 @@ digraph route {
   - `tracker` — `fetch_item`, `post_note`, `attach_file`, `list_types`
   - `scm` — `create_branch`, `publish_change`, `check_status`
   - `design` — `fetch_reference`
-  - `browser` — `render`, `capture`, `measure`
+  - `browser` — `render`, `capture`, `measure`, `interact`
 - `operations` — a mapping of operation name to skill name. Every key must be an operation that role
   actually has.
 - `unsupported` — operation names this pack declines to implement. Every entry must be an operation
@@ -266,6 +270,35 @@ digraph route {
   (`acceptance_criteria_headings`). It lives with the tracker because a team that formats items
   differently changes its tracker pack, not its platform pack. `has_reproduction_url` needs no list
   here — any `http(s)` URL in the sanitized text sets it.
+- `requires` — optional. What this pack needs present on the machine that runs it: a tool, a
+  downloaded binary, anything selecting the pack does not by itself provide. Each entry declares
+  three things.
+  - `tool` — a non-empty identifier for what must be present. It names the thing, and it is what a
+    report says is missing.
+  - `probe` — how "present" is answered, as a **list of arguments, never a string**. An argument may
+    carry the literal prefix `<pack>/`, which resolves against the pack root — the way a pack whose
+    "is it present" question needs real logic (a fallback search path, a second artifact the first
+    one says nothing about) ships that logic as its own script instead of asking the core to guess
+    on its behalf. The prefix is required for that: a bare relative path would resolve against
+    whatever directory the caller happened to run from. Such a path is checked exactly as a
+    `scripts:` path is — no `..` segment, and the file must exist — because a probe pointing at a
+    file that is not there is a check that will never run, and a check that never runs must not look
+    like one that passed. A string would
+    have to reach a shell to be run, and a shell is the one thing a precondition check must not
+    need. Only the exit status is read: zero means present. The output is never parsed and a version
+    is never compared — a version requirement is a second question this key deliberately cannot ask,
+    because answering it would mean parsing whatever the tool happened to print.
+  - `remedy` — what a human runs to fix it. It is quoted text, printed verbatim by whatever reports
+    the tool missing, and **nothing ever executes it**. A pack that could install its own dependency
+    would be a pack that changes the machine it was merely asked to run on.
+  - **Absent means ungated**, the same rule an undeclared `unsupported:` list already follows. A
+    pack that declares no `requires` has no local precondition; silence is never read as a hidden
+    one.
+  - **Declaring this gates nothing at load time.** Two readers consult it — a read-only diagnostic,
+    on demand, and the operation itself before it acts — and both quote the declared `remedy` rather
+    than composing their own. The capability check that runs before a route starts reads manifests
+    only and never probes a machine, so a missing tool is reported, never guessed at, and never
+    discovered by a route that already created a branch.
 - Every skill named in `operations` must resolve to `<pack root>/skills/<skill name>/SKILL.md`.
 
 ## Example — platform
