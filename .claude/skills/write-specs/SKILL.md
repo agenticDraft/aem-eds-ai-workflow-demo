@@ -1,6 +1,6 @@
 ---
 name: write-specs
-description: Author, review or rewrite a tracker work item — a story, a bug, a change request — so that an automated delivery run can actually read it, then prove it conforms by running the bundled checker. Use this whenever someone asks to write a ticket, draft an issue, add or tighten acceptance criteria, turn a rough requirement into a work item, check whether a ticket is ready to be picked up, or rewrite an item a gate or a reviewer pushed back on. Use it before handing any work item to an automated run, because a ticket that reads perfectly well to a person can still fail the detectors that run depends on.
+description: Author, review or rewrite a tracker work item — a story, a bug, a change request — so that an automated delivery run can actually read it, prove it conforms by running the bundled checker, then write it to the tracker through the tracker role's contracted operations and verify the live item. Use this whenever someone asks to write a ticket, draft an issue, add or tighten acceptance criteria, turn a rough requirement into a work item, check whether a ticket is ready to be picked up, or rewrite an item a gate or a reviewer pushed back on. Use it before handing any work item to an automated run, because a ticket that reads perfectly well to a person can still fail the detectors that run depends on.
 ---
 
 # write-specs
@@ -31,13 +31,24 @@ That leaves three kinds of rule, with three different owners:
   one assertion; it cannot tell you the assertion is the right one. `references/criterion-checklist.md`
   is the guide for that half, and it is never faked as a script check.
 
-## This skill never writes to the tracker
+## The write goes through the tracker role, or it does not happen
 
-It produces text and hands it over. The tracker role contracts no operation that replaces an
-item's description, so writing one anyway — through whatever tool happens to be reachable in the
-session — would put an uncontracted write in the middle of an authoring step. A skill that quietly
-edits someone's tracker is harder to trust than one that hands you a draft to paste, and pasting
-costs one keystroke.
+A draft that passes and an item nobody pasted it into are different states that produce identical
+evidence — a green checker run — because the run fetches the item and never the draft file. So the
+skill finishes the job: `scripts/write-item.py` writes the item through the tracker role's
+contracted operations, and the checker runs once more against the live key.
+
+**Contracted is the operative word.** The write is a role operation the configured pack implements
+and may decline, emitting the same result envelope every other operation emits. It is not a reach
+for whichever tool a session happens to have connected: that write would be invisible to every
+mechanism that governs the contracted ones — no role, no envelope, no way for a pack to refuse it —
+and invisible is what makes a write untrustworthy, not the fact of writing.
+
+**When the pack declines, the old behaviour is what happens.** A tracker that does not implement
+the operation, or a write that fails, sends this skill back to handing the draft over. That path
+is not a leftover; it is the answer for every tracker that cannot be written to, and it is taken
+out loud, quoting the reason, because an item everyone believes was updated and was not is the
+failure this whole flow exists to remove.
 
 ## Reference material
 
@@ -65,6 +76,11 @@ digraph write_specs {
     "Would the route run the stages this item needs?" [shape=diamond];
     "Judge what no script can judge" [shape=box];
     "Does every criterion hold up?" [shape=diamond];
+    "Write the item" [shape=box];
+    "Did a write happen?" [shape=diamond];
+    "Verify the live item" [shape=box];
+    "Does the live item pass?" [shape=diamond];
+    "Report the item" [shape=doublecircle];
     "Hand the draft over" [shape=doublecircle];
     "Stop and ask" [shape=doublecircle];
 
@@ -88,7 +104,13 @@ digraph write_specs {
     "Would the route run the stages this item needs?" -> "Judge what no script can judge" [label="the run and skip lists match intent"];
     "Judge what no script can judge" -> "Does every criterion hold up?";
     "Does every criterion hold up?" -> "Revise the draft" [label="a criterion is unverifiable or prescribes a recipe"];
-    "Does every criterion hold up?" -> "Hand the draft over" [label="every criterion is an outcome someone could check"];
+    "Does every criterion hold up?" -> "Write the item" [label="every criterion is an outcome someone could check"];
+    "Write the item" -> "Did a write happen?";
+    "Did a write happen?" -> "Hand the draft over" [label="no — the pack declines it, or the write failed"];
+    "Did a write happen?" -> "Verify the live item" [label="yes"];
+    "Verify the live item" -> "Does the live item pass?";
+    "Does the live item pass?" -> "Revise the draft" [label="no — the tracker's copy no longer passes"];
+    "Does the live item pass?" -> "Report the item" [label="yes"];
 }
 ```
 
@@ -160,9 +182,10 @@ pins a frame, survives being reopened, and carries values an image cannot.
 
 One limitation worth knowing before it surprises you: a draft has no attachments, so while the
 checker is reading a draft file the only design source it can possibly see is a link in the text. If
-the real item will carry an image instead, the draft will look design-less to the checker. Say so
-when you hand over, and re-run the checker against the item key once the item exists and the image
-is attached.
+the real item will carry an image instead, the draft will look design-less to the checker. That
+resolves itself at **Verify the live item**, which reads the item and can see an attachment — but
+only once the image is actually on it, so attach it as part of writing the item rather than
+leaving it for later.
 
 ### Is a design reference available?
 
@@ -257,18 +280,84 @@ A criterion fails the checklist — go to **Revise the draft**, and say in your 
 checklist question it failed, so the same criterion does not come back reworded.
 
 Every criterion is an outcome someone could check, and together they mean the item is done — go to
-**Hand the draft over**.
+**Write the item**.
 
-### Hand the draft over
+### Write the item
+
+```
+python3 .claude/skills/write-specs/scripts/write-item.py <spec_dir>/<ITEM-KEY>/draft.md [--project <key>]
+```
+
+Pass `--project` when the item does not exist yet. The script decides create versus update by
+asking the tracker whether the key exists, not by trusting the draft: a key in front matter is
+what someone expects, and acting on that expectation is how an update gets aimed at a key nobody
+issued, or a second copy of an existing item gets made.
+
+Everything else it does is resolution — which pack is configured, which skill implements the
+operation, whether the pack declines it. None of that is a judgement, so none of it is left to be
+judged here.
+
+### Did a write happen?
+
+- **Exit 0 and `verdict: pass`** — go to **Verify the live item**.
+- **Exit 1** — the configured tracker declines the operation or declares none. The draft is
+  unwritten and the envelope says which. Go to **Hand the draft over**.
+- **Exit 0 and `verdict: fail`** — the operation ran and the tracker refused it: a field it does
+  not carry, a type it does not offer, credentials it did not accept. The envelope's `summary`
+  names the reason. Go to **Hand the draft over**, and quote it.
+- **Exit 2** — a config, pack or script that cannot be read. Go to **Stop and ask**.
+
+### Verify the live item
+
+```
+python3 .claude/skills/write-specs/scripts/check-spec.py <ITEM-KEY>
+```
+
+Against the key, not the file. The tracker converts the description into its own storage format on
+the way in, and what comes back out is not guaranteed to be what went in. The draft passing proves
+the draft; only this run proves the thing a route will actually fetch.
+
+### Does the live item pass?
+
+**Exit 0** — go to **Report the item**.
+
+**Exit 1** — the tracker's copy no longer passes. Go to **Revise the draft**, fix it there, and
+come back through the write, which is now an update. Editing the item in the tracker's own UI
+instead leaves the draft and the item disagreeing, and the draft is what the next rewrite starts
+from.
+
+### Report the item
 
 Produce, in the response:
 
-1. **The summary**, on its own line, ready to paste into the tracker's own summary field.
-2. **The description**, verbatim, as one block.
+1. **The key and the URL**, so the item can be opened without searching for it.
+2. **Which write happened** — created, or description replaced. An update overwrites text someone
+   may have edited in the tracker; the operation saves the previous description and names that
+   file, so say it was replaced rather than leaving it to be discovered.
 3. **The draft's path**, so the text can be re-checked without being reconstructed.
-4. **The numbers**, for a rewrite: the before count from **Measure the item as it stands** and the
+4. **The verdict from Verify the live item**, quoted from that run. For a rewrite, the before
+   count from **Measure the item as it stands** beside it, also quoted.
+5. **What still has to be done on the item itself** — an image to attach, a field the tracker
+   would not take, a decision left open.
+
+The description does not need repeating when it is already in the item; a link cannot drift from
+it. Then stop — writing the description is the authoring step, and deciding the item's status is
+somebody else's call.
+
+### Hand the draft over
+
+This is where a tracker that cannot be written to ends up, which is most of them until a pack
+implements the operations. Produce, in the response:
+
+1. **Why the write did not happen**, first and in one line, quoting the envelope's own `summary`.
+   Putting it last, after a wall of text that looks like success, is how someone comes away
+   believing the item was updated.
+2. **The summary**, on its own line, ready to paste into the tracker's own summary field.
+3. **The description**, verbatim, as one block.
+4. **The draft's path**, so the text can be re-checked without being reconstructed.
+5. **The numbers**, for a rewrite: the before count from **Measure the item as it stands** and the
    after count from the final checker run, both quoted from the runs rather than remembered.
-5. **What still has to be done on the item itself** — attaching an image, setting the type, filling
+6. **What still has to be done on the item itself** — attaching an image, setting the type, filling
    a structured field a condition reads. These are the parts a description cannot carry, and they
    are exactly the parts that get forgotten once the prose looks finished.
 
