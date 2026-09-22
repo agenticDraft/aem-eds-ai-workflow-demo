@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Run: python3 plugins/jira/scripts/build-item-fields.py <draft-file> --out <json-file>
-"""build-item-fields.py <draft-file> [--out <json-file>]
+"""build-item-fields.py <draft-file> [--project <key>] [--out <json-file>]
 
 Turn an authored draft — front matter plus a markdown body — into the fields
 payload a work item write sends.
@@ -13,6 +13,13 @@ which is what happens whenever someone pastes a whole draft by hand.
 Only keys the draft actually carries are sent. A tracker configured without a
 given field rejects the whole write when it is named, so naming a field nobody
 filled in is a way to fail a write over something the author never asked for.
+
+With --project, the payload is the one a *create* sends: it additionally names
+the project and the item type, both required at creation and neither settable
+afterwards by the same call. Without it, the payload is an update's, which
+carries neither — a tracker refuses an attempt to move an item between
+projects this way, and an item's type is a separate transition rather than a
+field an update may overwrite.
 
 Exit codes: 0 and the payload on stdout (or at --out); 1 if the description
 cannot be converted without loss; 2 for a usage error.
@@ -71,12 +78,15 @@ def description_adf(body):
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         usage("a draft file is required")
-    source, out_path = argv[0], None
+    source, out_path, project = argv[0], None, None
     rest = argv[1:]
-    if rest:
-        if rest[0] != "--out" or len(rest) != 2:
-            usage("the only option is '--out <json-file>'")
-        out_path = rest[1]
+    while rest:
+        if rest[0] == "--out" and len(rest) >= 2:
+            out_path, rest = rest[1], rest[2:]
+        elif rest[0] == "--project" and len(rest) >= 2:
+            project, rest = rest[1], rest[2:]
+        else:
+            usage("options are '--out <json-file>' and '--project <key>'")
 
     try:
         with open(source, encoding="utf-8") as f:
@@ -89,6 +99,15 @@ def main(argv):
         usage(f"'{source}' carries no description body")
 
     fields = {"description": description_adf(body)}
+
+    if project:
+        if not front.get("item_type"):
+            usage("a create needs 'item_type' in the draft's front matter, "
+                  "spelled the way the tracker spells it")
+        if not front.get("summary"):
+            usage("a create needs 'summary' in the draft's front matter")
+        fields["project"] = {"key": project}
+        fields["issuetype"] = {"name": front["item_type"]}
 
     if front.get("summary"):
         fields["summary"] = front["summary"]
