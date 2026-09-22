@@ -178,6 +178,58 @@ assert_contains "it names the line it changed" "conversion changed line" "$OUT"
 assert_contains "it says it will not emit" "refusing to emit" "$OUT"
 assert_equal "and nothing was written to stdout" "" "$(python3 "$WORK/lossy.py" "$CONVERTER" "$WORK/body.md" 2>/dev/null)"
 
+# --- drift against the configured consumer ----------------------------------
+# The conversion checks itself by flattening its own output, which proves the
+# conversion is self-consistent and nothing more. What it cannot prove is that
+# this inverse still agrees with the one that actually reads a work item. If
+# the two drift, every self-check keeps passing and the converter is
+# confidently wrong.
+#
+# The consumer is found through the project config's configured platform pack,
+# never by naming a pack here: this pack must keep working with whatever
+# platform is configured, and hardcoding one would make it work with exactly
+# one. When no configured pack exposes a flattener, this reports as not run —
+# not as a pass, because "did not check" and "checked and agreed" are the two
+# things a test exists to distinguish.
+echo "[drift] this inverse agrees with the configured consumer's"
+CONFIG=".ai/project-config.yaml"
+CONSUMER=""
+if [[ -f "$CONFIG" ]]; then
+  PLATFORM="$(sed -n '/^packs:/,/^[^ ]/p' "$CONFIG" \
+              | sed -nE 's/^[[:space:]]+platform:[[:space:]]*([^[:space:]]+).*/\1/p' | head -1)"
+  if [[ -n "$PLATFORM" && -d "plugins/$PLATFORM" ]]; then
+    CONSUMER="$(grep -rl "def adf_to_text" "plugins/$PLATFORM" 2>/dev/null | head -1)"
+  fi
+fi
+
+if [[ -z "$CONSUMER" ]]; then
+  echo "  not run: no configured platform pack exposes a flattener to compare against"
+  echo "           (this is not a pass — nothing was checked)"
+else
+  DRIFT="$(python3 -c '
+import importlib.util, json, sys
+
+def load(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+conv = load("conv", sys.argv[1])
+consumer = load("consumer", sys.argv[2])
+body = open(sys.argv[3], encoding="utf-8").read()
+doc = conv.to_adf(body)
+ours, theirs = conv.to_text(doc), consumer.adf_to_text(doc)
+print("AGREE" if ours == theirs else "DIVERGED")
+' "$CONVERTER" "$CONSUMER" "$WORK/body.md" 2>&1)"
+  if [[ "$DRIFT" == "AGREE" ]]; then
+    PASS=$((PASS + 1)); echo "  ok: agrees with ${CONSUMER}"
+  else
+    FAIL=$((FAIL + 1)); echo "  FAIL: the two flatteners disagree — ${DRIFT}"
+    echo "    consumer: ${CONSUMER}"
+  fi
+fi
+
 if [[ "$FAIL" -eq 0 ]]; then
   echo "=== $PASS passed, 0 failed ==="
   exit 0
