@@ -1,0 +1,33 @@
+name: Dispatch
+
+on:
+  repository_dispatch:
+    types: [my-event]
+
+permissions:
+  contents: read
+
+jobs:
+  log-payload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log dispatch event
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
+          CLIENT_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        run: |
+          echo "Event action: $EVENT_ACTION"
+          echo "Client payload:"
+          echo "$CLIENT_PAYLOAD"
+
+      - name: Validate ticket
+        env:
+          TICKET: ${{ github.event.client_payload.ticket }}
+        run: |
+          if [[ ! "$TICKET" =~ ^[A-Z][A-Z0-9]+-[0-9]+$ ]]; then
+            echo "::error::client_payload.ticket '$TICKET' does not match ^[A-Z][A-Z0-9]+-[0-9]+\$ (e.g. DEMO-1)"
+            exit 1
+          fi
+          echo "Ticket OK: $TICKET"
