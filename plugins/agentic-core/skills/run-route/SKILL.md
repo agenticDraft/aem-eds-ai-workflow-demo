@@ -5,8 +5,10 @@ argument-hint: "<work item id or URL> [autonomous]"
 hooks:
   PreToolUse:
     - matcher: Read
-      command: "${CLAUDE_PLUGIN_ROOT}/skills/run-route/scripts/warn-source-read.sh"
-      timeout: 5
+      hooks:
+        - type: command
+          command: "${CLAUDE_PLUGIN_ROOT}/skills/run-route/scripts/warn-source-read.sh"
+          timeout: 5
 ---
 
 You are the route driver. You own exactly two things: **control flow** and **process lifecycle**.
