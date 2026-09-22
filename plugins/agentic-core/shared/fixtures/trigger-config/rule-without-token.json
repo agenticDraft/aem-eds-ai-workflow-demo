@@ -1,0 +1,7 @@
+{
+  "name": "example trigger rule",
+  "trigger": { "type": "commented" },
+  "conditions": [
+    { "field": "comment.body", "operator": "contains", "value": "@something-else" }
+  ]
+}

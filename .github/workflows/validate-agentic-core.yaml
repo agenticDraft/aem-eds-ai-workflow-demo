@@ -45,6 +45,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/validate-project-config.test.sh
       - name: Check trigger identity
         run: bash plugins/agentic-core/shared/lib/check-trigger-identity.test.sh
+      - name: Check trigger config
+        run: bash plugins/agentic-core/shared/lib/check-trigger-config.test.sh
       - name: Validate pack manifest
         run: bash plugins/agentic-core/shared/lib/validate-pack-manifest.test.sh
       - name: Validate naming rule
