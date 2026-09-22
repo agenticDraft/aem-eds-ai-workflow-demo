@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""md-to-adf.py <markdown-file> [--out <json-file>]
+# Run: python3 plugins/jira/scripts/md-to-adf.py <markdown-file> --out <json-file>
+"""md-to-adf.py <markdown-file|-> [--out <json-file>]
 
 Convert a work item's description from the markdown an author writes into the
 document format the tracker stores, and prove the conversion lost nothing
@@ -117,14 +118,17 @@ def main(argv):
             usage("the only option is '--out <json-file>'")
         out_path = rest[1]
 
-    try:
-        with open(source, encoding="utf-8") as f:
-            markdown = f.read()
-    except OSError as exc:
-        usage(f"cannot read '{source}': {exc}")
+    if source == "-":
+        markdown = sys.stdin.read()
+    else:
+        try:
+            with open(source, encoding="utf-8") as f:
+                markdown = f.read()
+        except OSError as exc:
+            usage(f"cannot read '{source}': {exc}")
 
     if not markdown.strip():
-        usage(f"'{source}' is empty")
+        usage("standard input is empty" if source == "-" else f"'{source}' is empty")
 
     doc = to_adf(markdown)
 
