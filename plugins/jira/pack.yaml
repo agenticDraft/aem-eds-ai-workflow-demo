@@ -5,7 +5,7 @@ operations:
   post_note: post-note
   attach_file: attach-file
   list_types: list-types
-unsupported: []
+unsupported: [create_item, update_item]
 text_conventions:
   design_keywords: [design, figma, mock, mockup, style, styling, visual, layout, spacing, responsive, breakpoint, typography, colour, color, hero, banner]
   reproduction_headings: [Steps to reproduce, Steps, Repro]
