@@ -7,7 +7,7 @@ hooks:
     - matcher: Read
       hooks:
         - type: command
-          command: "${CLAUDE_PLUGIN_ROOT}/skills/run-route/scripts/warn-source-read.sh"
+          command: "${CLAUDE_PLUGIN_ROOT}/skills/run-route/scripts/check-driver-read.sh"
           timeout: 5
 ---
 
@@ -40,7 +40,8 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
 - `.ai/run-context/stage-conditions.txt` — `evaluate-stage-conditions.sh`'s output, written once
   after `intake` and read back by `write-run-state.sh`, which turns its `skipped:` lines into run
   state's `skipped` array (`shared/run-state.md`)
-- `.ai/logs/run-route-reads.log` — the read-hook's log (see frontmatter above)
+- `.ai/logs/run-route-reads.log` — the read-hook's log (see frontmatter above): one line per
+  read the hook judged, allowed or denied
 
 **`.ai/run-context/` — crosses the driver↔stage boundary. A stage adapter reads these as its own
 input.**
@@ -501,8 +502,8 @@ terminal state.
 
 - Spawning the next stage before this one's envelope has been captured and branched on.
 - Reading a source file, or a path an envelope's `artifacts:` lists, in this skill's own turn — that
-  is a stage's job, inside its own isolated subagent (the read hook above logs, but does not block,
-  a lapse here).
+  is a stage's job, inside its own isolated subagent (the read hook above blocks such a read and
+  returns the reason, so a lapse here stops rather than being recorded).
 - Retrying a stage that returned `fail`, with or without changed input.
 - Spawning an adapter by pasting its `SKILL.md` body into a general subagent because `Skill()` did
   not resolve it, or deciding a skip from anything other than `evaluate-stage-conditions.sh`.
