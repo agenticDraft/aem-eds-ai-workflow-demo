@@ -24,5 +24,3 @@ limits:
 trigger:
   token: "@example-run"
   allowed_identities:
-    - "example-identity-1"
-    - "example-identity-2"

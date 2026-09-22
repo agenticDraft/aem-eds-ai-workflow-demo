@@ -4,9 +4,10 @@
 # involved: this is the CI floor a config file must clear before anything
 # reads it.
 #
-# Checks the fixed shape shared/project-config.md defines: the five
+# Checks the fixed shape shared/project-config.md defines: the six
 # top-level keys, in order, and nothing else; packs, commands, paths and
-# limits as flat sub-mappings with fixed keys.
+# limits as flat sub-mappings with fixed keys; trigger as a token plus a
+# sequence of one or more identities.
 #
 # Usage:
 #   validate-project-config.sh <path>
@@ -77,7 +78,7 @@ top_level_key() {
 }
 
 # --- top-level key set, in order ------------------------------------------
-EXPECTED_TOP_LEVEL=(version packs commands paths limits)
+EXPECTED_TOP_LEVEL=(version packs commands paths limits trigger)
 
 top_level_key
 found=0
@@ -129,6 +130,20 @@ for subkey in questions_per_run fix_attempts_default; do
   require_line "^  ${subkey}: ([0-9]+)\$" "'${subkey}: <int>' under limits"
   (( MATCH < 0 )) && fail "limits.${subkey} must be >= 0"
 done
+
+# --- trigger ---------------------------------------------------------------
+require_line '^trigger:$' "'trigger:'"
+require_line '^  token: "(.*)"$' "'token: \"<token>\"' under trigger"
+[[ -z "$MATCH" ]] && fail "trigger.token is empty"
+require_line '^  allowed_identities:$' "'allowed_identities:' under trigger"
+
+identity_count=0
+while [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ -\ \"(.*)\"$ ]]; do
+  [[ -z "${BASH_REMATCH[1]}" ]] && fail "trigger.allowed_identities has an empty entry"
+  identity_count=$((identity_count + 1))
+  cursor=$((cursor + 1))
+done
+(( identity_count == 0 )) && fail "trigger.allowed_identities must list at least one identity"
 
 # --- nothing else may follow --------------------------------------------
 if (( cursor < n )); then

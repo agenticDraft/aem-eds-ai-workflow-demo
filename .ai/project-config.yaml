@@ -20,3 +20,8 @@ paths:
 limits:
   questions_per_run: 3
   fix_attempts_default: 3
+
+trigger:
+  token: "@agentic-run"
+  allowed_identities:
+    - "REPLACE_WITH_REAL_ACCOUNT_ID"
