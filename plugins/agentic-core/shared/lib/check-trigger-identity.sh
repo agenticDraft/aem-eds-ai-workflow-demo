@@ -36,20 +36,33 @@ if [[ -z "$AUTHOR" ]]; then
 fi
 
 # Collect the allowed_identities entries: the four-space "- \"...\"" lines
-# that directly follow the allowed_identities key, stopping at the first
-# line that is not one.
+# that directly follow the allowed_identities key under trigger:, stopping at
+# the first non-matching line or when we leave the trigger block.
+in_trigger=0
 in_list=0
 allowed=()
 while IFS= read -r line || [[ -n "$line" ]]; do
-  if [[ "$line" =~ ^\ \ allowed_identities:$ ]]; then
-    in_list=1
+  if [[ "$line" =~ ^trigger:$ ]]; then
+    in_trigger=1
     continue
   fi
-  if (( in_list )); then
-    if [[ "$line" =~ ^\ \ \ \ -\ \"(.*)\"$ ]]; then
-      allowed+=("${BASH_REMATCH[1]}")
-    else
+  if [[ "$line" =~ ^[a-z] ]]; then
+    # Hit another top-level key, so trigger block ended
+    if (( in_trigger )); then
       break
+    fi
+  fi
+  if (( in_trigger )); then
+    if [[ "$line" =~ ^\ \ allowed_identities:$ ]]; then
+      in_list=1
+      continue
+    fi
+    if (( in_list )); then
+      if [[ "$line" =~ ^\ \ \ \ -\ \"(.*)\"$ ]]; then
+        allowed+=("${BASH_REMATCH[1]}")
+      else
+        break
+      fi
     fi
   fi
 done < "$CONFIG"

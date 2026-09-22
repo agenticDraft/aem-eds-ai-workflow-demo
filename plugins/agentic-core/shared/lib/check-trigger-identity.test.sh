@@ -63,6 +63,14 @@ echo "[usage] file not found"
 OUT=$(bash "$CHECKER" "$FIXDIR/does-not-exist.yaml" "example-identity-1" 2>&1); ST=$?
 assert_exit "missing file -> usage error (exit 2)" 2 $ST "$OUT"
 
+echo "[security] decoy allowed_identities block in packs: is not honoured"
+OUT=$(bash "$CHECKER" "$FIXDIR/invalid/decoy-allowed-identities.yaml" "decoy-identity" 2>&1); ST=$?
+assert_exit "decoy identity refused (exit 1)" 1 $ST "$OUT"
+
+echo "[security] real trigger.allowed_identities is used despite decoy"
+OUT=$(bash "$CHECKER" "$FIXDIR/invalid/decoy-allowed-identities.yaml" "example-identity-1" 2>&1); ST=$?
+assert_exit "real identity allowed (exit 0)" 0 $ST "$OUT"
+
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
 exit $(( FAIL > 0 ? 1 : 0 ))
