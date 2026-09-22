@@ -18,8 +18,8 @@
 # Every decision, allowed or denied, is appended to the log so the discipline
 # can be asserted against after a run rather than only watched live.
 #
-# Adapted from dx-core's no-source-reads.sh (MIT, © 2025-2026 Dragan Filipovic)
-# — its allowlist-then-denylist shape, inverted to default-deny.
+# Adapts the allowlist-then-denylist shape of an upstream check, inverted here
+# to default-deny. Attribution is in this plugin's NOTICE.
 
 set -uo pipefail
 
