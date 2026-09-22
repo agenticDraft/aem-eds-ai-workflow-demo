@@ -167,9 +167,8 @@ for it.
 
 ### Interview judgment and needs-the-human findings
 
-The present / ask / wait / apply protocol (adapted from `dx-core`'s `dx-scan`, MIT, © 2025-2026
-Dragan Filipovic), once per finding in the `judgment` and `needs-the-human` sets, in the order
-`Assemble findings` produced them:
+The present / ask / wait / apply protocol, once per finding in the `judgment` and
+`needs-the-human` sets, in the order `Assemble findings` produced them:
 
 1. **Present** — show the finding's `finding` text, its `file`, and its `diff`.
 2. **Ask**, using `AskUserQuestion`:
