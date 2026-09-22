@@ -78,7 +78,14 @@ this stage's own edits never grow it:
 BASE=$(git symbolic-ref refs/remotes/origin/HEAD)
 MERGE_BASE=$(git merge-base "${BASE#refs/remotes/}" HEAD)
 git diff "$MERGE_BASE" --name-only
+git ls-files --others --exclude-standard
 ```
+
+**Both commands, unioned.** The second is not an extra precaution — without it this stage is at
+its blindest on exactly the work most likely to carry a lint violation. `git diff` reports changes
+to paths git already tracks, so a component created during this run and never committed appears in
+no diff, its violations read as out of scope, and this stage reports pass on a file set that
+excluded the entire change. A new block is untracked in its entirety until its first commit.
 
 Record this file list — call it the in-scope set for the rest of this stage. It is resolved once,
 before attempt 1, and does not change between attempts: every file this stage itself might go on to

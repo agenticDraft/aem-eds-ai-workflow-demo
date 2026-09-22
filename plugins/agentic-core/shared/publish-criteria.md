@@ -44,6 +44,24 @@ not to trust.
   tree, not `<base>...<review>` between two commits. The merge base, not `HEAD`, is the compare
   point specifically so uncommitted edits are included; a plain two-ref diff would stop at the last
   commit and silently miss whatever has not been committed yet.
+- **Unioned with the untracked, non-ignored files** — `git ls-files --others --exclude-standard`.
+  This bullet exists because the one above is not sufficient on its own and reads as though it
+  were: `git diff` reports changes to paths git already tracks, and a file created during the run
+  and never `git add`ed is tracked by nothing, so it appears in no diff at any compare point. It is
+  nonetheless as much a part of the change as any edit — more so, since a brand-new component is
+  *entirely* untracked until its first commit, which makes a check that omits this bullet blindest
+  on exactly the work most likely to carry a defect.
+
+  `--exclude-standard` is what keeps this from dragging in build output and local scratch: it
+  applies the project's own ignore rules, so an untracked path reaches the change set only when
+  `.gitignore` does not already exclude it.
+
+  *Added 2026-09-22, after a route passed a stage that had implemented the bullet above and not
+  this one.* The rule had existed in exactly one place — a comment inside one consumer's
+  implementation — and a rule recorded only inside one consumer cannot reach the other. This is
+  also why "committed and uncommitted alike" two bullets up is not a sufficient statement of it:
+  an implementer reads that, writes the `git diff` it names, and has followed the contract
+  faithfully while still missing every new file.
 
 ## Resolution rules
 
