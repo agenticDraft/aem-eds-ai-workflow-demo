@@ -128,6 +128,96 @@ else
   bad "invalid ref name reports fail in an envelope, exit 0" "exit $ST" "output: $OUT"
 fi
 
+echo "[idempotent] the branch already exists — four outcomes, none of them a failure"
+
+# 1. already checked out
+REPO="$(fresh idem-current)"
+commit_on "$REPO" "task-1" "work"
+OUT="$(cd "$REPO" && bash "$SCRIPT" task-1 2>&1)"
+NOW="$(cd "$REPO" && git branch --show-current)"
+if [[ "$OUT" == *"verdict: pass"* && "$OUT" == *"branch_action=existing"* && "$NOW" == "task-1" ]]; then
+  ok "already on the branch -> pass, branch_action=existing, tree does not move"
+else
+  bad "already on the branch -> pass, branch_action=existing, tree does not move" \
+      "on: $NOW" "output: $OUT"
+fi
+
+# 2. exists locally, not checked out, and contains HEAD
+REPO="$(fresh idem-local)"
+commit_on "$REPO" "task-2" "work"
+(cd "$REPO" && git checkout -q main) >/dev/null 2>&1
+OUT="$(cd "$REPO" && bash "$SCRIPT" task-2 2>&1)"
+NOW="$(cd "$REPO" && git branch --show-current)"
+HAS="$(cd "$REPO" && test -f extra.txt && echo yes || echo no)"
+if [[ "$OUT" == *"verdict: pass"* && "$OUT" == *"branch_action=switched"* && "$NOW" == "task-2" && "$HAS" == yes ]]; then
+  ok "exists locally and contains HEAD -> switched onto it, its work present"
+else
+  bad "exists locally and contains HEAD -> switched onto it, its work present" \
+      "on: $NOW  extra.txt: $HAS" "output: $OUT"
+fi
+
+# 3. exists on origin only
+REPO="$(fresh idem-remote)"
+commit_on "$REPO" "task-3" "work"
+(cd "$REPO" && git push -q -u origin task-3 && git checkout -q main && git branch -q -D task-3) >/dev/null 2>&1
+OUT="$(cd "$REPO" && bash "$SCRIPT" task-3 2>&1)"
+NOW="$(cd "$REPO" && git branch --show-current)"
+if [[ "$OUT" == *"verdict: pass"* && "$OUT" == *"branch_action=switched"* && "$NOW" == "task-3" ]]; then
+  ok "exists on origin only -> local tracking branch, switched onto it"
+else
+  bad "exists on origin only -> local tracking branch, switched onto it" "on: $NOW" "output: $OUT"
+fi
+
+# 4. does not exist anywhere
+REPO="$(fresh idem-new)"
+OUT="$(cd "$REPO" && bash "$SCRIPT" task-4 2>&1)"
+if [[ "$OUT" == *"verdict: pass"* && "$OUT" == *"branch_action=created"* ]]; then
+  ok "does not exist -> created, and says so in metrics"
+else
+  bad "does not exist -> created, and says so in metrics" "output: $OUT"
+fi
+
+echo "[stale] a branch that does not contain HEAD is a question, and the tree must not move"
+# The measured hazard: eds-13-button existed, fully merged, 27 commits behind
+# origin/main. Switching to it strips work HEAD already has.
+REPO="$(fresh stale)"
+commit_on "$REPO" "old-task" "old"
+(
+  cd "$REPO" || exit 1
+  git checkout -q main
+  echo newer > newer.txt && git add newer.txt && git commit -q -m "newer work on main"
+  git push -q origin main
+) >/dev/null 2>&1
+HEAD_BEFORE="$(cd "$REPO" && git rev-parse HEAD)"
+OUT="$(cd "$REPO" && bash "$SCRIPT" old-task 2>&1)"; ST=$?
+HEAD_AFTER="$(cd "$REPO" && git rev-parse HEAD)"
+NOW="$(cd "$REPO" && git branch --show-current)"
+if [[ "$OUT" == *"verdict: question"* && "$ST" == 0 && "$HEAD_BEFORE" == "$HEAD_AFTER" && "$NOW" == "main" ]]; then
+  ok "stale branch -> question, exit 0, HEAD unmoved, still on main"
+else
+  bad "stale branch -> question, exit 0, HEAD unmoved, still on main" \
+      "exit $ST  on: $NOW  head moved: $([[ "$HEAD_BEFORE" == "$HEAD_AFTER" ]] && echo no || echo YES)" \
+      "output: $OUT"
+fi
+if [[ "$OUT" == *"blocker:"* ]]; then
+  ok "the question names a blocker"
+else
+  bad "the question names a blocker" "output: $OUT"
+fi
+
+# The question verdict is the only one this script emits with question/blocker
+# fields, so it is the one whose field order can be wrong without any other
+# case noticing. Checked against the real validator, not by eye.
+printf '%s\n' "$OUT" > "$WORK/question-envelope.txt"
+VALIDATOR="$SCRIPT_DIR/../../../../agentic-core/shared/lib/validate-result-envelope.sh"
+if [[ -f "$VALIDATOR" ]]; then
+  bash "$VALIDATOR" "$WORK/question-envelope.txt" >/dev/null 2>&1; VST=$?
+  [[ "$VST" == 0 ]] && ok "the question envelope passes the real validator" \
+    || bad "the question envelope passes the real validator" "exit $VST" "$OUT"
+else
+  bad "the question envelope passes the real validator" "validator not found at $VALIDATOR"
+fi
+
 echo "[usage] no argument"
 OUT="$(bash "$SCRIPT" 2>&1)"; ST=$?
 if [[ "$ST" == 2 ]]; then ok "no arg -> exit 2"; else bad "no arg -> exit 2" "got exit $ST"; fi
