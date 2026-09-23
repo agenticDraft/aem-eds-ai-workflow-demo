@@ -12,6 +12,8 @@
 #   * nothing follows the block (it must be the last thing emitted)
 #   * question / options / blocker are present only with verdict: question,
 #     and verdict: question always carries a blocker
+#   * error_class, when present, is exactly one of TRANSIENT | VALIDATION |
+#     PERMANENT, and appears only with verdict: fail or verdict: question
 #
 # Usage:
 #   validate-result-envelope.sh <path>
@@ -108,7 +110,7 @@ if [[ "$next" == "artifacts:" || "$next" == "artifacts: []" ]]; then
   : # well-formed, handled below
 elif [[ "$next" =~ ^artifacts:\ .+$ ]]; then
   fail "'artifacts:' must be a list, even for a single path — write it as 'artifacts:' followed by '  - <path>' on the next line, not an inline value"
-elif [[ "$next" =~ ^(next_action|question|options|blocker|metrics):.*$ ]]; then
+elif [[ "$next" =~ ^(next_action|question|options|blocker|error_class|metrics):.*$ ]]; then
   fail "missing 'artifacts:' list"
 else
   fail "summary spans multiple lines"
@@ -128,6 +130,26 @@ if [[ "$line" =~ ^next_action:\ .+$ ]]; then
   cursor=$((cursor + 1))
 else
   fail "missing or malformed 'next_action:' line"
+fi
+
+# --- error_class: optional, verdict fail or question only ----------------
+# The class is what the caller branches on (see shared/error-handling.md), so
+# an unrecognised literal is rejected the same way an unrecognised verdict is:
+# a caller must never branch on a value no contract defines. Presence is not
+# required here — a stage that omits it degrades to "no class known", which
+# every caller already has to handle, whereas requiring it would invalidate
+# every fail envelope written before the field existed.
+if [[ "$verdict" == "fail" || "$verdict" == "question" ]]; then
+  if [[ "${LINES[cursor]:-}" =~ ^error_class:\ (.+)$ ]]; then
+    error_class="${BASH_REMATCH[1]}"
+    case "$error_class" in
+      TRANSIENT|VALIDATION|PERMANENT) ;;
+      *) fail "unknown error_class '$error_class' (must be TRANSIENT, VALIDATION or PERMANENT)" ;;
+    esac
+    cursor=$((cursor + 1))
+  fi
+elif [[ "${LINES[cursor]:-}" =~ ^error_class: ]]; then
+  fail "'error_class:' is only valid with verdict: fail or verdict: question"
 fi
 
 # --- verdict: question's own fields -------------------------------------

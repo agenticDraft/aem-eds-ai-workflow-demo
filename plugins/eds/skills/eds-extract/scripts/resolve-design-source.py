@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Run: python3 plugins/eds/skills/eds-extract/scripts/resolve-design-source.py .ai/run-context/fact-record.yaml .ai/run-context/sanitized-spec.md .ai/run-context/fetched-item.json
+#
 # resolve-design-source.py <fact-record.yaml> <sanitized-spec.md> <fetched-item.json>
 #
 # Deterministic. Decides which of core contract §6.1's three design-source
@@ -21,6 +23,11 @@
 # usage error (bad arguments, an unreadable fact record) exits non-zero, so
 # the caller can distinguish "I resolved this item's design source" from "I
 # could not even read the input" without inspecting stdout.
+#
+# The `url` decision additionally carries `fallback_image=`, `fallback_url=`
+# and `fallback_mime=` when the item also has exactly one image attachment, so
+# a caller whose design provider refuses has something to fall back to. Zero
+# attachments, or more than one, leave the `url` line exactly as it was.
 #
 # Exit codes: 0 always paired with a `decision=` line; 2 for a usage error.
 
@@ -70,6 +77,35 @@ def as_bool(value):
     return (value or "").strip().lower() == "true"
 
 
+def image_attachments(fetched_item_path):
+    """Every image attachment on the fetched item, in the order the tracker
+    returned them. Both the `image` decision and the `url` decision's fallback
+    read this — the url branch used to return before the scan began, so no
+    caller could discover a fallback attachment on an item that also carried a
+    design URL."""
+    found = []
+    if not os.path.isfile(fetched_item_path):
+        return found
+    with open(fetched_item_path, encoding="utf-8") as f:
+        try:
+            item = json.load(f)
+        except json.JSONDecodeError:
+            item = {}
+    attachments = ((item.get("fields") or {}).get("attachment")) or []
+    for a in attachments:
+        mime = a.get("mimeType") or ""
+        if mime.startswith("image/"):
+            found.append(
+                {
+                    "filename": a.get("filename") or "",
+                    "content_url": a.get("content") or "",
+                    "mime": mime,
+                }
+            )
+    return found
+
+
+# Run: python3 plugins/eds/skills/eds-extract/scripts/resolve-design-source.py .ai/run-context/fact-record.yaml .ai/run-context/sanitized-spec.md .ai/run-context/fetched-item.json
 def main():
     if len(sys.argv) != 4:
         usage_error("expected exactly 3 arguments")
@@ -91,38 +127,33 @@ def main():
         with open(sanitized_spec_path, encoding="utf-8") as f:
             spec_text = f.read()
 
+    images = image_attachments(fetched_item_path)
+
     design_url = find_design_url(spec_text)
     if design_url:
-        print(f"decision=url reference={design_url}")
+        line = f"decision=url reference={design_url}"
+        # Exactly one image attachment is the only set that names a fallback
+        # without a guess. Zero has nothing to offer; more than one is no more
+        # resolvable as a fallback than it is as a primary source, which is the
+        # same reason the `ambiguous` decision exists below.
+        if len(images) == 1:
+            a = images[0]
+            line += (
+                f" fallback_image={a['filename']}"
+                f" fallback_url={a['content_url']}"
+                f" fallback_mime={a['mime']}"
+            )
+        print(line)
         sys.exit(0)
 
-    image_attachments = []
-    if os.path.isfile(fetched_item_path):
-        with open(fetched_item_path, encoding="utf-8") as f:
-            try:
-                item = json.load(f)
-            except json.JSONDecodeError:
-                item = {}
-        attachments = ((item.get("fields") or {}).get("attachment")) or []
-        for a in attachments:
-            mime = a.get("mimeType") or ""
-            if mime.startswith("image/"):
-                image_attachments.append(
-                    {
-                        "filename": a.get("filename") or "",
-                        "content_url": a.get("content") or "",
-                        "mime": mime,
-                    }
-                )
-
-    if len(image_attachments) == 1:
-        a = image_attachments[0]
+    if len(images) == 1:
+        a = images[0]
         print(f"decision=image filename={a['filename']} content_url={a['content_url']} mime={a['mime']}")
         sys.exit(0)
 
-    if len(image_attachments) > 1:
-        filenames = ",".join(a["filename"] for a in image_attachments)
-        print(f"decision=ambiguous count={len(image_attachments)} filenames={filenames}")
+    if len(images) > 1:
+        filenames = ",".join(a["filename"] for a in images)
+        print(f"decision=ambiguous count={len(images)} filenames={filenames}")
         sys.exit(0)
 
     print("decision=missing")

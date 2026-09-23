@@ -31,12 +31,16 @@ next_action: <short phrase, or "none">
 Additional fields, valid only with the verdict shown:
 
 ```markdown
+error_class: TRANSIENT | VALIDATION | PERMANENT   # verdict: fail or question only
 question: <the question text>          # verdict: question only
 options:                               # verdict: question, optional
   - <short option label>
 blocker: <what is missing>             # verdict: question, required
 metrics: <key=value pairs>             # optional, any verdict
 ```
+
+The fields appear in the order shown, after `next_action` — `error_class` before `question`,
+`metrics` last.
 
 ## Field rules
 
@@ -50,6 +54,15 @@ metrics: <key=value pairs>             # optional, any verdict
   runner — a name, not a directive. In particular, a stage cannot steer the route from here: a
   skipped stage is declared by the pack as that stage's `when:` condition and evaluated against the
   fact record (`pack-manifest.md`), never announced by a stage that ran.
+- `error_class` — which of the three classes the failure belongs to. Valid only with
+  `verdict: fail` or `verdict: question`; a contract violation on `pass` or `warn`, which report no
+  failure to classify. Exactly one of the three literals — the caller branches on it, so a literal
+  no contract defines is rejected the same way an unknown `verdict` is. See `error-handling.md` for
+  what each class means and what recovery each one permits. **The validator checks the literal and
+  the verdict it sits on, not that it is present** — a `question` raised as a clarification rather
+  than as an escalation has no failure to classify, and an operation written before this field
+  existed still validates. `error-handling.md` is what asks an operation that *did* classify a
+  failure to report the class it determined.
 - `question` — the question text. Required when `verdict: question`, absent otherwise.
 - `options` — short option labels for the human or the `tracker` role to choose from. Optional,
   `verdict: question` only.
@@ -87,6 +100,7 @@ verdict: fail
 summary: The item's type has no declared readiness criteria, so this pack cannot judge whether it can be worked.
 artifacts: []
 next_action: none
+error_class: VALIDATION
 ```
 
 ## Example — question
@@ -119,6 +133,10 @@ blocker: An image-only design source cannot be identified as reference or eviden
 - Tables or ASCII art inside `summary`.
 - `question` or `blocker` present with a verdict other than `question`.
 - `blocker` absent when `verdict: question`.
+- An `error_class` outside the three literals, or one present with `verdict: pass` or
+  `verdict: warn`.
+- `error_class` carried as a `metrics` key instead of as its own field — nothing validates
+  `metrics`, so a caller reading the class from there branches on an unchecked string.
 - The block rendered as a bulleted or backtick-wrapped list (e.g. `` - `verdict: pass` `` instead
   of `verdict: pass`) — a stage adapter's own instructions that describe each field with a bullet
   (see the next section) are guidance for a human reading the skill, never a template to reproduce
@@ -138,7 +156,9 @@ One example file per verdict literal lives in `fixtures/result-envelope/`: `pass
 `fail.md`, `question.md`. Each is a realistic stage transcript ending in a valid `## Result`
 block for that verdict. `fixtures/result-envelope/invalid/` holds one fixture per rejection case
 the validator must catch: `unknown-verdict.md`, `multiline-summary.md`, `missing-artifacts.md`,
-`trailing-text.md`.
+`trailing-text.md`. `fail-error-class.md` and `question-error-class.md` carry `error_class` on the
+two verdicts it is valid with; `invalid/unknown-error-class.md` and
+`invalid/error-class-with-pass.md` are its two rejection cases.
 
 ## Verification
 

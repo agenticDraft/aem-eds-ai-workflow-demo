@@ -75,6 +75,23 @@ echo "[reject] a subagent-outcome status used as this contract's verdict"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/inner-literal.md" 2>&1); ST=$?
 assert_exit "inner literal rejected (exit 1)" 1 $ST "$OUT"
 
+echo "[accept] error_class on the two verdicts it is valid with"
+for fx in fail-error-class question-error-class; do
+  OUT=$(bash "$VALIDATOR" "$FIXDIR/$fx.md" 2>&1); ST=$?
+  assert_exit "$fx.md accepted (exit 0)" 0 $ST "$OUT"
+done
+
+echo "[reject] an error_class literal the contract does not define"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/unknown-error-class.md" 2>&1); ST=$?
+assert_exit "unknown error_class rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the bad literal" "RETRYABLE" "$OUT"
+assert_contains "reason names the three it accepts" "TRANSIENT, VALIDATION or PERMANENT" "$OUT"
+
+echo "[reject] error_class on a verdict it is not valid with"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/error-class-with-pass.md" 2>&1); ST=$?
+assert_exit "error_class with verdict: pass rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the field, not the verdict" "'error_class:' is only valid" "$OUT"
+
 echo "[usage] no argument"
 OUT=$(bash "$VALIDATOR" 2>&1); ST=$?
 assert_exit "no arg -> usage error (exit 2)" 2 $ST "$OUT"

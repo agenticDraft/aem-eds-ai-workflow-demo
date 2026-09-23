@@ -73,10 +73,19 @@ than the failure it replaced.
 
 ## Escalation
 
-`TRANSIENT` exhaustion does not return `fail`. It returns **`verdict: question`**, because a
-human doing one concrete thing — waiting for a window to reset, starting a service, refreshing a
-credential — is what unblocks it, and the question protocol already routes that to a human in one
-execution mode and to the work item in the other. See `question-protocol.md`.
+`TRANSIENT` exhaustion ends in **`verdict: question`**, because a human doing one concrete thing —
+waiting for a window to reset, starting a service, refreshing a credential — is what unblocks it,
+and the question protocol already routes that to a human in one execution mode and to the work item
+in the other. See `question-protocol.md`.
+
+**Which tier raises that question is fixed: the stage adapter, never the provider operation it
+called.** An exhausted provider operation returns `fail` carrying `error_class: TRANSIENT`, and the
+stage decides what that means. The reason is the one the previous section gives: whether an
+alternative path is open — a second source, a degraded mode, a different input — is knowledge the
+stage has and the operation does not. An operation that raised the question itself would ask a
+human for something its caller could still have resolved without one. A stage with no alternative
+left raises the question at its own boundary, which is also the only place `question-protocol.md`
+permits one.
 
 The `blocker` field names **the literal command or action that would unblock it**, not a request to
 investigate. "Please investigate" is not a blocker; a command a reader can run is.
@@ -102,8 +111,9 @@ is where a narrative summary belongs when one is worth writing at all.
 ## Anti-patterns
 
 - Retrying a `VALIDATION` or `PERMANENT` failure, in the hope that it is really transient.
-- Returning `fail` after `TRANSIENT` retries are exhausted, so nothing asks the human who could
-  fix it in one step.
+- A stage adapter returning `fail` after `TRANSIENT` retries are exhausted and no alternative path
+  is left, so nothing asks the human who could fix it in one step. (A provider operation returning
+  that `fail` is correct — it is how the stage learns the class.)
 - A `blocker` that describes the problem again instead of naming what to do about it.
 - Reporting a class the operation did not determine, or omitting `error_class` on a `fail` or
   `question` envelope, which leaves a caller branching on an absent value.
