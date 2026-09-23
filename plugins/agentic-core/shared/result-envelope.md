@@ -42,6 +42,29 @@ metrics: <key=value pairs>             # optional, any verdict
 The fields appear in the order shown, after `next_action` — `error_class` before `question`,
 `metrics` last.
 
+## How a stage writes it
+
+**Write it with the emitter, not by hand:**
+
+```
+bash <agentic-core plugin root>/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-<stage id>.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+It spells the block, in the field order below, from values the caller supplies, and refuses a
+field this contract does not allow on the verdict given — writing nothing at all when it refuses.
+A stage that calls it cannot emit a malformed block, and cannot fail to emit one by ending its
+output with something else: the envelope is a file it wrote, not a shape its last message has to
+carry.
+
+Options beyond the two required: `--artifact <path>` (repeatable; none emits `artifacts: []`),
+`--next-action <phrase>` (default `none`), `--error-class <class>`, `--question <text>`,
+`--option <label>` (repeatable), `--blocker <text>`, `--metrics <key=value …>`.
+
+A stage that has not yet adopted the emitter still ends its output with the block, and everything
+below still governs what that block must contain. Both paths are read the same way.
+
 ## Field rules
 
 - `verdict` — exactly one of the four literals above. The runner branches on the literal; an
