@@ -143,6 +143,20 @@ The subagent's output ends with a `## Result` block — the result envelope (`sh
 Capture everything from that block onward into `.ai/run-context/envelope-<stage id>.txt`,
 overwriting any previous stage's file there. Never parse anything above that block.
 
+**Then run, every time, before anything judges that file:**
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-<stage id>.txt
+```
+
+It reduces the file to the block alone and removes blank lines between the heading and a
+`verdict:` line — transcription artifacts, not anything a stage said. It repairs nothing else: any
+other first line is left exactly as found, for the validator to reject. Print whatever it reports,
+so a normalization stays visible in the run's own record rather than becoming invisible.
+
+Exit `1` means no `## Result` heading was captured at all. That is the stage producing no envelope,
+not a shape to repair — treat it exactly as an envelope that fails validation.
+
 ## Skipped stages
 
 A skip is declared by the **pack**, not by a running stage: each stage in the platform manifest's
@@ -307,7 +321,8 @@ fresh?"* using the fields `check-run-state.sh` reported.
    invocation argument `item_id: <item_id>`; `intake` needs no `fact_record`/`route`/mode input
    yet, since it is what produces the fact record. Capture its envelope to
    `.ai/run-context/envelope-intake.txt`.
-4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
+4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-intake.txt`
+5. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
    → go to **Intake decision?**.
 
 ### Intake decision?
@@ -410,7 +425,9 @@ it was.
 
 Invoke it (see "How a stage adapter is invoked" above) — with no argument text, except for
 `plan-gate` and `publish-gate`, which each take the single `project_root:` line named there.
-Capture its envelope to `.ai/run-context/envelope-<stage id>.txt`. Go to **Validate envelope**.
+Capture its envelope to `.ai/run-context/envelope-<stage id>.txt`, then run
+`${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh` over that file as "How a stage adapter is
+invoked" requires. Go to **Validate envelope**.
 
 ### Validate envelope
 
