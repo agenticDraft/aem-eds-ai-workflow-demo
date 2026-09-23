@@ -64,7 +64,7 @@ digraph eds_extract {
     "Design fetch result?" -> "Report question" [label="question"];
     "Design fetch result?" -> "Fallback available?" [label="fail"];
     "Design fetch result?" -> "Report fail" [label="invalid envelope"];
-    "Fallback available?" -> "Download the attachment" [label="yes — TRANSIENT or PERMANENT,\nand one image attachment"];
+    "Fallback available?" -> "Download the attachment" [label="yes — TRANSIENT or PERMANENT,\nand a declared reference image"];
     "Fallback available?" -> "Report question" [label="no attachment, TRANSIENT"];
     "Fallback available?" -> "Report fail" [label="VALIDATION, or no attachment\nwith any other class"];
     "Normalize the design-tool reference" -> "Report pass";
@@ -92,10 +92,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-extract/scripts/resolve-design-source.p
 substituting the fact record's own `item_id` for `<item_id>`. This script alone decides which of
 §6.1's forms applies — a design-tool URL found in the sanitized text (the same detection this
 pack's `intake` stage already applied, so this stage's belief about a URL's presence always agrees
-with `design_source`), a single image attachment, more than one image attachment (irreducibly
-ambiguous — nothing in the fact record or the fetched item says which one is the reference,
-core contract §6.1/gap G36), or neither despite the fact record calling for one. Nothing in this
-skill overrides or second-guesses that decision.
+with `design_source`), an image attachment resolved as this item's design reference, an image set
+that resolves to no single reference (irreducibly ambiguous — nothing the script may act on says
+which one it is, core contract §6.1/gap G36), or neither despite the fact record calling for one.
+Nothing in this skill overrides or second-guesses that decision.
 
 An exit code other than `0` is a usage error in this skill's own invocation, not a decision about
 the item — go to **Report fail**, naming the usage error from stderr.
@@ -109,13 +109,16 @@ Read the script's `decision=` line from stdout.
   outside a route — inside a route the runner never spawns this stage unless the condition already
   matched.)
 - `url` — a design-tool URL was found; the line also carries `reference=<url>`, and, when the item
-  additionally carries exactly one image attachment, `fallback_image=`, `fallback_url=` and
+  additionally carries a resolved fallback image, `fallback_image=`, `fallback_url=` and
   `fallback_mime=`. Keep those three values: nothing reads them unless the provider refuses, and
-  **Fallback available?** is the only node that does. Go to **Resolve the design pack**.
-- `image` — exactly one image attachment; the line also carries `filename=`, `content_url=` and
-  `mime=`. Go to **Download the attachment**.
-- `ambiguous` — more than one image attachment and no URL; the line also carries `count=` and
-  `filenames=`. Go to **Report question**.
+  **Fallback available?** is the only node that does. Go to **Resolve the design pack**. A URL is
+  this item's design source whatever its attachments look like, so a URL never arrives as
+  `ambiguous`.
+- `image` — no URL, and the item's images resolved to one design reference; the line also carries
+  `filename=`, `content_url=` and `mime=`. Go to **Download the attachment**.
+- `ambiguous` — no URL, and the item's images did not resolve to one design reference; the line
+  also carries `count=` and `filenames=`, listing every image the item carries. Go to **Report
+  question**.
 - `missing` — the fact record called for a design source but none was found. Go to **Report
   fail**: this is a fact-record/reality mismatch, not something this stage can resolve.
 
@@ -310,21 +313,24 @@ validator rejects.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: question`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — one of: "more than one image attachment, none marked as the design
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — one of: "the item's images name no design
   reference" (the `ambiguous` decision); the design provider's own question summary, relayed
   unchanged (the provider-question path); or the provider's transient failure with no attachment to
   fall back to (the **Fallback available?** path).
 - `artifacts: []`
 - `next_action: none`
-- `question`: for `ambiguous`, ask which attachment (naming each by filename from `filenames=`) is
-  the design reference; for a relayed provider question, that provider's own `question` text
-  unchanged; from **Fallback available?**, whether to wait for the provider or to attach the
-  reference image to the work item.
-- `blocker`: for `ambiguous`, "more than one image attachment, none identified as the design
-  reference"; for a relayed provider question, that provider's own `blocker` text unchanged; from
-  **Fallback available?**, **the literal action that unblocks it** — waiting out the named quota or
-  rate-limit window, or attaching the reference image to the work item. Never "investigate the
-  provider failure": a blocker names a thing a reader can do, not a thing to look into.
+- `question`: for `ambiguous`, ask which of the attachments (naming each by filename from
+  `filenames=`) is the design reference; for a relayed provider question, that provider's own
+  `question` text unchanged; from **Fallback available?**, whether to wait for the provider or to
+  attach the design reference to the work item.
+- `blocker`: **the literal action that unblocks it** — never "investigate the provider failure": a
+  blocker names a thing a reader can do, not a thing to look into. For `ambiguous`: attach the
+  design reference to the work item named `design-reference.png` (or `design-reference.jpg` or
+  `design-reference.jpeg`), or rename the attachment that already is one — an image under any other
+  name is not read as the reference, however few of them there are. For a relayed provider
+  question, that provider's own `blocker` text unchanged. From **Fallback available?**: wait out
+  the named quota or rate-limit window, or attach the design reference to the work item named
+  `design-reference.png` (or `design-reference.jpg` or `design-reference.jpeg`).
 - `error_class`: on the **Fallback available?** path only, `TRANSIENT` — the class that brought the
   flow here, carried through so the run's own record shows why this became a question. The
   `ambiguous` and relayed-provider-question paths carry no class: the first classifies nothing, and
@@ -360,6 +366,6 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   contract §6.1 specifies for `readiness`** (gap G36) — `readiness` does not implement it (its own
   known limitation: the fact record cannot tell an image-only item from a URL-backed one, let alone
   name the attachments). Raising it here instead is a legitimate stage-boundary `question` (§3), not
-  a substitute for fixing `readiness` — an item whose design source is unambiguous (one image, or a
-  resolvable URL) never reaches a human a run earlier than it has to; one that is genuinely
+  a substitute for fixing `readiness` — an item whose design source is unambiguous (a declared
+  reference image, or a resolvable URL) never reaches a human a run earlier than it has to; one that is genuinely
   ambiguous still gets asked, just one stage later than the contract's ideal.

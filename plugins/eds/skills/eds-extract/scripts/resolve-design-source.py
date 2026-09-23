@@ -17,6 +17,17 @@
 # itself scanned — so this script's belief about a URL's presence always
 # agrees with the fact record's design_source it is reading.
 #
+# An image attachment counts as the design reference only when its filename
+# is one of the reserved names below, matched whole and without regard to
+# case. Any other image — including a lone one — is not a reference and is
+# never assumed to be one. An item whose images do not resolve to exactly one
+# reserved name is reported as `ambiguous` over every image it carries, so
+# the caller can name them all when it asks.
+#
+# A design-tool URL outranks the attachments entirely: it is the design
+# source, and the reserved-name scan only decides whether a fallback can be
+# named alongside it. An item with a URL is never `ambiguous`.
+#
 # Prints exactly one `decision=...` line to stdout and exits 0 for every
 # outcome this script is able to determine at all, including a decline or an
 # irreducible ambiguity — those are legitimate decisions, not errors. Only a
@@ -25,9 +36,9 @@
 # could not even read the input" without inspecting stdout.
 #
 # The `url` decision additionally carries `fallback_image=`, `fallback_url=`
-# and `fallback_mime=` when the item also has exactly one image attachment, so
-# a caller whose design provider refuses has something to fall back to. Zero
-# attachments, or more than one, leave the `url` line exactly as it was.
+# and `fallback_mime=` when the item also carries exactly one reserved-name
+# image, so a caller whose design provider refuses has something to fall back
+# to. Any other image set leaves the `url` line exactly as it was.
 #
 # Exit codes: 0 always paired with a `decision=` line; 2 for a usage error.
 
@@ -47,6 +58,10 @@ def usage_error(msg):
 
 URL_RE = re.compile(r"https?://\S+")
 FIGMA_HOSTS = ("figma.com", "www.figma.com")
+
+# The filenames an item uses to declare which attachment is the design
+# reference. Compared against the whole filename, lowercased.
+RESERVED_NAMES = ("design-reference.png", "design-reference.jpg", "design-reference.jpeg")
 
 
 def find_design_url(text):
@@ -79,10 +94,8 @@ def as_bool(value):
 
 def image_attachments(fetched_item_path):
     """Every image attachment on the fetched item, in the order the tracker
-    returned them. Both the `image` decision and the `url` decision's fallback
-    read this — the url branch used to return before the scan began, so no
-    caller could discover a fallback attachment on an item that also carried a
-    design URL."""
+    returned them. Both the `ambiguous` decision's filename list and the
+    reserved-name scan read this."""
     found = []
     if not os.path.isfile(fetched_item_path):
         return found
@@ -103,6 +116,13 @@ def image_attachments(fetched_item_path):
                 }
             )
     return found
+
+
+def reserved_images(images):
+    """The subset of `images` declaring itself as the design reference. Exactly
+    one is resolvable; none and several are not, and neither is turned into a
+    guess."""
+    return [a for a in images if a["filename"].lower() in RESERVED_NAMES]
 
 
 # Run: python3 plugins/eds/skills/eds-extract/scripts/resolve-design-source.py .ai/run-context/fact-record.yaml .ai/run-context/sanitized-spec.md .ai/run-context/fetched-item.json
@@ -128,16 +148,16 @@ def main():
             spec_text = f.read()
 
     images = image_attachments(fetched_item_path)
+    reserved = reserved_images(images)
 
     design_url = find_design_url(spec_text)
     if design_url:
         line = f"decision=url reference={design_url}"
-        # Exactly one image attachment is the only set that names a fallback
-        # without a guess. Zero has nothing to offer; more than one is no more
-        # resolvable as a fallback than it is as a primary source, which is the
-        # same reason the `ambiguous` decision exists below.
-        if len(images) == 1:
-            a = images[0]
+        # Exactly one reserved-name image is the only set that names a fallback
+        # without a guess. The URL itself is unaffected either way: it is this
+        # item's design source whatever its attachments look like.
+        if len(reserved) == 1:
+            a = reserved[0]
             line += (
                 f" fallback_image={a['filename']}"
                 f" fallback_url={a['content_url']}"
@@ -146,12 +166,12 @@ def main():
         print(line)
         sys.exit(0)
 
-    if len(images) == 1:
-        a = images[0]
+    if len(reserved) == 1:
+        a = reserved[0]
         print(f"decision=image filename={a['filename']} content_url={a['content_url']} mime={a['mime']}")
         sys.exit(0)
 
-    if len(images) > 1:
+    if images:
         filenames = ",".join(a["filename"] for a in images)
         print(f"decision=ambiguous count={len(images)} filenames={filenames}")
         sys.exit(0)
