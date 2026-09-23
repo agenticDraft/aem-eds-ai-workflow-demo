@@ -1,5 +1,5 @@
 ---
-description: scm.create_branch — creates a working branch from the repository's base branch and pushes it to origin. Requires gh authenticated on this machine (gh auth status).
+description: scm.create_branch — creates a working branch from the caller's current HEAD, or from the repository's default branch when that is where the caller is, and pushes it to origin. Requires gh authenticated on this machine (gh auth status).
 ---
 
 # create-branch
@@ -13,8 +13,19 @@ One or two lines in the invocation argument:
 
 ```
 branch: <new branch name>
-base: <base branch name>          # optional, defaults to the repository's default branch
+base: <base branch name>          # optional; see the default below
 ```
+
+**When no `base` is given**, the branch's base depends on where the caller is:
+
+- On the repository's default branch — `origin/<default>`, fetched first. A local default branch
+  left behind by an already-merged change would otherwise drag that change's pre-merge commit onto
+  the new branch.
+- Anywhere else, including a detached HEAD — the current `HEAD`. Being on another branch is
+  deliberate, and this operation checks the working tree out to the branch it creates, so basing on
+  the default branch would discard the caller's own commits while still reporting `pass`.
+
+A `base` given explicitly always wins, and is always taken from `origin/<base>`.
 
 ## What to do
 
