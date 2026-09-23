@@ -139,11 +139,28 @@ attribution, not something to work around by reaching for a different spawn mech
 run with unlabelled cost rows is strictly better than a mislabelled one that ran its stages outside
 their declared sandbox.
 
-The subagent's output ends with a `## Result` block — the result envelope (`shared/result-envelope.md`).
-Capture everything from that block onward into `.ai/run-context/envelope-<stage id>.txt`,
-overwriting any previous stage's file there. Never parse anything above that block.
+### Getting a stage's envelope onto disk
 
-**Then run, every time, before anything judges that file:**
+Three steps, in this order, every time.
+
+**1. Before invoking the stage**, empty its envelope file:
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/reset-envelope.sh .ai/run-context/envelope-<stage id>.txt
+```
+
+The same stage id in an earlier run leaves a file of the same name, so without this you cannot tell
+a file this stage wrote from one that was already sitting there.
+
+**2. After it returns, look at that file before reading the stage's output at all.**
+
+- **Non-empty** — the stage wrote its own envelope with the emitter
+  (`shared/result-envelope.md`, "How a stage writes it"). Leave it exactly as it is. Do not
+  transcribe anything over it; the stage's own message is not the envelope and never was.
+- **Empty** — the stage has not adopted the emitter. Its output ends with a `## Result` block.
+  Capture everything from that block onward into the file. Never parse anything above that block.
+
+**3. Then run, every time and on both paths, before anything judges that file:**
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-<stage id>.txt
@@ -152,10 +169,12 @@ ${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-<s
 It reduces the file to the block alone and removes blank lines between the heading and a
 `verdict:` line — transcription artifacts, not anything a stage said. It repairs nothing else: any
 other first line is left exactly as found, for the validator to reject. Print whatever it reports,
-so a normalization stays visible in the run's own record rather than becoming invisible.
+so a normalization stays visible in the run's own record rather than becoming invisible. On an
+emitted envelope it reports `unchanged`, which is the point of running it on both paths rather than
+remembering which one you took.
 
-Exit `1` means no `## Result` heading was captured at all. That is the stage producing no envelope,
-not a shape to repair — treat it exactly as an envelope that fails validation.
+Exit `1` means no `## Result` heading reached the file at all — a stage that produced no envelope,
+which is not a shape to repair. Treat it exactly as an envelope that fails validation.
 
 ## Skipped stages
 
@@ -319,8 +338,9 @@ fresh?"* using the fields `check-run-state.sh` reported.
 2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
 3. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
    invocation argument `item_id: <item_id>`; `intake` needs no `fact_record`/`route`/mode input
-   yet, since it is what produces the fact record. Capture its envelope to
-   `.ai/run-context/envelope-intake.txt`.
+   yet, since it is what produces the fact record. Get its envelope onto
+   `.ai/run-context/envelope-intake.txt` by the three steps in "Getting a stage's envelope onto
+   disk", running `reset-envelope.sh` on that path **before** invoking the adapter.
 4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-intake.txt`
 5. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
    → go to **Intake decision?**.
@@ -425,9 +445,9 @@ it was.
 
 Invoke it (see "How a stage adapter is invoked" above) — with no argument text, except for
 `plan-gate` and `publish-gate`, which each take the single `project_root:` line named there.
-Capture its envelope to `.ai/run-context/envelope-<stage id>.txt`, then run
-`${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh` over that file as "How a stage adapter is
-invoked" requires. Go to **Validate envelope**.
+Get its envelope onto disk by the three steps in "Getting a stage's envelope onto disk" — reset the
+file first, then take it as written or capture from the output, then run `capture-envelope.sh`. Go
+to **Validate envelope**.
 
 ### Validate envelope
 
