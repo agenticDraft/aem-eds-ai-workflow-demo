@@ -1,0 +1,15 @@
+/*
+ * The `green` variation only. Sizing, border radius and typography stay owned by the project's
+ * shared `a.button` rule (styles/styles.css) — this stylesheet declares none of them (AC-7).
+ * Colour is declared only within the `.green` scope (AC-8); a plain `.button` instance carries no
+ * rule here at all, so it renders with whatever colour the shared rule supplies (none).
+ *
+ * Design reference: https://www.figma.com/design/B1rwvloGdmUrozvkBQ0vKP/Zoki?node-id=1-185
+ * (image-only source; no machine-readable values — see prototype-report.md for how the colours
+ * below were sampled from the attached design-reference.png).
+ */
+.button.green a.button {
+  background-color: var(--accent-accent-2);
+  border-color: var(--accent-accent-2);
+  color: var(--black);
+}
