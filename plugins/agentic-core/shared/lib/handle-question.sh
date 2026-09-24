@@ -10,7 +10,8 @@
 #
 # Exit codes and the "decision:" line they print:
 #   0 — decision: ask                 (interactive, budget left — "question:"/"options:" lines
-#                                       follow, plus the incremented "questions_used:")
+#                                       follow, plus the incremented "questions_used:" and
+#                                       "next_stage:", the stage to re-invoke once answered)
 #   3 — decision: terminate-failed    (the stage is always-autonomous — its question is treated
 #                                       as fail, in both modes)
 #   4 — decision: terminate-blocked   (interactive budget exhausted, or autonomous mode — for
@@ -105,6 +106,10 @@ if [[ "$MODE" == "interactive" ]]; then
       echo "$OPTIONS"
     fi
     echo "questions_used: $((QUESTIONS_USED + 1))"
+    # Once answered, the stage that asked is the one that runs next — it is
+    # re-invoked exactly once with the answer; the answer is never handed
+    # forward to the stage after it.
+    echo "next_stage: $STAGE_ID"
     exit 0
   else
     echo "decision: terminate-blocked"

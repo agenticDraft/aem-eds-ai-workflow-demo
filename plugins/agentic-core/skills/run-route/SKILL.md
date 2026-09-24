@@ -47,8 +47,8 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
 input.**
 - `.ai/run-context/orchestrating.flag` — the orchestration marker (`shared/orchestration-flag.md`)
 - `.ai/run-context/fact-record.yaml` — the fact record `intake` emits (`shared/fact-record.md`)
-- `.ai/run-context/question-answer.yaml` — the question/answer pair, when a stage asked one
-  (`shared/question-protocol.md`)
+- `.ai/run-context/question-answer.yaml` — the asking stage's id with its question/answer pair,
+  when a stage asked one (`shared/question-protocol.md`)
 - `.ai/run-context/envelope-<stage id>.txt` — one stage's captured envelope, overwritten per
   stage; not an artifact any later stage reads, purely this skill's own scratch space for handing
   a captured envelope to `run-stage.sh`
@@ -118,13 +118,16 @@ nothing else.
 
 Every other stage takes **no** invocation argument at all: its own `SKILL.md` declares `## Input:
 None` and reads `.ai/run-context/fact-record.yaml`, `.ai/run-context/question-answer.yaml` (when
-the previous stage asked one), and any prior stage's own artifacts, at their fixed paths, itself —
+it is being re-invoked with the answer to its own question), and any prior stage's own artifacts,
+at their fixed paths, itself —
 the `.ai/run-context/` half of **Fixed paths** above is what makes that possible. Spawn every such
 stage with no argument text at all.
 
 A stage is never told the shape of the run it is part of. It reads the fact record itself and,
-when one was asked, the previous stage's answer from its own fixed path; which stages ran before
-it, and which were skipped, are yours to know and not its business to branch on.
+when it asked one, its own answer from its fixed path; which stages ran before
+it, and which were skipped, are yours to know and not its business to branch on. Re-invoking a
+stage with its answer does not change this: the answer file names the stage it belongs to, and the
+stage checks that itself.
 
 **Wait for its result before doing anything else.** A forked skill's result arrives in your
 conversation when it completes — do not invoke the next stage until you have captured this one's
@@ -234,6 +237,8 @@ digraph run_route {
     "Handle question" [shape=box];
     "Question decision?" [shape=diamond];
     "Ask human, record answer" [shape=box];
+    "Re-invoke the asking stage" [shape=box];
+    "Asking stage is the branch step?" [shape=diamond];
     "blocked" [shape=doublecircle];
     "failed" [shape=doublecircle];
     "delivered" [shape=doublecircle];
@@ -280,7 +285,10 @@ digraph run_route {
     "Question decision?" -> "Ask human, record answer" [label="ask"];
     "Question decision?" -> "blocked" [label="terminate-blocked"];
     "Question decision?" -> "failed" [label="terminate-failed (autonomous override)"];
-    "Ask human, record answer" -> "Record stage, refresh flag";
+    "Ask human, record answer" -> "Re-invoke the asking stage";
+    "Re-invoke the asking stage" -> "Asking stage is the branch step?";
+    "Asking stage is the branch step?" -> "Ensure the working branch" [label="yes"];
+    "Asking stage is the branch step?" -> "Invoke adapter, capture envelope" [label="no — same stage, same argument"];
 }
 ```
 
@@ -552,8 +560,9 @@ Read the captured envelope's `verdict`.
   and any later resume publish the branch this run belongs to rather than whatever happens to be
   checked out. Print the envelope's `metrics` line: `branch_action=created|existing|switched` is
   how a reader tells a fresh run from a resumed one. Go to **Drive next stage**.
-- **`question`** — go to **Handle question**, relaying the operation's own `question` and `blocker`
-  unchanged. The operation raises this when the named branch exists but does not contain the current
+- **`question`** — go to **Handle question** with `create-branch` as the stage id (its envelope is
+  `.ai/run-context/envelope-create-branch.txt`), relaying the operation's own `question` and
+  `blocker` unchanged. The operation raises this when the named branch exists but does not contain the current
   `HEAD`, which cannot be resolved without discarding someone's work; it is not yours to answer.
 - **`fail`**, or an envelope that does not validate — route to **failed**. A run that cannot get
   onto its own branch has no safe way to continue: every stage after this one may write, and the
@@ -588,10 +597,44 @@ reporting; that call belongs here, at this boundary, never inside a stage.
 ### Ask human, record answer
 
 Put the reported `question` (and `options`, if any) to the human with `AskUserQuestion`. Write the
-answer: `write-question-answer.sh .ai/run-context/question-answer.yaml "<question>" "<answer>"`.
-Go to **Record stage, refresh flag** — the questions-used counter this script reported is already
-incremented, and the answer's path is included among the next stage's inputs. This is not a
-terminal state.
+answer, naming the stage it belongs to — the `next_stage` line `handle-question.sh` printed:
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/write-question-answer.sh .ai/run-context/question-answer.yaml \
+  <next_stage> "<question>" "<answer>"
+```
+
+Carry the `questions_used` value the script printed forward as the run's count — it is already
+incremented. This is not a terminal state. Go to **Re-invoke the asking stage**.
+
+Do **not** go to **Record stage, refresh flag** here. The asking stage has not finished its work —
+it stopped short of everything the answer unblocks — so recording it now would put it in
+`run-state.json` as `last_stage`, and a resumed run would skip past the one stage that still owes
+its artifacts.
+
+### Re-invoke the asking stage
+
+The stage that runs next is `next_stage`, from `handle-question.sh`'s own output — never a stage you
+choose, and never the stage after it. The answer belongs to the stage that asked; the stage after it
+neither asked the question nor owns the work it unblocks (`shared/question-protocol.md`).
+
+Re-invoke it **exactly once** for this answer. What it returns is judged like any first invocation:
+continue advances the run and records the stage; `fail` ends it; a further `question` goes to
+**Handle question** as a new question, under the same budget. Never invoke it again on your own
+initiative — that would be a retry, which this skill never does.
+
+Go to **Asking stage is the branch step?**.
+
+### Asking stage is the branch step?
+
+**`next_stage` is `create-branch`** — the question came from **Branch ensured?**, not from a stage
+adapter. Go to **Ensure the working branch** and run it again with the same derived name. It reads
+no answer; it succeeds on re-invocation only when the human has changed the repository state its
+question named, which is what that question asked them to do.
+
+**Otherwise** → go to **Invoke adapter, capture envelope** for `next_stage`, with the same
+invocation argument it was given the first time (`item_id:` for `intake`, `project_root:` for a
+gate, none for every other stage). The adapter reads its answer itself from the fixed path.
 
 ### blocked
 
@@ -629,6 +672,8 @@ terminal state.
   is a stage's job, inside its own isolated subagent (the read hook above blocks such a read and
   returns the reason, so a lapse here stops rather than being recorded).
 - Retrying a stage that returned `fail`, with or without changed input.
+- Handing an answer forward to the stage after the one that asked, or recording the asking stage as
+  completed before its re-invocation returns.
 - Spawning an adapter by pasting its `SKILL.md` body into a general subagent because `Skill()` did
   not resolve it, or deciding a skip from anything other than `evaluate-stage-conditions.sh`.
 - Re-evaluating a stage's condition mid-run, or restating one in your own words instead of letting
@@ -639,4 +684,4 @@ terminal state.
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: 878cd84b0514 -->
+<!-- instructions-stamp: d3fa8094a996 -->

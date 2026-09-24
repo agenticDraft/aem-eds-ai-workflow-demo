@@ -31,7 +31,9 @@ with.
 None. This stage reads four fixed paths: `.ai/run-context/fact-record.yaml`,
 `.ai/run-context/design-reference.json` (written by `eds-extract`),
 `.ai/run-context/design-conventions.md` (written by `eds-conventions`), and
-`.ai/run-context/sanitized-spec.md` (written by `eds-intake`). It calls no `tracker`/`scm`/`design`/
+`.ai/run-context/sanitized-spec.md` (written by `eds-intake`) — plus
+`.ai/run-context/question-answer.yaml` when the route re-invokes this stage with the answer to its
+own question, read only through the core's `read-question-answer.sh`. It calls no `tracker`/`scm`/`design`/
 `browser` role operation — building the prototype is a content-authoring step, not a render/capture/
 measure step; `eds-verify-design` (not yet built) is the stage that renders and compares it.
 
@@ -60,6 +62,7 @@ digraph eds_prototype {
     "Inputs present?" -> "Report fail" [label="no"];
     "Target block identified?" -> "Block already exists?" [label="yes"];
     "Target block identified?" -> "Report question" [label="no"];
+    "Target block identified?" -> "Report fail" [label="answer file names no owner"];
     "Block already exists?" -> "Read the existing block's markup, CSS, and JS" [label="yes"];
     "Block already exists?" -> "Read the nearest exemplar's structure" [label="no"];
     "Read the existing block's markup, CSS, and JS" -> "Compose the block-table content";
@@ -95,7 +98,26 @@ defect upstream — not something this stage can produce on its own.
 
 ### Target block identified?
 
-Take `fact-record.yaml`'s `components` list if non-empty — the first entry, in fact-record order.
+**First, an answer addressed to this stage.** Run:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/read-question-answer.sh \
+  .ai/run-context/question-answer.yaml prototype
+```
+
+- **Exit `0`** — the route re-invoked this stage with the human's answer to the question below.
+  The answer outranks both fact-record fields: it is the human resolving exactly the ambiguity they
+  could not. Take the first `blocks/<name>/` path in it; failing that, the whole answer when it is a
+  single block name (lowercase letters, digits, hyphens). One name resolved — continue to **Block
+  already exists?**. Neither — go to **Report question** again: the answer did not name a block,
+  and guessing one from free text is the guess the question existed to avoid.
+- **Exit `3`** — no answer for this stage (none recorded, or one another stage asked). Ignore the
+  file and continue below.
+- **Exit `1`** — the file exists but names no owner. Go to **Report fail**, naming the script's
+  reason: an answer nobody can prove is this stage's is never acted on.
+
+Otherwise, take `fact-record.yaml`'s `components` list if non-empty — the first entry, in
+fact-record order.
 Otherwise, take every path in `files_named` matching `blocks/<name>/…` and use the first distinct
 `<name>` — the same fallback `eds-baseline` and `eds-verify` apply to their own target
 identification. One name resolved — continue to **Block already exists?**.
@@ -239,7 +261,9 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming which required input was missing — `design-reference.json` or
-  `design-conventions.md` — verbatim, never reworded into something more general.
+  `design-conventions.md` — verbatim, never reworded into something more general; or, from
+  **Target block identified?**, the reason `read-question-answer.sh` gave for refusing the answer
+  file.
 - `artifacts: []`
 - `next_action: none`
 
