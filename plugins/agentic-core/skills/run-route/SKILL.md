@@ -227,6 +227,9 @@ digraph run_route {
     "Validate envelope" [shape=box];
     "Envelope decision?" [shape=diamond];
     "Record stage, refresh flag" [shape=box];
+    "Stage is readiness?" [shape=diamond];
+    "Ensure the working branch" [shape=box];
+    "Branch ensured?" [shape=diamond];
     "Stage is deliver?" [shape=diamond];
     "Handle question" [shape=box];
     "Question decision?" [shape=diamond];
@@ -251,7 +254,7 @@ digraph run_route {
     "Record intake stage" -> "Drive next stage" [label="no question asked"];
     "Resume: re-evaluate stage conditions" -> "Stage list matches?";
     "Stage list matches?" -> "failed" [label="no — the pack or the fact record changed"];
-    "Stage list matches?" -> "Drive next stage" [label="yes"];
+    "Stage list matches?" -> "Ensure the working branch" [label="yes"];
     "Drive next stage" -> "Stage skipped?";
     "Stage skipped?" -> "Record skipped stage" [label="yes"];
     "Stage skipped?" -> "Resolve stage adapter" [label="no"];
@@ -264,7 +267,13 @@ digraph run_route {
     "Envelope decision?" -> "Record stage, refresh flag" [label="continue / continue-warn"];
     "Envelope decision?" -> "Handle question" [label="question"];
     "Envelope decision?" -> "failed" [label="terminate-failed / terminate-contract-violation"];
-    "Record stage, refresh flag" -> "Stage is deliver?";
+    "Record stage, refresh flag" -> "Stage is readiness?";
+    "Stage is readiness?" -> "Ensure the working branch" [label="yes"];
+    "Stage is readiness?" -> "Stage is deliver?" [label="no"];
+    "Ensure the working branch" -> "Branch ensured?";
+    "Branch ensured?" -> "Drive next stage" [label="pass"];
+    "Branch ensured?" -> "Handle question" [label="question"];
+    "Branch ensured?" -> "failed" [label="fail / invalid envelope"];
     "Stage is deliver?" -> "delivered" [label="yes"];
     "Stage is deliver?" -> "Drive next stage" [label="no — next stage"];
     "Handle question" -> "Question decision?";
@@ -404,7 +413,9 @@ violation and route to **failed**, naming which changed.
 If it matches: `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh
 .ai/run-context/orchestrating.flag` (refresh — the same file `check-orchestration-flag.sh` would
 otherwise report as absent or stale if this run had crashed instead of merely paused). Go to
-**Drive next stage**, starting at the stage after `last_stage` in `.ai/route-progress.txt`.
+**Ensure the working branch**; it is idempotent, and a resumed run has no other guarantee that the
+working tree is still on the branch the run started on. Then **Drive next stage**, starting at the
+stage after `last_stage` in `.ai/route-progress.txt`.
 
 ### Drive next stage
 
@@ -470,7 +481,58 @@ to **Validate envelope**.
 - `write-progress-row.sh .ai/progress.md <stage> done`
 - `write-orchestration-flag.sh .ai/run-context/orchestrating.flag` (refresh)
 
-Go to **Stage is deliver?**.
+Go to **Stage is readiness?**.
+
+### Stage is readiness?
+
+If `<stage>` is `readiness`: go to **Ensure the working branch**. Otherwise go to **Stage is
+deliver?**.
+
+`readiness` is the last stage that writes nothing to the repository, and every stage after it may
+write. Ensuring the branch here puts the run on its own branch for its entire writing life, with no
+window in which it is not. Earlier is not possible — `intake` is what produces the `item_id` the
+branch name comes from.
+
+### Ensure the working branch
+
+1. **Derive the name**, never choose one:
+
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/shared/lib/derive-branch-name.sh <item_id>
+   ```
+
+   using the fact record's own `item_id`. The same id always yields the same name, which is what
+   lets a resumed run and a re-run land on one branch rather than two.
+
+2. **Resolve the scm pack.** Read `.ai/project-config.yaml`'s `packs.scm`, then that pack's
+   manifest at its own pack root, and take `operations.create_branch`. Absent, the literal `none`,
+   or listed under `unsupported` — route to **failed**, naming it. `deliver` is the last stage of
+   every route and cannot publish without this role either, so a run that reaches here without it
+   has nowhere to end.
+
+3. **Get its envelope onto disk** exactly as "Getting a stage's envelope onto disk" requires —
+   `reset-envelope.sh` on `.ai/run-context/envelope-create-branch.txt`, invoke
+   `Skill(<packs.scm>:<create_branch skill name>)` with the invocation argument
+   `branch: <the derived name>`, then `capture-envelope.sh` over that file.
+
+4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/validate-result-envelope.sh .ai/run-context/envelope-create-branch.txt`
+
+Go to **Branch ensured?**.
+
+### Branch ensured?
+
+Read the captured envelope's `verdict`.
+
+- **`pass`** — write the derived name to `.ai/run-context/branch.txt`, overwriting it, so `deliver`
+  and any later resume publish the branch this run belongs to rather than whatever happens to be
+  checked out. Print the envelope's `metrics` line: `branch_action=created|existing|switched` is
+  how a reader tells a fresh run from a resumed one. Go to **Drive next stage**.
+- **`question`** — go to **Handle question**, relaying the operation's own `question` and `blocker`
+  unchanged. The operation raises this when the named branch exists but does not contain the current
+  `HEAD`, which cannot be resolved without discarding someone's work; it is not yours to answer.
+- **`fail`**, or an envelope that does not validate — route to **failed**. A run that cannot get
+  onto its own branch has no safe way to continue: every stage after this one may write, and the
+  only alternative is writing on whatever branch the caller happened to be on.
 
 ### Stage is deliver?
 

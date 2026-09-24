@@ -8,6 +8,11 @@
   produced_by: intake
   required_content: the work item's text, sanitized
   validation: no executable directives
+- id: branch
+  version: "1.0"
+  produced_by: runner
+  required_content: the branch name this run works on, one line, derived from the item id
+  validation: non-empty; a valid branch name
 - id: run-state
   version: "1.0"
   produced_by: runner
