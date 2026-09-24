@@ -59,7 +59,8 @@ digraph eds_deliver {
     "Report back to the tracker" [shape=box];
     "Anything downgraded?" [shape=diamond];
     "Report fail" [shape=doublecircle];
-    "Report question" [shape=doublecircle];
+    "Ensure this run's own branch" [shape=box];
+    "Branch repaired?" [shape=diamond];
     "Report warn" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
 
@@ -70,7 +71,10 @@ digraph eds_deliver {
     "Determine the branch to publish" -> "A branch is checked out?";
     "A branch is checked out?" -> "Read the fact record and plan" [label="yes"];
     "A branch is checked out?" -> "Report fail" [label="detached HEAD"];
-    "A branch is checked out?" -> "Report question" [label="not this run's own branch"];
+    "A branch is checked out?" -> "Ensure this run's own branch" [label="not this run's own branch"];
+    "Ensure this run's own branch" -> "Branch repaired?";
+    "Branch repaired?" -> "Read the fact record and plan" [label="yes — recorded as a downgrade"];
+    "Branch repaired?" -> "Report fail" [label="no"];
     "Read the fact record and plan" -> "Fact record present?";
     "Fact record present?" -> "Compose the change summary" [label="yes"];
     "Fact record present?" -> "Report fail" [label="fact-record.yaml missing or empty item_id"];
@@ -100,6 +104,9 @@ digraph eds_deliver {
    skill names implementing these two operations. Either absent or listed under `unsupported` — go
    straight to **Report fail** naming the missing operation(s); this is a configuration error
    pre-flight should have already caught, but this stage has nothing to publish without both.
+4. Read `operations.create_branch` too, and keep it. It is needed only on the repair path below,
+   which is why its absence is not a **Report fail** here: a run that never needs the repair is not
+   broken by a pack that does not implement it.
 
 ### Resolve the tracker pack
 
@@ -129,42 +136,58 @@ Committing to a branch this run does not own means committing someone else's wor
 item's, and on the repository's own default branch it means publishing without review at all.
 
 1. **The run records the branch it belongs to.** If `.ai/run-context/branch.txt` exists, read it.
-   Its contents differ from the current branch — go to **Report question**.
+   Its contents differ from the current branch — go to **Ensure this run's own branch**.
 2. **Otherwise, refuse the default branch.** Run
    `git symbolic-ref --short refs/remotes/origin/HEAD`. When it resolves — `origin/<default>` — and
-   `<default>` is the current branch, go to **Report question**. When it does not resolve, this
-   check cannot be made and is skipped rather than guessed at.
+   `<default>` is the current branch, go to **Ensure this run's own branch**. When it does not
+   resolve, this check cannot be made and is skipped rather than guessed at.
 3. Neither applies — continue to **Read the fact record and plan** with that name.
 
 Both checks stay even once the run's own driver ensures a branch before any stage writes. A guard
 whose only proof is that an earlier step ran is not a guard, and this is the last point before
 anything is committed or pushed.
 
-### Report question
+### Ensure this run's own branch
 
-This stage will not commit to a branch the run does not own, and cannot choose one for itself.
-Reported as `question` rather than `fail` because a human naming or creating the branch resolves it
-and the run continues; a `fail` discards every stage that already succeeded.
+**This stage never asks a human here, and never asked one well.** It is the last stage of every
+route, so the question protocol — which hands a recorded answer to *the next stage* — has nobody to
+hand one to, and a run that asks here cannot be answered by any path. The situation is also not one
+that needs judgement: there is exactly one correct resolution, and everything needed to apply it is
+already in hand.
 
-Write the envelope with the emitter, never by hand:
+1. **The name.** `.ai/run-context/branch.txt`, when it exists, already holds it. Otherwise derive
+   it, never choose it:
 
-```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
-  .ai/run-context/envelope-deliver.txt \
-  --verdict question --summary "<one sentence>" \
-  --question "<...>" --blocker "<...>"
-```
+   ```
+   bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/derive-branch-name.sh <item_id>
+   ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means.
-Values to pass:
+   using the fact record's own `item_id`, so the name matches what the driver would have produced.
 
-- `--summary`: names the branch that is checked out and why it is not this run's to publish to.
-- `--question`: whether to publish from the branch that is checked out anyway, or to create and
-  check out the branch this work belongs to first.
-- `--blocker`: **the literal action that unblocks it** — create and check out the branch this work
-  item belongs to, naming it; or, where `.ai/run-context/branch.txt` names one, check that branch
-  out. Never "investigate the branch state".
-- No `--artifact`: nothing was written.
+2. **The branch.** Invoke `Skill(<packs.scm>:<create_branch skill name>)` with the invocation
+   argument `branch: <that name>`. The operation ensures rather than creates, so a branch that
+   already exists is reported, not refused.
+
+3. `operations.create_branch` was absent or `unsupported` — continue to **Branch repaired?** with a
+   "no" outcome. This pack cannot repair what its scm provider does not implement.
+
+Record that this happened. It is a degradation, not a normal path: the run reached its last stage
+without the branch it should have been given, and this stage repaired its own precondition rather
+than publishing where it should not.
+
+### Branch repaired?
+
+Read the operation's envelope.
+
+- **`pass`** — the named branch is checked out. Write that name to `.ai/run-context/branch.txt` so
+  the record matches what was published from, and continue to **Read the fact record and plan**
+  with it. The repair counts as a downgrade at **Anything downgraded?**.
+- **`question`** — the named branch exists but does not contain the current `HEAD`, so checking it
+  out would discard work. Go to **Report fail**, relaying the operation's own `blocker`. This stage
+  cannot resolve that alone and cannot ask, so the honest outcome is a failure naming what a human
+  must do.
+- **`fail`**, no `create_branch` operation, or an envelope that does not validate — go to **Report
+  fail**. Committing where the run does not belong is not an available alternative.
 
 ### Read the fact record and plan
 
@@ -366,6 +389,10 @@ Any of the following — go to **Report warn**:
   report's own attach, any manifest attachment, or the note.
 - An evidence manifest was found but at least one of its `attachments:` entries named a path that no
   longer existed and was skipped.
+- **Ensure this run's own branch** ran at all: the run reached its last stage without the branch it
+  should have been given, and this stage had to repair that before it could publish. Name the branch
+  it created or switched to in the summary — a run whose precondition was repaired for it looks
+  identical to one that never needed repairing, and only the envelope can tell them apart.
 
 None of these — go to **Report pass**.
 
