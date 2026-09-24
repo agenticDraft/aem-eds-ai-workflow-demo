@@ -27,6 +27,14 @@ jobs:
           node-version: 24
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
+      - name: the driver's instructions carry a current stamp
+        run: bash plugins/agentic-core/shared/lib/instructions-stamp.test.sh
+      - name: a stage emits its envelope through the emitter
+        run: bash plugins/agentic-core/shared/lib/emit-envelope.test.sh
+      - name: a captured envelope is reduced before it is judged
+        run: bash plugins/agentic-core/shared/lib/capture-envelope.test.sh
+      - name: a branch name is derived, never chosen
+        run: bash plugins/agentic-core/shared/lib/derive-branch-name.test.sh
       - name: Validate result envelope
         run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
       - name: Validate subagent outcome

@@ -24,6 +24,32 @@ if a step below is unclear, but never restate their shapes here: `shared/result-
 `shared/orchestration-flag.md`, `shared/question-protocol.md`, `shared/terminal-states.md`,
 `shared/pre-flight.md`, `shared/pack-manifest.md`, `shared/project-config.md`.
 
+## Before anything else: confirm these instructions are current
+
+**Run this first, before pre-flight, before reading run state, before any other step:**
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/shared/lib/instructions-stamp.sh ${CLAUDE_PLUGIN_ROOT}/skills/run-route/SKILL.md
+```
+
+It prints `stamp: <value>` for the file as it exists on disk. **Compare that value against the
+stamp on the last line of these instructions.**
+
+- **They match** — continue to **Fixed paths** and run normally.
+- **They differ, or the command exits non-zero** — **stop. Do not start a run.** Say which two
+  values differ and that the session must be restarted so these instructions are re-read. Starting
+  anyway executes a version of this driver that no longer exists, and nothing later in the run
+  reveals which steps were missing from it.
+
+This is not a formality. What you are reading may be a copy made earlier than the file on disk: it
+is internally consistent, reads as complete, and gives no sign that a step added since is absent
+from it. The stamp it carries is the only thing that differs, which is why comparing it is the
+whole check. *Measured 2026-09-24: a run executed an hour after a step was added to this file, and
+skipped that step entirely.*
+
+Regenerating the stamp is the author's job, not yours — `instructions-stamp.sh --write` after
+editing this file. You never write it.
+
 ## Fixed paths
 
 Every path below is this skill's own convention, chosen because it crosses (or does not cross) the
@@ -613,3 +639,5 @@ terminal state.
 - Restating any shared contract's shape here instead of referencing its file.
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
+
+<!-- instructions-stamp: 0159d77f6c9b -->
