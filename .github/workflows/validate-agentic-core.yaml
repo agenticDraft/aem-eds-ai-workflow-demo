@@ -27,6 +27,8 @@ jobs:
           node-version: 24
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
+      - name: every plain-invoked script is executable
+        run: bash plugins/agentic-core/shared/lib/check-exec-bits.test.sh
       - name: the driver's instructions carry a current stamp
         run: bash plugins/agentic-core/shared/lib/instructions-stamp.test.sh
       - name: a stage emits its envelope through the emitter
