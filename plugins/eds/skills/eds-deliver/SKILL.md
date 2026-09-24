@@ -59,6 +59,7 @@ digraph eds_deliver {
     "Report back to the tracker" [shape=box];
     "Anything downgraded?" [shape=diamond];
     "Report fail" [shape=doublecircle];
+    "Report question" [shape=doublecircle];
     "Report warn" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
 
@@ -69,6 +70,7 @@ digraph eds_deliver {
     "Determine the branch to publish" -> "A branch is checked out?";
     "A branch is checked out?" -> "Read the fact record and plan" [label="yes"];
     "A branch is checked out?" -> "Report fail" [label="detached HEAD"];
+    "A branch is checked out?" -> "Report question" [label="not this run's own branch"];
     "Read the fact record and plan" -> "Fact record present?";
     "Fact record present?" -> "Compose the change summary" [label="yes"];
     "Fact record present?" -> "Report fail" [label="fact-record.yaml missing or empty item_id"];
@@ -119,9 +121,50 @@ Run `git branch --show-current`. Its output is either a branch name or empty (de
 
 ### A branch is checked out?
 
-The command above returned a non-empty branch name — continue to **Read the fact record and plan**
-with that name. Empty — go to **Report fail**: this stage has nothing to publish without a
-checked-out branch, the same way `eds-verify` has nothing to render without a resolvable target.
+Empty — go to **Report fail**: this stage has nothing to publish without a checked-out branch, the
+same way `eds-verify` has nothing to render without a resolvable target.
+
+A branch name was returned. Before accepting it, answer whether it is **this run's own** branch.
+Committing to a branch this run does not own means committing someone else's work alongside this
+item's, and on the repository's own default branch it means publishing without review at all.
+
+1. **The run records the branch it belongs to.** If `.ai/run-context/branch.txt` exists, read it.
+   Its contents differ from the current branch — go to **Report question**.
+2. **Otherwise, refuse the default branch.** Run
+   `git symbolic-ref --short refs/remotes/origin/HEAD`. When it resolves — `origin/<default>` — and
+   `<default>` is the current branch, go to **Report question**. When it does not resolve, this
+   check cannot be made and is skipped rather than guessed at.
+3. Neither applies — continue to **Read the fact record and plan** with that name.
+
+Both checks stay even once the run's own driver ensures a branch before any stage writes. A guard
+whose only proof is that an earlier step ran is not a guard, and this is the last point before
+anything is committed or pushed.
+
+### Report question
+
+This stage will not commit to a branch the run does not own, and cannot choose one for itself.
+Reported as `question` rather than `fail` because a human naming or creating the branch resolves it
+and the run continues; a `fail` discards every stage that already succeeded.
+
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-deliver.txt \
+  --verdict question --summary "<one sentence>" \
+  --question "<...>" --blocker "<...>"
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means.
+Values to pass:
+
+- `--summary`: names the branch that is checked out and why it is not this run's to publish to.
+- `--question`: whether to publish from the branch that is checked out anyway, or to create and
+  check out the branch this work belongs to first.
+- `--blocker`: **the literal action that unblocks it** — create and check out the branch this work
+  item belongs to, naming it; or, where `.ai/run-context/branch.txt` names one, check that branch
+  out. Never "investigate the branch state".
+- No `--artifact`: nothing was written.
 
 ### Read the fact record and plan
 
@@ -328,7 +371,15 @@ None of these — go to **Report pass**.
 
 ### Report fail
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-deliver.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the specific reason — the missing operation(s), the detached-HEAD
@@ -339,7 +390,15 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-deliver.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the pull request URL, and which condition was
@@ -354,7 +413,15 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 Same `artifacts:` list as **Report warn**.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-deliver.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and the pull request URL.
