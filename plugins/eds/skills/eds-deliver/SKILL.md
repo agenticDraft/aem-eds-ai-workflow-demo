@@ -133,17 +133,31 @@ same way `eds-verify` has nothing to render without a resolvable target.
 
 A branch name was returned. Before accepting it, answer whether it is **this run's own** branch.
 Committing to a branch this run does not own means committing someone else's work alongside this
-item's, and on the repository's own default branch it means publishing without review at all.
+item's — and the branch that happens to be checked out can belong to anyone.
 
-1. **The run records the branch it belongs to.** If `.ai/run-context/branch.txt` exists, read it.
-   Its contents differ from the current branch — go to **Ensure this run's own branch**.
-2. **Otherwise, refuse the default branch.** Run
-   `git symbolic-ref --short refs/remotes/origin/HEAD`. When it resolves — `origin/<default>` — and
-   `<default>` is the current branch, go to **Ensure this run's own branch**. When it does not
-   resolve, this check cannot be made and is skipped rather than guessed at.
-3. Neither applies — continue to **Read the fact record and plan** with that name.
+**Name the branch this run belongs to, then compare.** Not "is this the default branch" — that
+question passes every unrelated feature branch in the repository, which is the same shape of
+mistake as a guard that only checks the case someone happened to think of.
 
-Both checks stay even once the run's own driver ensures a branch before any stage writes. A guard
+1. **`.ai/run-context/branch.txt`, when it exists, is the answer.** The driver wrote it when it
+   ensured the branch.
+2. **Otherwise derive it**, never guess:
+
+   ```
+   bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/derive-branch-name.sh <item_id>
+   ```
+
+   reading `item_id` from `.ai/run-context/fact-record.yaml`. The same id always yields the same
+   name, so this reconstructs exactly what the driver would have written had it run.
+3. **Compare.** The current branch equals that name — continue to **Read the fact record and plan**
+   with it. It differs — go to **Ensure this run's own branch**.
+4. **Neither is available** — no `branch.txt`, and no readable `item_id` to derive from. Fall back
+   to refusing the repository's own default branch: run
+   `git symbolic-ref --short refs/remotes/origin/HEAD`, and when it resolves to `origin/<default>`
+   with `<default>` checked out, go to **Ensure this run's own branch**. When even that does not
+   resolve, the check cannot be made and is skipped rather than guessed at.
+
+This check stays even once the run's own driver ensures a branch before any stage writes. A guard
 whose only proof is that an earlier step ran is not a guard, and this is the last point before
 anything is committed or pushed.
 
@@ -155,14 +169,9 @@ hand one to, and a run that asks here cannot be answered by any path. The situat
 that needs judgement: there is exactly one correct resolution, and everything needed to apply it is
 already in hand.
 
-1. **The name.** `.ai/run-context/branch.txt`, when it exists, already holds it. Otherwise derive
-   it, never choose it:
-
-   ```
-   bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/derive-branch-name.sh <item_id>
-   ```
-
-   using the fact record's own `item_id`, so the name matches what the driver would have produced.
+1. **The name** is the one **A branch is checked out?** already named — from `branch.txt`, or
+   derived from `item_id`. Do not compute a second one; a repair that lands on a different branch
+   than the check was comparing against is worse than no repair.
 
 2. **The branch.** Invoke `Skill(<packs.scm>:<create_branch skill name>)` with the invocation
    argument `branch: <that name>`. The operation ensures rather than creates, so a branch that
