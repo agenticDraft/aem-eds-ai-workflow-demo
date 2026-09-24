@@ -1,5 +1,5 @@
 ---
-description: scm.create_branch — creates a working branch from the caller's current HEAD, or from the repository's default branch when that is where the caller is, and pushes it to origin. Requires gh authenticated on this machine (gh auth status).
+description: scm.create_branch — ensures a working branch exists and is checked out, basing a new one on the caller's current HEAD (or on the repository's default branch when that is where the caller is) and pushing it to origin. Idempotent: an existing branch is reported, not refused. Requires gh authenticated on this machine (gh auth status).
 ---
 
 # create-branch
@@ -26,6 +26,22 @@ base: <base branch name>          # optional; see the default below
   the default branch would discard the caller's own commits while still reporting `pass`.
 
 A `base` given explicitly always wins, and is always taken from `origin/<base>`.
+
+## When the branch already exists
+
+This operation ensures rather than creates, so a run that is resumed — or re-started on the same
+work item — lands back on the branch it was already using instead of being refused. `metrics`
+carries which of three things happened:
+
+- `branch_action=existing` — it was already checked out; nothing moved.
+- `branch_action=switched` — it existed locally, or only on origin, and was checked out.
+- `branch_action=created` — it did not exist and was created from the base above.
+
+**One case is refused, and it reports `question` rather than acting.** An existing branch that does
+not contain the caller's current `HEAD` cannot be checked out without discarding commits the caller
+is standing on. The envelope names how many would be lost and what to do instead; nothing in the
+working tree is moved. `base` is not consulted in that case — the question is about what already
+exists, not about where a new branch would start.
 
 ## What to do
 
