@@ -94,7 +94,11 @@ open class.
 - `fix_attempts` — optional per stage, a positive integer overriding the configured default. It
   counts **edits**, not checks: `N` allows up to N edits and N+1 checks (`fix-loop.md`). The
   component that drives a route never applies it: every retry loop is internal to the stage that
-  owns it, and asks `check-fix-budget.sh` rather than counting.
+  owns it, and asks `check-fix-budget.sh` rather than counting. **Declare it only on a stage whose
+  skill asks `check-fix-budget.sh`.** `check-fix-budget-readers.sh` fails on a stage that declares it
+  while its `skills/<skill>/SKILL.md` never invokes that script; a stage that invokes it without
+  declaring a value reads the configured default. A poll ladder, retry count or timeout is not a
+  budget of edits: it stays in the script beside the operation it bounds.
 - `always_autonomous` — every entry must be a stage id present in `stages`. A `question` from such a
   stage is treated as a failure in both execution modes.
 - `readiness_criteria` — keyed by `item_type`, each with a `require` list of fact-record fields.
@@ -232,6 +236,9 @@ digraph route {
 - `operations` or `unsupported` naming an operation outside the declared role's set; an operation in
   both; a role operation in neither.
 - A skill name with no `<pack root>/skills/<skill name>/SKILL.md` on disk.
+- `fix_attempts` on a stage whose skill never invokes `check-fix-budget.sh`, or used to describe
+  anything but a budget of edits.
+- A provider operation writing an artifact to a name an earlier call already returned.
 - `scripts` naming an operation absent from `operations`, or a path that does not resolve to a real
   file under the pack root.
 - `scripts` present but empty. Omit the key instead.
@@ -257,6 +264,9 @@ digraph route {
   that role has, and must not also be a key of `operations`.
 - **Completeness.** Every operation the declared role has must appear in one of the two. One in
   neither is silently missing — the runner would only discover it mid-run.
+- **An operation that writes an artifact writes a new file on every call.** It never replaces a file
+  an earlier call named in its envelope's `artifacts:`. The operation chooses a name no earlier call
+  used; the caller takes the path from `artifacts:` and never predicts, renames or copies it.
 - `scripts` — optional. A mapping of operation name to a path, relative to the pack root, of a
   directly-executable script implementing that same operation for a caller that must run it as a
   subprocess rather than through `Skill()` — most operations are only ever invoked the latter way, so
@@ -314,9 +324,9 @@ stages:
     when:
       - { design_source: true }
       - { design_mentioned: true }
-  - id: implement
-    skill: implement
-    fix_attempts: 3
+  - id: lint
+    skill: lint
+    fix_attempts: 3             # its skill asks check-fix-budget.sh
   - id: deliver
     skill: deliver
 always_autonomous: [deliver]
