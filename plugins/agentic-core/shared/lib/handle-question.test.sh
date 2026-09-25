@@ -41,6 +41,19 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local desc="$1" needle="$2" haystack="$3"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    FAIL=$((FAIL + 1))
+    echo "  FAIL: $desc"
+    echo "    expected output NOT to contain: $needle"
+    echo "    got: $haystack"
+  else
+    PASS=$((PASS + 1))
+    echo "  ok: $desc"
+  fi
+}
+
 echo "=== handle-question.sh tests ==="
 
 echo "[ask] interactive mode, budget available, non-always-autonomous stage"
@@ -51,18 +64,39 @@ assert_contains "carries the question text" "question: Which attachment is the d
 assert_contains "carries the first option" "  - The first attachment" "$OUT"
 assert_contains "carries the second option" "  - The second attachment" "$OUT"
 assert_contains "reports the incremented budget" "questions_used: 1" "$OUT"
+assert_contains "names the asking stage as the one to re-invoke" "next_stage: intake" "$OUT"
+
+echo "[ask] the stage to re-invoke is the stage that asked, whichever it is"
+OUT=$(bash "$HANDLER" "$PACKFIX" interactive prototype "$ENVFIX/question.md" 0 3 2>&1); ST=$?
+assert_exit "exits 0" 0 $ST "$OUT"
+assert_contains "names prototype as the one to re-invoke" "next_stage: prototype" "$OUT"
+assert_not_contains "names no other stage" "next_stage: intake" "$OUT"
+
+echo "[ask] a second question from the re-invoked stage is asked under the same budget"
+OUT=$(bash "$HANDLER" "$PACKFIX" interactive prototype "$ENVFIX/question.md" 1 3 2>&1); ST=$?
+assert_exit "exits 0" 0 $ST "$OUT"
+assert_contains "decides to ask again" "decision: ask" "$OUT"
+assert_contains "consumes one more from the same budget" "questions_used: 2" "$OUT"
+assert_contains "re-invokes the same stage once more" "next_stage: prototype" "$OUT"
+
+echo "[terminate-blocked] a second question with the budget spent ends the run, re-invokes nothing"
+OUT=$(bash "$HANDLER" "$PACKFIX" interactive prototype "$ENVFIX/question.md" 3 3 2>&1); ST=$?
+assert_exit "exits 4" 4 $ST "$OUT"
+assert_not_contains "names no stage to re-invoke" "next_stage:" "$OUT"
 
 echo "[terminate-blocked] interactive mode, budget exhausted"
 OUT=$(bash "$HANDLER" "$PACKFIX" interactive intake "$ENVFIX/question.md" 1 1 2>&1); ST=$?
 assert_exit "exits 4" 4 $ST "$OUT"
 assert_contains "decides to terminate as blocked" "decision: terminate-blocked" "$OUT"
 assert_contains "reason names the exhausted budget" "budget exhausted" "$OUT"
+assert_not_contains "names no stage to re-invoke" "next_stage:" "$OUT"
 
 echo "[terminate-blocked] autonomous mode writes the blocker back, never asks"
 OUT=$(bash "$HANDLER" "$PACKFIX" autonomous intake "$ENVFIX/question.md" 0 5 2>&1); ST=$?
 assert_exit "exits 4" 4 $ST "$OUT"
 assert_contains "decides to terminate as blocked" "decision: terminate-blocked" "$OUT"
 assert_contains "carries the blocker to write back" "write-blocker: An image-only design source cannot be identified as reference or evidence without a human" "$OUT"
+assert_not_contains "names no stage to re-invoke" "next_stage:" "$OUT"
 if [[ "$OUT" == *"decision: ask"* ]]; then
   FAIL=$((FAIL + 1))
   echo "  FAIL: autonomous mode must never ask"
@@ -75,11 +109,13 @@ echo "[terminate-failed] always-autonomous stage, interactive mode"
 OUT=$(bash "$HANDLER" "$PACKFIX" interactive deliver "$ENVFIX/question.md" 0 5 2>&1); ST=$?
 assert_exit "exits 3" 3 $ST "$OUT"
 assert_contains "decides to terminate as failed" "decision: terminate-failed" "$OUT"
+assert_not_contains "names no stage to re-invoke" "next_stage:" "$OUT"
 
 echo "[terminate-failed] always-autonomous stage, autonomous mode too"
 OUT=$(bash "$HANDLER" "$PACKFIX" autonomous deliver "$ENVFIX/question.md" 0 5 2>&1); ST=$?
 assert_exit "exits 3" 3 $ST "$OUT"
 assert_contains "decides to terminate as failed" "decision: terminate-failed" "$OUT"
+assert_not_contains "names no stage to re-invoke" "next_stage:" "$OUT"
 
 echo "[reject] envelope verdict is not question"
 OUT=$(bash "$HANDLER" "$PACKFIX" interactive intake "$ENVFIX/pass.md" 0 5 2>&1); ST=$?

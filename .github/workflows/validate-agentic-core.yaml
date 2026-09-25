@@ -75,6 +75,12 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/check-preflight.test.sh
       - name: Run stage
         run: bash plugins/agentic-core/shared/lib/run-stage.test.sh
+      - name: Handle question
+        run: bash plugins/agentic-core/shared/lib/handle-question.test.sh
+      - name: Write question answer
+        run: bash plugins/agentic-core/shared/lib/write-question-answer.test.sh
+      - name: Read question answer
+        run: bash plugins/agentic-core/shared/lib/read-question-answer.test.sh
       - name: Generate pack
         run: bash plugins/agentic-core/shared/lib/generate-pack.test.sh
       - name: Generate provider pack
