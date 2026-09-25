@@ -1,0 +1,4 @@
+version: 1
+
+limits:
+  questions_per_run: 3

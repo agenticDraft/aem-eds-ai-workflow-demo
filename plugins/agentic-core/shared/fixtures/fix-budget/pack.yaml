@@ -1,0 +1,33 @@
+kind: platform
+stages:
+  - id: intake
+    skill: example-intake
+  - id: verify-design
+    skill: example-verify-design
+    when:
+      - { design_source: true }
+    fix_attempts: 2
+  - id: plan
+    skill: example-plan
+    fix_attempts: 1
+  - id: implement
+    skill: example-implement
+  - id: lint
+    skill: example-lint
+    fix_attempts: 3
+  - id: verify
+    skill: example-verify
+    fix_attempts: two
+  - id: deliver
+    skill: example-deliver
+always_autonomous: []
+readiness_criteria:
+  story:
+    require: [item_type]
+artifacts:
+  - id: plan
+    produced_by: plan
+    path: "run/plan.yaml"
+  - id: prototype
+    produced_by: plan
+    path: "run/prototype.md"

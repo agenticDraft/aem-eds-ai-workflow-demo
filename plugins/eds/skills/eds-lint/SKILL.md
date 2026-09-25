@@ -1,5 +1,5 @@
 ---
-description: The lint stage (core contract §4) — always runs, up to three attempts. Runs the project's configured lint command, edits what it flags when it fails, and re-runs it, before giving up and reporting what remains. Normalises the lint command's own output into this platform's own finding, never returns its raw output unchanged.
+description: The lint stage (core contract §4) — always runs. Runs the project's configured lint command, edits what it flags when it fails, and re-runs it, within the edit budget the pack declares for this stage and asked of the core's budget script, before giving up and reporting what remains. Normalises the lint command's own output into this platform's own finding, never returns its raw output unchanged.
 context: fork
 ---
 
@@ -7,10 +7,16 @@ context: fork
 
 This stage always runs. It has no `tracker`/`scm`/`design`/`browser` role dependency — it runs the
 project's configured lint command against this checkout and, if that command fails, edits the
-files it names and tries again, up to three attempts before giving up and reporting what remains.
+files it names and tries again, before giving up and reporting what remains.
+
+The loop follows `../../../agentic-core/shared/fix-loop.md`. A **check** is one run of the lint
+command; an **edit** is one pass through **Edit the in-scope files the output names**. Keep a count,
+`edits-made`, starting at `0` and raised by one after each edit, never after a run. The budget is
+this stage's `fix_attempts` in the pack manifest; this file never states it, and the stage never
+compares the count against it itself.
 
 Read `../../../agentic-core/shared/project-config.md` for the shape referenced in **Read the
-configured lint command**, `../../../agentic-core/shared/publish-criteria.md`'s "The change,
+configured lint command**, `../../../agentic-core/shared/fix-loop.md` for the loop's unit, `../../../agentic-core/shared/publish-criteria.md`'s "The change,
 minimally" section for how this stage resolves the same merge-base diff `publish-gate` reviews
 later, and `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage
 must end with.
@@ -50,7 +56,7 @@ digraph eds_lint {
     "Lint command exited zero?" -> "Any in-scope issues reported?" [label="no"];
     "Any in-scope issues reported?" -> "Report pass" [label="no — only pre-existing, out of scope"];
     "Any in-scope issues reported?" -> "Attempts exhausted or no improvement?" [label="yes"];
-    "Attempts exhausted or no improvement?" -> "Report fail" [label="yes"];
+    "Attempts exhausted or no improvement?" -> "Report fail" [label="yes, or budget script: contract violation"];
     "Attempts exhausted or no improvement?" -> "Edit the in-scope files the output names" [label="no"];
     "Edit the in-scope files the output names" -> "Run the lint command";
 }
@@ -88,16 +94,16 @@ no diff, its violations read as out of scope, and this stage reports pass on a f
 excluded the entire change. A new block is untracked in its entirety until its first commit.
 
 Record this file list — call it the in-scope set for the rest of this stage. It is resolved once,
-before attempt 1, and does not change between attempts: every file this stage itself might go on to
+before the first run, and does not change between runs: every file this stage itself might go on to
 edit is a file the lint command's own output names, and every such edit only ever happens inside
 this set (see **Edit the in-scope files the output names**, below) — nothing this stage does can add
-a new file to it. This is attempt 1 — continue to **Run the lint command**.
+a new file to it. `edits-made` is `0` — continue to **Run the lint command**.
 
 ### Run the lint command
 
 Run the configured command exactly as written. Record its exit code and its combined output
-(stdout and stderr) in full — this attempt's output, kept only long enough to compare against the
-next attempt's, and to write into the report if this stage ends in **Report fail**.
+(stdout and stderr) in full — this run's output, kept only long enough to compare against the
+next run's, and to write into the report if this stage ends in **Report fail**.
 
 ### Lint command exited zero?
 
@@ -108,7 +114,7 @@ continue to **Any in-scope issues reported?**.
 
 ### Any in-scope issues reported?
 
-Read this attempt's output and identify the files it reports issues in. Any of those files appear
+Read this run's output and identify the files it reports issues in. Any of those files appear
 in the in-scope set resolved earlier — continue to **Attempts exhausted or no improvement?**. None
 of them do (every reported file is outside the in-scope set) — go to **Report pass**: every
 remaining issue predates this run's own change and belongs to no step in `plan.yaml`, the same test
@@ -119,34 +125,50 @@ would both be worse than reporting the project's pre-existing lint state plainly
 
 ### Attempts exhausted or no improvement?
 
-Either of the following — go to **Report fail**:
+Answer two questions, in this order.
 
-- This was the third run of the command.
-- This run's combined output is identical to the immediately preceding run's — nothing changed, so
-  another attempt would only repeat it.
+1. **Is the budget spent?** Run:
 
-Neither — continue to **Edit the in-scope files the output names**.
+   ```
+   bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-fix-budget.sh \
+     ${CLAUDE_PLUGIN_ROOT}/pack.yaml .ai/project-config.yaml lint <edits-made>
+   ```
+
+   - Exit `4`, `decision: exhausted` — go to **Report fail**. This run's findings are the last ones;
+     no edit follows them.
+   - Exit `1`, `decision: terminate-contract-violation` — go to **Report fail**, naming the script's
+     `invalid:` line verbatim.
+   - Exit `0`, `decision: edit` — the budget allows another edit; answer question 2.
+
+2. **Did the last edit improve anything?** Only when `edits-made` is at least `1`: this run's
+   combined output is identical to the run before it — nothing changed, so another edit would only
+   repeat it. Go to **Report fail**. This is this stage's own judgment, never the script's.
+
+Budget left and (on the first run) nothing to compare against, or a changed output — continue to
+**Edit the in-scope files the output names**.
 
 ### Edit the in-scope files the output names
 
-Read this attempt's output and, from it alone, identify the files and issues it reports. Edit only
+Read this run's output and, from it alone, identify the files and issues it reports. Edit only
 the files that are both named by the output and present in the in-scope set resolved earlier —
 nothing else: no file the output did not name, and no file outside this run's own change even when
 the output names it (that file's issues are pre-existing debt, handled by **Any in-scope issues
-reported?** above, not by editing it). Then return to **Run the lint command** for the next
-attempt.
+reported?** above, not by editing it). Fix every in-scope issue the output names in this one edit,
+each at its cause (`fix-loop.md`) — one rule's violation repeated across a file is one cause. Raise
+`edits-made` by one, then return to **Run the lint command** for the next run.
 
 ### Report fail
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no lint command is configured, or that lint attempts were
-  exhausted (naming the attempt count) or stopped for lack of improvement, plus how many issues
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no lint command is configured, or that the lint edit budget was
+  exhausted (naming `edits-made`) or stopped for lack of improvement, plus how many issues
   remain per the last run. Never the command's raw output verbatim.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): empty when no lint command was configured. Otherwise, every file edited across all
-  attempts, plus `.ai/run-context/lint-report.md` — written with the last attempt's full combined
-  output, the attempt count, and which of the two stop conditions above applied.
+  edits, plus `.ai/run-context/lint-report.md` — written with the last run's full combined output,
+  `edits-made`, the number of runs, and which answer of **Attempts exhausted or no improvement?**
+  ended the loop.
 - `next_action: none`
 
 ### Report pass
@@ -160,10 +182,10 @@ pass, the same convention other stages use for their own downgrade cases.
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: pass`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many attempts it took to exit
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many runs it took to exit
   zero, or, when reached with pre-existing issues left in place, how many remain and that they are
   out of scope.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file edited across any earlier attempts, plus `.ai/run-context/lint-report.md`
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file edited across any earlier edits, plus `.ai/run-context/lint-report.md`
   when reached with pre-existing issues left in place — both empty if it passed on the first
-  attempt with nothing to report.
+  run with nothing to report.
 - `next_action: none`
