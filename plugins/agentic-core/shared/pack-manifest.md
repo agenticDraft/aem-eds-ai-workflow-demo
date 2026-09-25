@@ -91,9 +91,10 @@ open class.
   `deliver` could never reach a delivered terminal state.
 - `when` — optional per stage. Omit it entirely for a stage that always runs; the key present but
   empty is a contract violation, not an always-on stage. Semantics below.
-- `fix_attempts` — optional per stage, a positive integer overriding the configured default. The
+- `fix_attempts` — optional per stage, a positive integer overriding the configured default. It
+  counts **edits**, not checks: `N` allows up to N edits and N+1 checks (`fix-loop.md`). The
   component that drives a route never applies it: every retry loop is internal to the stage that
-  owns it.
+  owns it, and asks `check-fix-budget.sh` rather than counting.
 - `always_autonomous` — every entry must be a stage id present in `stages`. A `question` from such a
   stage is treated as a failure in both execution modes.
 - `readiness_criteria` — keyed by `item_type`, each with a `require` list of fact-record fields.

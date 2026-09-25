@@ -55,7 +55,8 @@ a contract violation.
   was not detected, not a command that was skipped.
 - `paths` — two sub-keys in order: `spec_dir`, `preview`. Each a non-empty quoted string.
 - `limits` — two sub-keys in order: `questions_per_run`, `fix_attempts_default`. Each a
-  non-negative integer.
+  non-negative integer. `fix_attempts_default` is the edit budget of a stage that declares no
+  `fix_attempts` of its own, in the unit `fix-loop.md` defines.
 
 **No stage list lives here.** The platform pack owns the one stage list and every stage's own
 condition (`pack-manifest.md`'s Condition semantics section); this file describes the project and
