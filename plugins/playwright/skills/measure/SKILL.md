@@ -1,5 +1,5 @@
 ---
-description: browser.measure — loads a target URL and returns each named CSS selector's geometry and computed style values (color, background-color, font-family, font-size, font-weight, line-height) from a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
+description: browser.measure — loads a target URL and returns each named CSS selector's geometry and computed style values (color, background-color, font-family, font-size, font-weight, line-height, padding-top, padding-right, padding-bottom, padding-left, gap, border-radius) from a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
 ---
 
 # measure
@@ -8,6 +8,12 @@ Implements the `browser` role's `measure` operation: load a target URL and retur
 CSS selector, its geometry and a fixed set of computed style values from a real headless Chromium
 browser. A selector matching the first element in document order is used; a selector matching
 nothing is reported as not found rather than failing the whole operation.
+
+The computed values are exactly `color`, `background-color`, `font-family`, `font-size`,
+`font-weight`, `line-height`, `padding-top`, `padding-right`, `padding-bottom`, `padding-left`, `gap`
+and `border-radius`, each as the browser's computed string. Padding is reported as the four
+longhands only, never a shorthand; `border-radius` is one string, a single length when all four
+corners are equal.
 
 ## Input
 

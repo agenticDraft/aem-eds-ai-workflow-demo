@@ -1,0 +1,36 @@
+Currently selected nodes:
+- 1:1003: Styles
+
+<canvas id="0:1" name="Page 1" x="0" y="0" width="0" height="0">
+  <section id="1:586" name="Home" x="-1328" y="-4499" width="2711" height="8996.46875">
+    <frame id="1:118" name="Desktop" x="64" y="100" width="1280" height="7388.66748046875" />
+    <frame id="1:274" name="Tablet" x="1408" y="100" width="800" height="8824.921875" />
+    <frame id="1:430" name="Mobile" x="2272" y="100" width="375" height="8832.46875" />
+  </section>
+  <frame id="1:1003" name="Styles" x="-2954" y="-4232" width="1260" height="8082.33349609375">
+    <frame id="1:1004" name="Label" x="20" y="30" width="1220" height="65" />
+    <frame id="1:1006" name="Text" x="20" y="169" width="1220" height="602" />
+    <frame id="1:1014" name="Label" x="20" y="845" width="1220" height="65" />
+    <frame id="1:1016" name="Color" x="20" y="984" width="823" height="103" />
+    <frame id="1:1024" name="Label" x="20" y="1161" width="1220" height="65" />
+    <frame id="1:1026" name="Icons" x="20" y="1300" width="408" height="16" />
+    <symbol id="1:1045" name="Logo" x="20" y="1390" width="31.750835418701172" height="70" />
+    <frame id="1:1051" name="Label" x="20" y="1534" width="1220" height="65" />
+    <frame id="1:1043" name="Label" x="20" y="1673" width="1220" height="65" />
+    <frame id="1:1053" name="Button" x="20" y="1812" width="294" height="88" />
+    <frame id="1:1058" name="Button linkout" x="20" y="1974" width="312" height="88" />
+    <frame id="1:1067" name="Arrow right" x="20" y="2136" width="140" height="80" />
+    <frame id="1:1072" name="Arrow Left" x="20" y="2290" width="140" height="80" />
+    <frame id="1:1077" name="Navigation" x="20" y="2444" width="1240" height="336" />
+    <symbol id="1:1086" name="Table item" x="20" y="2854" width="277.7642517089844" height="81" />
+    <frame id="1:1089" name="Navigation mobile" x="20" y="3009" width="1220" height="604" />
+    <frame id="1:1121" name="Label" x="20" y="3687" width="1220" height="65" />
+    <frame id="1:1123" name="Hero image" x="20" y="3826" width="1240" height="2347" />
+    <frame id="1:1138" name="Photo row 1" x="20" y="6247" width="1220" height="417.3333435058594" />
+    <frame id="1:1148" name="Photo row 2" x="20" y="6738.33349609375" width="1220" height="1244" />
+  </frame>
+  <frame id="1:1172" name="Thumbnail" x="-5519" y="-4138" width="1920" height="1080">
+    <rounded-rectangle id="1:1173" name="Thumbnail 1" x="0" y="0" width="1920" height="1080" />
+  </frame>
+</canvas>
+IMPORTANT: After you call this tool, you MUST call get_design_context if trying to implement the design, since this tool only returns metadata. If you do not call get_design_context, the agent will not be able to implement the design.

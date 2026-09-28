@@ -24,6 +24,12 @@ nothing about the environment is missing — it is busy, rate-limited, or not re
 Typical: a rate limit or quota response; a request that timed out; a local endpoint not yet
 accepting connections.
 
+A call limit tied to the account's plan or tier — "you have reached the tool call limit on the
+<plan> plan", per minute or per day — is a quota response, so `TRANSIENT`, even when its wording
+names none of `rate limit`, `quota` or `429`. It resets with its window; nothing about the request
+is wrong. When the two retries do not outlast the window, the operation is exhausted like any other
+`TRANSIENT`, and the escalation's `blocker` names waiting for the window to reset.
+
 **Recovery: retry twice, backing off 2 seconds then 4 seconds.** If the third attempt fails, the
 operation is exhausted and **escalates** — see below. Never retry more than that, and never retry a
 failure of either other class.

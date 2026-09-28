@@ -33,7 +33,11 @@ None. This stage reads four fixed paths: `.ai/run-context/fact-record.yaml`,
 `.ai/run-context/design-conventions.md` (written by `eds-conventions`), and
 `.ai/run-context/sanitized-spec.md` (written by `eds-intake`) — plus
 `.ai/run-context/question-answer.yaml` when the route re-invokes this stage with the answer to its
-own question, read only through the core's `read-question-answer.sh`. It calls no `tracker`/`scm`/`design`/
+own question, read only through the core's `read-question-answer.sh`, and the reference code
+`design-reference.json`'s `design_context.code_file` names, read only through this stage's own
+`scripts/design-context-values.py`, and each viewport variant's reference code, read only through
+this stage's own `scripts/viewport-overrides.py`. The asset files `design-reference.json`'s `assets`
+list names are placed only through this stage's own `scripts/place-assets.py`. It calls no `tracker`/`scm`/`design`/
 `browser` role operation — building the prototype is a content-authoring step, not a render/capture/
 measure step; `eds-verify-design` (not yet built) is the stage that renders and compares it.
 
@@ -47,10 +51,17 @@ digraph eds_prototype {
     "Block already exists?" [shape=diamond];
     "Read the existing block's markup, CSS, and JS" [shape=box];
     "Read the nearest exemplar's structure" [shape=box];
+    "Read the design-context values" [shape=box];
+    "Reference has viewports?" [shape=diamond];
+    "Read the viewport overrides" [shape=box];
     "Compose the block-table content" [shape=box];
+    "Place the assets" [shape=box];
+    "Record the icon collision" [shape=box];
     "Compose the block CSS and minimal JS" [shape=box];
     "Write the prototype files" [shape=box];
+    "Flag committed binaries" [shape=box];
     "Write the prototype report" [shape=box];
+    "Check the optimise flags" [shape=box];
     "Any degradation to report?" [shape=diamond];
     "Report fail" [shape=doublecircle];
     "Report question" [shape=doublecircle];
@@ -65,12 +76,26 @@ digraph eds_prototype {
     "Target block identified?" -> "Report fail" [label="answer file names no owner"];
     "Block already exists?" -> "Read the existing block's markup, CSS, and JS" [label="yes"];
     "Block already exists?" -> "Read the nearest exemplar's structure" [label="no"];
-    "Read the existing block's markup, CSS, and JS" -> "Compose the block-table content";
-    "Read the nearest exemplar's structure" -> "Compose the block-table content";
-    "Compose the block-table content" -> "Compose the block CSS and minimal JS";
+    "Read the existing block's markup, CSS, and JS" -> "Read the design-context values";
+    "Read the nearest exemplar's structure" -> "Read the design-context values";
+    "Read the design-context values" -> "Reference has viewports?" [label="exit 0 or 3"];
+    "Read the design-context values" -> "Report fail" [label="exit 2"];
+    "Reference has viewports?" -> "Read the viewport overrides" [label="yes"];
+    "Reference has viewports?" -> "Compose the block-table content" [label="no"];
+    "Read the viewport overrides" -> "Compose the block-table content" [label="exit 0"];
+    "Read the viewport overrides" -> "Report fail" [label="exit 2"];
+    "Compose the block-table content" -> "Place the assets";
+    "Place the assets" -> "Compose the block CSS and minimal JS" [label="exit 0, or no asset used"];
+    "Place the assets" -> "Record the icon collision" [label="exit 4"];
+    "Place the assets" -> "Report fail" [label="exit 2"];
+    "Record the icon collision" -> "Report question";
     "Compose the block CSS and minimal JS" -> "Write the prototype files";
-    "Write the prototype files" -> "Write the prototype report";
-    "Write the prototype report" -> "Any degradation to report?";
+    "Write the prototype files" -> "Flag committed binaries";
+    "Flag committed binaries" -> "Write the prototype report" [label="exit 0"];
+    "Flag committed binaries" -> "Report fail" [label="exit 2"];
+    "Write the prototype report" -> "Check the optimise flags";
+    "Check the optimise flags" -> "Any degradation to report?" [label="exit 0"];
+    "Check the optimise flags" -> "Report fail" [label="exit 1 or 2"];
     "Any degradation to report?" -> "Report warn" [label="yes"];
     "Any degradation to report?" -> "Report pass" [label="no"];
 }
@@ -109,8 +134,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/read-question-answer.sh \
   The answer outranks both fact-record fields: it is the human resolving exactly the ambiguity they
   could not. Take the first `blocks/<name>/` path in it; failing that, the whole answer when it is a
   single block name (lowercase letters, digits, hyphens). One name resolved — continue to **Block
-  already exists?**. Neither — go to **Report question** again: the answer did not name a block,
-  and guessing one from free text is the guess the question existed to avoid.
+  already exists?**. Neither — the answer names no block (it may answer the icon-collision
+  question instead); do not guess one from its free text, and continue below with the fact record.
 - **Exit `3`** — no answer for this stage (none recorded, or one another stage asked). Ignore the
   file and continue below.
 - **Exit `1`** — the file exists but names no owner. Go to **Report fail**, naming the script's
@@ -175,6 +200,76 @@ model. Note this explicitly as a degradation and fall back to the plainest block
 authored-content model requires (one section, one block div, rows of cells), styled only from
 `styles/styles.css`'s own custom properties.
 
+### Read the design-context values
+
+Run:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/design-context-values.py \
+  .ai/run-context/design-reference.json > .ai/run-context/design-context-values.tsv
+```
+
+The script reads the reference code through `design_context.code_file` and prints one
+`<node_id> TAB <css-property> TAB <value>` row per arbitrary-value class, keyed by the element's
+`data-node-id`. It owns every decision about which class means which property; take its rows as
+given and never parse the reference code's classes here, re-derive a property it left out, or read
+a reference-code file by a fixed path.
+
+- **Exit `0`** — the table holds zero or more rows. Continue to **Compose the block-table
+  content**.
+- **Exit `3`** — `design_context` is `null`: there is no reference code, and the table is empty.
+  Any reference-code file already in `.ai/run-context/` belongs to an earlier run; do not read it.
+  Record "design_context: null — no design-context values" for the report and continue.
+- **Exit `2`** — `design_context` names a code file that is missing, or is malformed. Go to
+  **Report fail**, naming the script's stderr reason.
+
+A node id is the design's own element identity. Apply a row to the element composed for that node
+— the outermost node is the block's styled element, a nested node the element nested inside it.
+Never match a node by its `data-name` or by the `get_metadata` name: those are layer names, not the
+rendered text.
+
+### Reference has viewports?
+
+`design-reference.json` has a non-empty `viewports` list — continue to **Read the viewport
+overrides**. No `viewports` key, or an empty list — a single-width reference: continue to **Compose
+the block-table content**; the value table above is the only design-context source, as before.
+
+### Read the viewport overrides
+
+Run:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py breakpoints styles/styles.css
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/viewport-overrides.py \
+  .ai/run-context/design-reference.json <breakpoints> > .ai/run-context/viewport-overrides.tsv
+```
+
+`<breakpoints>` is the first command's output, verbatim (`-` when the stylesheet has none). The
+second script diffs every variant's value table into a mobile-first base and one override block per
+adopted breakpoint, and names every variant it could not place. It owns the cross-variant element
+match, the interval each variant falls in, and every proposed threshold (derived by
+`../../../agentic-core/shared/breakpoint-thresholds.md`); take its lines as given. Never use a
+variant's own width as a media query, and never add a breakpoint the first command did not print.
+
+Its lines, tab-separated:
+
+- `base <name> <node> <width>` — the narrowest variant. Its `value base …` rows are the base.
+- `media <breakpoint> <name> <node> <width>` — an override block at an adopted breakpoint.
+- `value <base|breakpoint> <base node> <property> <value> <variant node> <path>` — one CSS value.
+  `<base node>` is always the base variant's node id, so a row is applied to the element composed
+  for that node, exactly as a value-table row is.
+- `same-interval <name> <node> <width> <interval variant> <threshold>` followed by its `differs …`
+  lines — a variant in an interval another variant already holds. Its values are not written
+  anywhere. `<threshold>` is a proposal only.
+- `not-overridden`, `unmatched`, `missing`, `no-context` — values or elements the script could not
+  turn into an override: a base value the wider variant sets without a readable value, an element
+  with no counterpart in the base, a base element absent from the wider variant, a variant with no
+  reference code.
+
+- **Exit `0`** — continue to **Compose the block-table content**.
+- **Exit `2`** — a variant's reference code is missing or the reference is malformed. Go to
+  **Report fail**, naming the script's stderr reason.
+
 ### Compose the block-table content
 
 Using the sanitized spec and the design reference's own `variables`/`geometry`, write the block's
@@ -183,14 +278,58 @@ difference from `eds-fixture`, which composes only placeholder content and never
 source or a spec at all. Follow the row/cell shape read above: the existing block's own shape when
 reusing, the chosen exemplar's when new.
 
+Note every node id of `design-reference.json`'s `assets` list whose element the composed content
+includes — an image or icon the design shows inside the block. An asset is found only through that
+list: never through a URL, and never through the asset paths the reference code itself names.
+
+### Place the assets
+
+No node noted above — record "no asset used" for the report and continue to **Compose the block CSS
+and minimal JS**. Otherwise run, with every noted node id:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/place-assets.py \
+  .ai/run-context/design-reference.json <item_id> <node_id>... > .ai/run-context/placed-assets.tsv
+```
+
+`<item_id>` is `fact-record.yaml`'s own, under the same `/`/`..` check as **Write the prototype
+files**. The script owns every placement decision; take its rows as given and never copy an asset
+file yourself, choose its name, or overwrite an existing icon:
+
+- An SVG goes to `icons/<name>.svg`, named from the node's layer name. The composed content uses the
+  row's reference, `<span class="icon icon-<name>"></span>`, where the design shows that icon; the
+  project's own icon decoration loads it.
+- A raster image goes next to the draft, `drafts/<item_id>-<sha16>.<ext>`, never under `blocks/` or
+  `icons/`. The composed content uses the row's reference, `./<file>`, as the `src` of an `<img>`
+  inside a `<picture>`, with alt text describing the image.
+
+Its rows, tab-separated: `placed` or `reused <node> <mime> <dest> <reference>`, and
+`collision <node> <mime> <dest> <asset file> <held by>`.
+
+- **Exit `0`** — every noted asset is placed or reused. Continue to **Compose the block CSS and
+  minimal JS**.
+- **Exit `4`** — an icon name is already held by different bytes, and nothing was written. Continue
+  to **Record the icon collision**.
+- **Exit `2`** — a noted node has no entry in the list, or an entry is unusable. Go to **Report
+  fail**, naming the script's stderr reason.
+
+### Record the icon collision
+
+Write `.ai/run-context/prototype-report.md` with the target block name and an `## Assets` section
+holding every row of `placed-assets.tsv`, verbatim, then one line per `collision` row:
+
+```
+[icon collision] <dest> — design node <node> (<asset file>) — held by <held by>
+```
+
+Nothing else is written: no block file and no draft. Continue to **Report question**.
+
 ### Compose the block CSS and minimal JS
 
 Write (new block) or update (existing block) `blocks/<name>/<name>.css`. When `design-reference.json`'s
-`has_values` is `true`, apply its `variables`/`geometry`, preferring an existing custom property in
-`styles/styles.css` over a literal value wherever one is an exact or close match — the same "prefer
-the project's own token over a raw value" judgment `dx-figma-prototype` makes in its own token-
-mapping step (checked before drafting, per the standing `dx-core` rule — see **Design decisions**
-in this task's own done file). Record every mapping decision (exact match / close match / no
+`has_values` is `true`, apply its `variables`/`geometry` and the design-context values, preferring
+an existing custom property in `styles/styles.css` over a literal value wherever one holds the same
+value, by the token rule below. Record every mapping decision (exact match / close match / no
 project equivalent) for the report below — informational detail, not itself what decides this
 stage's verdict; `design-conventions.md`'s own `## styles` section already states whether a design-
 system manifest exists to grade against at all (`no-manifest`/`no-values`/gradeable), and *that* is
@@ -200,6 +339,34 @@ count of how many values happened to match an existing token. `has_values: false
 design source) —
 there are no values to map; approximate the reference image's visual intent by inspection instead,
 and record this as a degradation.
+
+Read `design-context-values.tsv` next to `variables` and `geometry`. Take each CSS value from the
+first source that supplies it, in this order, and record which one it came from:
+
+1. `variables` — a design variable holding that value (a table row `#dfecc6` next to a variable
+   `Accent 2: #DFECC6` is sourced from `variables`, under that variable's name).
+2. `metadata` — `geometry` (the node's width, height and position).
+3. `design_context` — a row of `design-context-values.tsv`: the padding, gap, radius, spacing and
+   typography values neither source above carries.
+
+Write every table row the composed markup has an element for, as its property and value, in the
+CSS rule for that element.
+
+With viewports, `viewport-overrides.tsv` replaces `design-context-values.tsv` as the
+`design_context` source, and the CSS is mobile-first:
+
+- Write every `value base` row in the element's rule outside any media query.
+- For each `media <breakpoint>` line, write one `@media (width >= <breakpoint>px)` block holding
+  that breakpoint's `value <breakpoint>` rows, and nothing else. Blocks follow in ascending
+  breakpoint order.
+- Write no value from a `same-interval` variant, and no media query for its proposed threshold. A shorthand the table names (`padding-inline`, `padding-block`) is
+written as that property, or as the equivalent longhands, never as a different number.
+
+Map each value, from any of the three sources, to a project token only where one exists: an
+existing custom property in `styles/styles.css` whose value is the same value (the same length in
+the same unit, or the same colour in any hex case). Then write `var(--that-property)`. Otherwise
+write the design's own value as a literal. The design owns the number; a token whose value is only
+close to it is recorded as the nearest token and never written in its place.
 
 Write (new block) or update (existing block) `blocks/<name>/<name>.js`: the minimal `decorate(block)`
 needed to demonstrate any interaction the sanitized spec or design implies — D8's own "MINIMAL —
@@ -219,6 +386,25 @@ overwrite an existing fixture at that path: a prior prototype run for the same i
 this run is meant to replace, not real authored copy `eds-fixture`'s own caution about occupied
 paths was written to protect.
 
+### Flag committed binaries
+
+No asset used — skip the script: continue to **Write the prototype report** with nothing to flag.
+Otherwise run, with every `<dest>` of `placed-assets.tsv`:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/flag-committed-assets.py \
+  scan <dest>... > .ai/run-context/committed-assets.tsv
+```
+
+The script decides, from the bytes and the checkout's own ignore rules, which placed file will be
+committed and which needs an optimisation flag: a committed file is never optimised automatically,
+so every committed raster image is flagged, whatever its size. Its rows: `ignored <path> <bytes>
+<mime>` (never committed), `committed <path> <bytes> <mime>` (committed SVG, not flagged), `flag
+<path> <bytes> <mime> <line>` (committed raster). Take them as given.
+
+- **Exit `0`** — continue to **Write the prototype report**.
+- **Exit `2`** — go to **Report fail**, naming the script's stderr reason.
+
 ### Write the prototype report
 
 Write `.ai/run-context/prototype-report.md`: the target block name; whether it was new or existing
@@ -228,6 +414,51 @@ exists?**); every file written or updated (`blocks/<name>/<name>.css`, `blocks/<
 the no-exemplar degradation; and, when the target block already existed, the explicit note from
 **Read the existing block's markup, CSS, and JS** that this run modified a real, currently-used
 component ahead of `plan`/`plan-gate` approval.
+
+Add a `## Design values` section with one line per value written to the block CSS:
+
+```
+<selector> — <css-property> — <value> — source: <variables|metadata|design_context> — token: <--name|none> [— node: <node_id>]
+```
+
+`node:` is required when the source is `design_context`. `token: none` may add `(nearest: --name)`.
+Every value in the CSS has a line, and every `design_context` value names its node. After the lines,
+state the row count of `design-context-values.tsv`, or "design_context: null — no design-context
+values" when the script exited `3`, and name any table row not applied, with the reason (no
+composed element for that node).
+
+With viewports, add a `## Viewport overrides` section: the base variant and each override block
+(`<breakpoint> — <variant> — <n> values`), the `value` rows not applied with the reason, and then
+every finding line of `viewport-overrides.tsv` (`same-interval` with its `differs` lines,
+`not-overridden`, `unmatched`, `missing`, `no-context`), verbatim. For each `same-interval` line,
+state that the variant was not implemented and that `<threshold>` is a proposed breakpoint, adopted
+only by adding it to `styles/styles.css` first.
+
+Add an `## Assets` section: "no asset used", or every row of `placed-assets.tsv` and every row of
+`committed-assets.tsv`, verbatim. Then, under `## Committed binaries`, one line per `flag` row —
+its fifth column, exactly, as a list item:
+
+```
+- [optimise] <path> — <bytes> bytes — <mime>
+```
+
+With no `flag` row, write "none" under that heading.
+
+### Check the optimise flags
+
+No asset used — continue to **Any degradation to report?**. Otherwise run, with the same paths
+**Flag committed binaries** scanned:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/flag-committed-assets.py \
+  check .ai/run-context/prototype-report.md <dest>...
+```
+
+- **Exit `0`** — every committed raster image has its flag line. Continue to **Any degradation to
+  report?**.
+- **Exit `1`** — a committed raster image has no flag line in the report. Go to **Report fail**,
+  naming the path from stderr: a committed binary without its flag is never handed on.
+- **Exit `2`** — go to **Report fail**, naming the script's stderr reason.
 
 ### Any degradation to report?
 
@@ -244,6 +475,9 @@ Any of the following — go to **Report warn**:
   modeled for a new block.
 - `design-conventions.md`'s own `reuse=`/`new=` line for this block disagreed with this stage's own
   disk check.
+- `viewport-overrides.tsv` holds any `same-interval`, `not-overridden`, `unmatched`, `missing` or
+  `no-context` line, so part of a viewport variant was not written.
+- `committed-assets.tsv` holds any `flag` row, so an unoptimised raster image will be committed.
 
 None of these — go to **Report pass**.
 
@@ -263,7 +497,9 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming which required input was missing — `design-reference.json` or
   `design-conventions.md` — verbatim, never reworded into something more general; or, from
   **Target block identified?**, the reason `read-question-answer.sh` gave for refusing the answer
-  file.
+  file; or, from **Read the design-context values**, the reason `design-context-values.py` gave;
+  or, from **Place the assets**, **Flag committed binaries** or **Check the optimise flags**, the
+  reason that script gave.
 - `artifacts: []`
 - `next_action: none`
 
@@ -279,6 +515,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
 
 See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
+From **Target block identified?**:
+
 - `verdict: question`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and that no block or component name could be resolved
   from the fact record.
@@ -287,6 +525,19 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 - `question`: "Which existing block, or what name for a new one, should this design change target?"
 - `blocker`: "the fact record names no component and no `files_named` path matches
   `blocks/<name>/…`, so this stage has nothing to prototype."
+
+From **Record the icon collision** (the first `collision` row names the files):
+
+- `verdict: question`
+- `summary`: one sentence, 200 characters or fewer, naming the item id and the icon path already
+  held by different bytes.
+- `artifacts`: `.ai/run-context/prototype-report.md`, `.ai/run-context/placed-assets.tsv`
+- `next_action: none`
+- `question`: "`<dest>` is wanted for design node `<node>` (`<asset file>`), but `<held by>` already
+  holds different bytes under that name. Rename or remove one of them, or rename the design layer,
+  and re-run."
+- `blocker`: "an icon file is never overwritten, and choosing which of two different icons keeps
+  the name is not this stage's decision."
 
 ### Report warn
 
@@ -308,6 +559,10 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   - `blocks/<name>/<name>.js`
   - `drafts/<item_id>.plain.html`
   - `.ai/run-context/prototype-report.md`
+  - `.ai/run-context/design-context-values.tsv`
+  - `.ai/run-context/viewport-overrides.tsv`, only when **Read the viewport overrides** ran
+  - `.ai/run-context/placed-assets.tsv` and `.ai/run-context/committed-assets.tsv`, and every
+    `<dest>` path in `placed-assets.tsv`, only when **Place the assets** ran
 - `next_action: none`
 
 ### Report pass
@@ -324,7 +579,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and whether it is new or existing.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): the same four paths as **Report warn**.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): the same paths as **Report warn**.
 - `next_action: none`
 
 ## Known limitations

@@ -20,7 +20,11 @@ const { missingToolSummary } = require('../../../scripts/requires.cjs');
 // Every call writes a new file; an earlier call's artifact is never replaced.
 const { nextArtifactPath } = require('../../../scripts/next-artifact-path.cjs');
 
-const PROPERTIES = ['color', 'background-color', 'font-family', 'font-size', 'font-weight', 'line-height'];
+// Longhands only: no padding shorthand is ever reported.
+const PROPERTIES = [
+  'color', 'background-color', 'font-family', 'font-size', 'font-weight', 'line-height',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'gap', 'border-radius',
+];
 
 function printEnvelope(fields) {
   const lines = ['## Result', `verdict: ${fields.verdict}`, `summary: ${fields.summary}`];
@@ -143,7 +147,11 @@ async function main() {
   });
 }
 
-main().catch((err) => {
-  console.error(err && err.stack ? err.stack : err);
-  process.exit(1);
-});
+module.exports = { PROPERTIES };
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err && err.stack ? err.stack : err);
+    process.exit(1);
+  });
+}
