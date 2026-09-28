@@ -226,8 +226,11 @@ variant's image and context to its own `design-reference-<node>.png` and
 `design-context-<node>.txt` beside those files; with no `viewports`, or an empty list, the key is
 left out. It carries the provider's `screenshots` sizes the same way, each entry naming the
 run-context image it describes and whether that image is `downscaled`; with none, the key is left
-out. Exit `2` is a usage error — a missing input, a provider JSON naming a code, image or
-context file that is not on disk, or a malformed `viewports` or `screenshots` entry — and stderr
+out. It carries the provider's `assets` — `[{node_id, file, mime}]`, the images and icons the
+provider downloaded — unchanged and in order, the files staying where the provider wrote them;
+with none, it writes `assets: []`. Exit `2` is a usage error — a missing input, a provider JSON
+naming a code, image, context or asset file that is not on disk, or a malformed `viewports`,
+`screenshots` or `assets` entry — and stderr
 names which. Go to
 **Report fail**.
 
@@ -265,7 +268,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-extract/scripts/write-design-reference.
 ```
 
 This writes `design-reference.json` with `source_kind: "image"`, `has_values: false`,
-`variables: null`, `geometry: null`, `design_context: null` — §6.1's no-values case, represented
+`variables: null`, `geometry: null`, `design_context: null`, `assets: []` — §6.1's no-values case, represented
 explicitly rather than as an empty result. It is the same artifact on both paths into this node, which is the point: every
 downstream consumer already honors `has_values: false`, so none of them has to learn that a
 substitution happened.

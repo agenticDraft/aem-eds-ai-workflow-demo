@@ -1,5 +1,5 @@
 ---
-description: design.fetch_reference — retrieves a Figma node's layout, colour and typography values (design context, variable tokens, geometry) and a reference screenshot via the figma marketplace plugin's MCP server. Requires that plugin installed and OAuth-authenticated in this session; when it is not, tells the user how to authenticate.
+description: design.fetch_reference — retrieves a Figma node's layout, colour and typography values (design context, variable tokens, geometry), the images and icons it references, and a reference screenshot via the figma marketplace plugin's MCP server. Requires that plugin installed and OAuth-authenticated in this session; when it is not, tells the user how to authenticate.
 allowed-tools:
   - ToolSearch
   - Skill
@@ -19,7 +19,7 @@ marketplace plugin's MCP server (`mcp__plugin_figma_figma__*`).
 
 | Tool | Returns | Role in this operation |
 | --- | --- | --- |
-| `get_design_context` | Reference code whose classes carry layout (direction, alignment, gap, padding, size), colour, radius and typography (family, size, weight, line height, letter spacing), plus a line naming the styles and variables the node uses | **Default source** for layout, colour and typography; once per viewport variant when the node has them |
+| `get_design_context` | Reference code whose classes carry layout (direction, alignment, gap, padding, size), colour, radius and typography (family, size, weight, line height, letter spacing), plus a line naming the styles and variables the node uses; the code declares each image and icon it uses as a constant holding a short-lived download URL (icons already as SVG) | **Default source** for layout, colour and typography, and for the node's images and icons; once per viewport variant when the node has them |
 | `get_variable_defs` | Flat map of variable name → value | Token names for the values above |
 | `get_metadata` | Node name and geometry (`x`, `y`, `width`, `height`) as XML | Confirms the node exists; exact geometry; whether the node is one frame, viewport variants, or several frames |
 | `get_screenshot` | Short-lived PNG URL with `width`/`height` | Reference image; once per viewport variant when the node has them |
@@ -85,6 +85,8 @@ digraph fetch_reference {
     "Design context fetched?" -> "Fetch design context" [label="yes — another target remains"];
     "Design context fetched?" -> "Fetch variable definitions" [label="yes — every target done; code, or structure only\n(no code block, truncated, unparseable)"];
     "Design context fetched?" -> "Classify the tool error" [label="no"];
+    "Fetch design context" -> "Report fail" [label="fetch-assets exit 2\nPERMANENT"];
+    "Fetch design context" -> "Classify the tool error" [label="fetch-assets exit 3 — a download failed"];
     "Fetch variable definitions" -> "Variables fetched?";
     "Variables fetched?" -> "Fetch reference screenshot" [label="yes"];
     "Variables fetched?" -> "Classify the tool error" [label="no"];
@@ -234,12 +236,39 @@ Keep, verbatim, two parts of the response:
 - **`styles`** — the line beginning `These styles are contained in the design:`, from the text
   after the colon. It names each style or variable the node uses with its value.
 
-Do not translate the code into another form. Consumers read it as returned.
+Do not translate the code into another form. Consumers read it as returned, with one exception
+the script below makes: the asset URLs.
 
-For a variant target, write its `code` verbatim to the plan line's context path as soon as the
-response is in, and record the target's outcome as `code`; record `structure_only` when the
-branch below takes the structure-only path, and write no file for it. Keep each variant's
-`styles` alongside its outcome.
+The code declares every image and icon it uses as a constant holding a short-lived download URL.
+Those URLs are secrets, like the screenshot URL: they may exist only in this response and in the
+command that hands it on, never in a file, the envelope, a log or a summary. So never write the
+code to a file yourself. As soon as a target's response contains a code block, hand the code
+block, verbatim and whole, to the script on stdin through a quoted heredoc:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/fetch-reference/scripts/fetch-assets.py fetch \
+  <context path> .ai/figma/assets <assets path> <<'FIGMA_DESIGN_CONTEXT_CODE'
+<the code block, verbatim>
+FIGMA_DESIGN_CONTEXT_CODE
+```
+
+- `<context path>` — `.ai/figma/<file_key>-<node_id>.context.txt` for a single node; the plan
+  line's context path for a variant target.
+- `<assets path>` — the context path with `.context.txt` replaced by `.assets.json`.
+
+The script downloads every asset in the same call, names each file's format from its bytes
+(never from the URL), writes it to `.ai/figma/assets/` under a name derived from its bytes, and
+writes the code to `<context path>` with each asset constant pointing at its local file and every
+other byte unchanged. It writes `[{node_id, file, mime}]` to `<assets path>`; a code block with no
+assets gives `[]`. It never replaces a file an earlier call wrote.
+
+- **Exit 0** — record the target's outcome as `code` and keep its `<assets path>`.
+- **Exit 2** — bytes of no known image format, an asset URL that would be written, or a file
+  already holding other bytes. Go to **Report fail** with `error_class: PERMANENT`, quoting stderr.
+- **Exit 3** — a download failed. Go to **Classify the tool error**; the class is `TRANSIENT`.
+
+Record `structure_only` when the branch below takes the structure-only path; run no script and
+write no file for it. Keep each target's `styles` alongside its outcome.
 
 ### Design context fetched?
 
@@ -309,6 +338,8 @@ The four tool calls above reach this node by the same edge, and the class is rea
 the tool actually returned — never off which call it was, and never off what usually goes wrong.
 Match in this order and stop at the first that holds:
 
+0. `fetch-assets.py` exited 3 — a download failed. → **`TRANSIENT`**. The URLs are short-lived, so
+   the retry re-runs **Fetch design context** for that target, which returns fresh ones.
 1. The error names a rate limit, a quota or credit window, a plan or tier call limit, or a
    timeout — `429`, `rate limit`, `quota`, `credit limit`, `call limit`, `limit on the … plan`,
    `timed out`. → **`TRANSIENT`**. The request is well formed and the file is reachable; the
@@ -350,8 +381,8 @@ The stage raises it, at its own boundary, if it has nothing left.
 1. Ensure `.ai/figma/` exists at the project root (`mkdir -p .ai/figma`).
 2. Download the screenshot immediately, before doing anything else, to
    `.ai/figma/<file_key>-<node_id>.png` — e.g. `curl -sS -L -o ".ai/figma/<file_key>-<node_id>.png" "<image_url>"`.
-3. When the design context returned a code block, write it verbatim to
-   `.ai/figma/<file_key>-<node_id>.context.txt`.
+3. The context file and assets list are already on disk when the design context returned a code
+   block — **Fetch design context** wrote them; write nothing here.
 4. Write `.ai/figma/<file_key>-<node_id>.json`, an object with: `reference` (the original input
    URL), `file_key`, `node_id`, `node_name` (from the metadata step), `geometry` (the `x`/`y`/
    `width`/`height` from the metadata step), `variables` (the map from the variable-defs step,
@@ -369,6 +400,16 @@ The stage raises it, at its own boundary, if it has nothing left.
    The script marks each entry `downscaled` when the render is smaller than the node; a consumer
    reads that flag, never the PNG's own size. Exit 2 goes to **Report fail** with
    `error_class: PERMANENT`, quoting stderr.
+   It also has `assets` — the array printed by:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/fetch-reference/scripts/fetch-assets.py list <assets path> ...
+   ```
+
+   one argument per `<assets path>` **Fetch design context** wrote, every target's, which drops a
+   repeated entry. When no target wrote one (every outcome `structure_only`), `assets` is `[]` and
+   the script is not run. Exit 2 goes to **Report fail** with `error_class: PERMANENT`, quoting
+   stderr.
 5. Continue to **Report pass**.
 
 For **`variants`**, the screenshots and context files are already on disk at the plan's paths;
@@ -384,7 +425,8 @@ steps 2 and 3 write nothing. Instead:
 
    Exit 2 — a file is missing or an outcome is wrong — goes to **Report fail** with
    `error_class: PERMANENT`, quoting stderr.
-2. Write the JSON of step 4 (including `screenshots`, one entry per variant) with two
+2. Write the JSON of step 4 (including `screenshots`, one entry per variant, and `assets` over
+   every variant's assets list) with two
    differences: `viewports` is the array the script printed,
    verbatim, and `design_context` is the first (widest) variant's — `code_file` its context path
    and `styles` its styles text, or `null` when its outcome was `structure_only`. Consumers that
@@ -399,13 +441,16 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file written above — `.ai/figma/<file_key>-<node_id>.json`,
   `.ai/figma/<file_key>-<node_id>.png`, `.ai/figma/<file_key>-<node_id>.metadata.xml`,
   `.ai/figma/<file_key>-<node_id>.classification.tsv`, and
-  `.ai/figma/<file_key>-<node_id>.context.txt` when it was written. For `variants`, in place of
-  the node's own `.png` and `.context.txt`: every variant's image path, widest first, then every
-  context path written — so the first image listed is the widest variant's.
+  `.ai/figma/<file_key>-<node_id>.context.txt` and `.ai/figma/<file_key>-<node_id>.assets.json`
+  when they were written, then each distinct `file` in `assets`. For `variants`, in place of
+  the node's own `.png`, `.context.txt` and `.assets.json`: every variant's image path, widest first, then every
+  context path written — so the first image listed is the widest variant's. Then every
+  `<assets path>` written, then each distinct `file` in `assets`.
 - `next_action: none`
 - `metrics: variables=<count of entries in the variable map> design_context=<code|structure_only> node_class=<single|variants>`,
   with ` viewports=<number of variants>` appended for `variants`; `design_context` there is the
-  widest variant's outcome. Append ` downscaled=<number of screenshots entries marked downscaled>`.
+  widest variant's outcome. Append ` downscaled=<number of screenshots entries marked downscaled>`
+  and ` assets=<number of assets entries>`.
 
 ### Report fail
 
@@ -419,9 +464,10 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `next_action: none`
 - `error_class`: the class that brought the flow here, on **every** path into this node and never
   omitted — `VALIDATION` from **URL is a supported Figma design URL with a node id?**, `PERMANENT`
-  from **Tools loaded?**, `PERMANENT` from **Node class?**, **Plan written?**, the screenshot
-  size in **Fetch reference screenshot**, and the variants list and screenshot sizes in **Write
-  artifacts**, and whatever **Classify the tool
+  from **Tools loaded?**, `PERMANENT` from **Node class?**, **Plan written?**, `fetch-assets.py`
+  exit 2 in **Fetch design context**, the screenshot
+  size in **Fetch reference screenshot**, and the variants list, screenshot sizes and assets list
+  in **Write artifacts**, and whatever **Classify the tool
   error** determined for the four tool calls. The caller branches on this, so it is read off what actually failed, never off what
   usually fails.
 
