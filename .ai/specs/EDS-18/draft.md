@@ -2,6 +2,7 @@
 item_type: Story
 summary: Feature comparison table block
 item_id: EDS-18
+components: [table]
 ---
 
 ## Description
