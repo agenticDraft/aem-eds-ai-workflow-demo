@@ -33,7 +33,7 @@ None. This stage reads four fixed paths: `.ai/run-context/fact-record.yaml`,
 `.ai/run-context/design-conventions.md` (written by `eds-conventions`), and
 `.ai/run-context/sanitized-spec.md` (written by `eds-intake`) — plus
 `.ai/run-context/question-answer.yaml` when the route re-invokes this stage with the answer to its
-own question, read only through the core's `read-question-answer.sh` by its `question_id` key, and the reference code
+own question, read only through this stage's own `scripts/resolve-target.py` (which reads it through the core's `read-question-answer.sh` by its `question_id` key), and the reference code
 `design-reference.json`'s `design_context.code_file` names, read only through this stage's own
 `scripts/design-context-values.py`, and each viewport variant's reference code, read only through
 this stage's own `scripts/viewport-overrides.py`. The asset files `design-reference.json`'s `assets`
@@ -71,9 +71,9 @@ digraph eds_prototype {
     "Read the required inputs" -> "Inputs present?";
     "Inputs present?" -> "Target block identified?" [label="yes"];
     "Inputs present?" -> "Report fail" [label="no"];
-    "Target block identified?" -> "Block already exists?" [label="yes"];
-    "Target block identified?" -> "Report question" [label="no"];
-    "Target block identified?" -> "Report fail" [label="answer file names no owner"];
+    "Target block identified?" -> "Block already exists?" [label="exit 0"];
+    "Target block identified?" -> "Report question" [label="exit 4"];
+    "Target block identified?" -> "Report fail" [label="exit 1 or 2"];
     "Block already exists?" -> "Read the existing block's markup, CSS, and JS" [label="yes"];
     "Block already exists?" -> "Read the nearest exemplar's structure" [label="no"];
     "Read the existing block's markup, CSS, and JS" -> "Read the design-context values";
@@ -123,44 +123,34 @@ defect upstream — not something this stage can produce on its own.
 
 ### Target block identified?
 
-**First, the answer to this stage's target question.** Run:
+Run:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/read-question-answer.sh \
-  .ai/run-context/question-answer.yaml prototype target-block
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/resolve-target.py \
+  .ai/run-context/fact-record.yaml .ai/run-context/question-answer.yaml
 ```
 
-The file can hold several answers — this stage's icon-collision answer, other stages' answers —
-and the script returns only the one stored under `(prototype, target-block)`, the key this stage's
-own target question is asked under (**Report question**). Never read the file directly or pick an
-answer by what its text says: which question an answer answers is the key's job, not a guess.
+The script decides the target from exactly one candidate (D526), never from the order of a list.
+Its sources, in rank order — the first that yields any candidate decides alone:
 
-- **Exit `0`** — the human's answer to the target question.
-  The answer outranks both fact-record fields: it is the human resolving exactly the ambiguity they
-  could not. Take the first `blocks/<name>/` path in it; failing that, the whole answer when it is a
-  single block name (lowercase letters, digits, hyphens). One name resolved — continue to **Block
-  already exists?**. Neither — the answer names no block; do not guess one from its free text, and
-  continue below with the fact record.
-- **Exit `3`** — no answer under that key (none recorded, or only answers to other questions).
-  Continue below.
-- **Exit `1`** — the file is malformed. Go to **Report fail**, naming the script's reason: an
+1. the answer stored under `(prototype, target-block)`, read through the core's
+   `read-question-answer.sh` — the key this stage's own target question is asked under
+   (**Report question**); every other answer in the file is invisible to it;
+2. the fact record's `components`;
+3. the distinct `<name>` of every `blocks/<name>/…` path in `files_named`.
+
+Never pick a block yourself from these fields, from the answer's free text, or from the
+specification: which block is targeted is the script's decision alone.
+
+- **Exit `0`** — `target=<name>` is the target block; `source=` names where it came from. Continue
+  to **Block already exists?**.
+- **Exit `4`** — no single candidate. Go to **Report question**, passing every `candidate=<name>`
+  line as an option. `source=none` means no source named any block: a route reaches this stage on
+  its design condition alone, with nothing gating it on a named component, so this is an
+  unresolved decision, not a hard error (core contract §3/§8).
+- **Exit `1`** — the answer file is malformed. Go to **Report fail**, naming the script's reason: an
   answer read out of a file whose entries cannot be trusted is never acted on.
-
-Otherwise, take `fact-record.yaml`'s `components` list if non-empty — the first entry, in
-fact-record order.
-Otherwise, take every path in `files_named` matching `blocks/<name>/…` and use the first distinct
-`<name>` — the same fallback `eds-baseline` and `eds-verify` apply to their own target
-identification. One name resolved — continue to **Block already exists?**.
-
-Neither field yields a name — go to **Report question**, not **Report fail**. This is a real
-difference from `eds-baseline`'s identical-looking node: `baseline`'s own `when:` already requires
-`components: present`, so the runner can never reach "no target" for it except by a standalone
-invocation outside a route. This stage's `when:` names only `design_source`/`design_mentioned` —
-nothing gates it on a component being named — so a route can genuinely reach this stage with a
-design reference and no named unit at all (a work item asking for a visual change without saying
-which block it targets). That is an unresolved decision this stage cannot guess, not a hard error;
-core contract §3/§8 make exactly this distinction ("an adapter resolves what its own subagent could
-not, or raises its own `question` at its own boundary").
+- **Exit `2`** — the fact record is unreadable. Go to **Report fail**, naming the script's reason.
 
 ### Block already exists?
 
@@ -506,8 +496,8 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming which required input was missing — `design-reference.json` or
   `design-conventions.md` — verbatim, never reworded into something more general; or, from
-  **Target block identified?**, the reason `read-question-answer.sh` gave for refusing the answer
-  file; or, from **Read the design-context values**, the reason `design-context-values.py` gave;
+  **Target block identified?**, the reason `resolve-target.py` gave for refusing the answer file or
+  the fact record; or, from **Read the design-context values**, the reason `design-context-values.py` gave;
   or, from **Place the assets**, **Flag committed binaries** or **Check the optimise flags**, the
   reason that script gave.
 - `artifacts: []`
@@ -525,17 +515,22 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
 
 See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
-From **Target block identified?**:
+From **Target block identified?** (exit `4`):
 
 - `verdict: question`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and that no block or component name could be resolved
-  from the fact record.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and either the candidates the
+  script listed or, with `source=none`, that no block or component name could be resolved.
 - `artifacts: []`
 - `next_action: none`
-- `question`: "Which existing block, or what name for a new one, should this design change target?"
+- `question`: with candidates, "Which block should this design change target: `<candidate>`, …, or
+  another name?"; with `source=none`, "Which existing block, or what name for a new one, should this
+  design change target?"
 - `question_id`: `target-block` — the key **Target block identified?** reads the answer back under;
   keep it exactly this, or the answer is never found.
-- `blocker`: "the fact record names no component and no `files_named` path matches
+- `options`: one `--option <candidate>` per `candidate=` line, in the script's order; none with
+  `source=none`.
+- `blocker`: with candidates, "`<source>` names `<n>` blocks and this stage targets exactly one";
+  with `source=none`, "the fact record names no component and no `files_named` path matches
   `blocks/<name>/…`, so this stage has nothing to prototype."
 
 From **Record the icon collision** (the first `collision` row names the files):
