@@ -16,6 +16,8 @@ const { execSync } = require('child_process');
 // A missing tool is reported with the remedy this pack's own manifest
 // declares, so the operation and the diagnostic cannot drift apart.
 const { missingToolSummary } = require('../../../scripts/requires.cjs');
+// Every call writes a new file; an earlier call's artifact is never replaced.
+const { nextArtifactPath } = require('../../../scripts/next-artifact-path.cjs');
 
 function printEnvelope(fields) {
   const lines = ['## Result', `verdict: ${fields.verdict}`, `summary: ${fields.summary}`];
@@ -109,7 +111,7 @@ async function main() {
 
   const outDir = '.ai/playwright';
   fs.mkdirSync(outDir, { recursive: true });
-  const outFile = path.join(outDir, `capture-${slugify(target)}-${width}.png`);
+  const outFile = nextArtifactPath(outDir, `capture-${slugify(target)}-${width}`, 'png');
   await page.screenshot({ path: outFile, fullPage: true });
 
   await browser.close();
