@@ -1,5 +1,12 @@
 ---
-description: design.fetch_reference — retrieves a Figma node's design values (geometry and variable tokens) and a reference screenshot via the figma marketplace plugin's MCP server. Requires that plugin installed and OAuth-authenticated in this session.
+description: design.fetch_reference — retrieves a Figma node's layout, colour and typography values (design context, variable tokens, geometry) and a reference screenshot via the figma marketplace plugin's MCP server. Requires that plugin installed and OAuth-authenticated in this session; when it is not, tells the user how to authenticate.
+allowed-tools:
+  - ToolSearch
+  - Skill
+  - mcp__plugin_figma_figma__get_design_context
+  - mcp__plugin_figma_figma__get_metadata
+  - mcp__plugin_figma_figma__get_variable_defs
+  - mcp__plugin_figma_figma__get_screenshot
 ---
 
 # fetch-reference
@@ -8,11 +15,18 @@ Implements the `design` role's `fetch_reference` operation: retrieve a Figma nod
 values and a reference screenshot from a real Figma file, through the already-installed `figma`
 marketplace plugin's MCP server (`mcp__plugin_figma_figma__*`).
 
-This operation deliberately never calls `get_design_context` or loads the `figma-design-to-code`
-skill. Those exist for a different job — generating application code from a design — and bring a
-mandatory code-generation workflow this operation has no use for. `get_metadata`,
-`get_variable_defs` and `get_screenshot` cover design values and a reference image on their own,
-with no such prerequisite.
+## Tools
+
+| Tool | Returns | Role in this operation |
+| --- | --- | --- |
+| `get_design_context` | Reference code whose classes carry layout (direction, alignment, gap, padding, size), colour, radius and typography (family, size, weight, line height, letter spacing), plus a line naming the styles and variables the node uses | **Default source** for layout, colour and typography |
+| `get_variable_defs` | Flat map of variable name → value | Token names for the values above |
+| `get_metadata` | Node name and geometry (`x`, `y`, `width`, `height`) as XML | Confirms the node exists; exact geometry |
+| `get_screenshot` | Short-lived PNG URL with `width`/`height` | Reference image |
+
+`get_design_context` requires the `figma-design-to-code` skill to be loaded first. Load it for that
+prerequisite only: this operation writes no application code, so that skill's implementation and
+verification steps do not apply here.
 
 ## Input
 
@@ -32,6 +46,8 @@ digraph fetch_reference {
     "Tools loaded?" [shape=diamond];
     "Fetch node metadata" [shape=box];
     "Metadata fetched?" [shape=diamond];
+    "Fetch design context" [shape=box];
+    "Design context fetched?" [shape=diamond];
     "Fetch variable definitions" [shape=box];
     "Variables fetched?" [shape=diamond];
     "Fetch reference screenshot" [shape=box];
@@ -49,10 +65,13 @@ digraph fetch_reference {
     "URL is a supported Figma design URL with a node id?" -> "Report fail" [label="not a supported Figma design URL\nVALIDATION"];
     "Load the figma MCP tools" -> "Tools loaded?";
     "Tools loaded?" -> "Fetch node metadata" [label="yes"];
-    "Tools loaded?" -> "Report fail" [label="no\nPERMANENT"];
+    "Tools loaded?" -> "Report fail" [label="no — not installed, or not authenticated\nPERMANENT"];
     "Fetch node metadata" -> "Metadata fetched?";
-    "Metadata fetched?" -> "Fetch variable definitions" [label="yes"];
+    "Metadata fetched?" -> "Fetch design context" [label="yes"];
     "Metadata fetched?" -> "Classify the tool error" [label="no"];
+    "Fetch design context" -> "Design context fetched?";
+    "Design context fetched?" -> "Fetch variable definitions" [label="yes — code, or structure only\n(no code block, truncated, unparseable)"];
+    "Design context fetched?" -> "Classify the tool error" [label="no"];
     "Fetch variable definitions" -> "Variables fetched?";
     "Variables fetched?" -> "Fetch reference screenshot" [label="yes"];
     "Variables fetched?" -> "Classify the tool error" [label="no"];
@@ -61,6 +80,7 @@ digraph fetch_reference {
     "Screenshot fetched?" -> "Classify the tool error" [label="no"];
     "Classify the tool error" -> "Class is TRANSIENT and attempts remain?";
     "Class is TRANSIENT and attempts remain?" -> "Fetch node metadata" [label="yes — the call that failed"];
+    "Class is TRANSIENT and attempts remain?" -> "Fetch design context" [label="yes — the call that failed"];
     "Class is TRANSIENT and attempts remain?" -> "Fetch variable definitions" [label="yes — the call that failed"];
     "Class is TRANSIENT and attempts remain?" -> "Fetch reference screenshot" [label="yes — the call that failed"];
     "Class is TRANSIENT and attempts remain?" -> "Report fail" [label="no\nTRANSIENT exhausted, or another class"];
@@ -93,16 +113,33 @@ Take the `reference` value from the input above. Extract:
 
 ### Load the figma MCP tools
 
-Run `ToolSearch` with `query: "select:mcp__plugin_figma_figma__get_metadata,mcp__plugin_figma_figma__get_variable_defs,mcp__plugin_figma_figma__get_screenshot"`.
+1. Run `ToolSearch` with `query: "select:mcp__plugin_figma_figma__get_design_context,mcp__plugin_figma_figma__get_metadata,mcp__plugin_figma_figma__get_variable_defs,mcp__plugin_figma_figma__get_screenshot,mcp__plugin_figma_figma__authenticate"`.
+2. When the four data tools resolved, invoke `Skill(figma:figma-design-to-code)` — the
+   prerequisite `get_design_context` names.
 
 ### Tools loaded?
 
-All three tools resolved to full schemas — continue to **Fetch node metadata**. Any of them still
-unresolved means the `figma` plugin is not installed, or is installed but has not completed its
-OAuth flow in this session (an unauthenticated connection only exposes `authenticate` and
-`complete_authentication`, never the tools above) — go to **Report fail** with
-`error_class: PERMANENT`, naming that the `figma` plugin must be installed and authenticated before
-this operation can run. Nothing about the request is wrong; this operation cannot run here at all.
+Read the result of step 1 above:
+
+- **All four data tools resolved, and the skill loaded** — continue to **Fetch node metadata**.
+- **`authenticate` resolved and the data tools did not** — the plugin is installed but not
+  authenticated in this session. Go to **Report fail** with `error_class: PERMANENT` and the
+  **authentication remedy** below as the summary.
+- **Nothing resolved** — the `figma` plugin is not installed. Go to **Report fail** with
+  `error_class: PERMANENT`, naming that the `figma` plugin must be installed and authenticated.
+- **The data tools resolved but `Skill(figma:figma-design-to-code)` did not load** — go to
+  **Report fail** with `error_class: PERMANENT`, naming the skill that failed to load.
+
+**Authentication remedy** — the exact text a `fail` caused by missing or rejected Figma
+authentication carries in its `summary`, so the user sees what to do rather than only that it
+failed:
+
+```
+Figma is not authenticated: run /plugin, select figma, choose Authenticate, finish sign-in in the browser, then re-run.
+```
+
+Never start the sign-in flow from this operation (never call `authenticate`). An unattended run has
+nobody to open the link, and would stall instead of failing.
 
 ### Fetch node metadata
 
@@ -112,10 +149,47 @@ attributes on the matching element.
 
 ### Metadata fetched?
 
-The call returned the node's XML element — continue to **Fetch variable definitions**. The call
-errored (file or node not found, no access, or any other tool error) — **Classify the tool error**
-below, then go to **Report fail**, naming the error exactly as returned, never guessed or reworded
-into something more general.
+The call returned the node's XML element — continue to **Fetch design context**. The call errored
+(file or node not found, no access, or any other tool error) — **Classify the tool error**, naming
+the error exactly as returned, never guessed or reworded into something more general.
+
+### Fetch design context
+
+Call `mcp__plugin_figma_figma__get_design_context` with:
+
+- `fileKey`, `nodeId` — the parsed values
+- `skillNames: "figma-design-to-code"`
+- `clientLanguages: "html,css,javascript"`, `clientFrameworks: "unknown"`
+- `excludeScreenshot: true` — **Fetch reference screenshot** supplies the image as a file; the
+  bundled one only adds payload and brings the response closer to the size cap.
+
+Leave `forceCode` and `disableCodeConnect` unset. `forceCode` asks for code even past the size cap,
+which is exactly the response most likely to arrive cut short.
+
+Keep, verbatim, two parts of the response:
+
+- **`code`** — the reference code block. Its classes are the layout, colour and typography values.
+- **`styles`** — the line beginning `These styles are contained in the design:`, from the text
+  after the colon. It names each style or variable the node uses with its value.
+
+Do not translate the code into another form. Consumers read it as returned.
+
+### Design context fetched?
+
+- **The response contains a code block** — continue to **Fetch variable definitions**.
+- **The response contains no code block** (the tool returned structure only, because the node is
+  too large) — this is a successful call, not an error. Record `code` and `styles` as absent, and
+  continue to **Fetch variable definitions**. Metadata, variables and the screenshot still cover
+  the node.
+- **The response is truncated or cannot be parsed** — code that stops before its elements or
+  function body close, text cut off mid-element, or output that is neither code nor structure.
+  The code is often returned without markdown fences; unfenced code that closes is a complete
+  code block, not a parse failure. This is the
+  transport's size cap, not a provider failure: take the same structure-only branch as above
+  (`code` and `styles` absent, `design_context: null`, `design_context=structure_only`) and never
+  classify it as an error. Keep none of the partial code — a cut-off block stored as if complete
+  would pass for the node's full design context.
+- **The call errored** — **Classify the tool error**, naming the error exactly as returned.
 
 ### Fetch variable definitions
 
@@ -127,8 +201,7 @@ itself a reason to go to **Report fail**.
 ### Variables fetched?
 
 The call returned (even an empty map) — continue to **Fetch reference screenshot**. The call
-errored — **Classify the tool error** below, then go to **Report fail**, naming the error exactly as
-returned.
+errored — **Classify the tool error**, naming the error exactly as returned.
 
 ### Fetch reference screenshot
 
@@ -140,24 +213,28 @@ enough for the next step's download.
 ### Screenshot fetched?
 
 The call returned an `image_url` — continue to **Write artifacts**. The call errored — **Classify
-the tool error** below, then go to **Report fail**, naming the error exactly as returned.
+the tool error**, naming the error exactly as returned.
 
 ### Classify the tool error
 
-The three tool calls above reach this node by the same edge, and the class is read off what
+The four tool calls above reach this node by the same edge, and the class is read off what
 the tool actually returned — never off which call it was, and never off what usually goes wrong.
 Match in this order and stop at the first that holds:
 
-1. The error names a rate limit, a quota or credit window, or a timeout — `429`, `rate limit`,
-   `quota`, `credit limit`, `timed out`. → **`TRANSIENT`**. The request is well formed and the file
-   is reachable; the provider is refusing right now and could accept the same call later.
+1. The error names a rate limit, a quota or credit window, a plan or tier call limit, or a
+   timeout — `429`, `rate limit`, `quota`, `credit limit`, `call limit`, `limit on the … plan`,
+   `timed out`. → **`TRANSIENT`**. The request is well formed and the file is reachable; the
+   provider is refusing right now and could accept the same call once its window resets. A plan's
+   call limit is a quota under another name, and is classed as one by the shared error-handling
+   contract.
 2. The error names the file or the node as not found, or the node id as malformed — `not found`,
    `no such node`, `invalid node`. → **`VALIDATION`**. The reference names something the provider
    has no record of, so re-running it unchanged cannot succeed.
-3. The error names authentication, authorization or access — `401`, `403`, `unauthorized`,
-   `forbidden`, `no access`, `token expired`. → **`PERMANENT`**. The credential this session holds
-   cannot reach this resource, and retrying does not change that.
-4. Anything else. → **`PERMANENT`**, the class that permits no recovery, because an unrecognised
+3. The error names authentication — `401`, `unauthorized`, `unauthenticated`, `token expired`,
+   `re-authenticate`. → **`PERMANENT`**, and the `summary` is the **authentication remedy** above.
+4. The error names authorization or access — `403`, `forbidden`, `no access`. → **`PERMANENT`**.
+   The credential this session holds cannot reach this resource, and retrying does not change that.
+5. Anything else. → **`PERMANENT`**, the class that permits no recovery, because an unrecognised
    error is not evidence that retrying is safe. Quote the error verbatim in the escalation text
    above the block so a reader can see what the classification was made from.
 
@@ -170,10 +247,10 @@ recovery each one permits; this node applies it, it does not restate it.
 
 `TRANSIENT` is the only class that permits a retry, and it permits exactly two — back off 2 seconds,
 then 4 seconds. Fewer than two retries have run and the class is `TRANSIENT`: go back to whichever
-of **Fetch node metadata**, **Fetch variable definitions** or **Fetch reference screenshot** raised
-the error, and re-run only that call. Otherwise — the class is `VALIDATION` or `PERMANENT`, or the
-third `TRANSIENT` attempt has just failed — go to **Report fail**, carrying the class determined
-above.
+of **Fetch node metadata**, **Fetch design context**, **Fetch variable definitions** or **Fetch
+reference screenshot** raised the error, and re-run only that call. Otherwise — the class is
+`VALIDATION` or `PERMANENT`, or the third `TRANSIENT` attempt has just failed — go to **Report
+fail**, carrying the class determined above.
 
 An exhausted `TRANSIENT` reports `fail`, not a question of this operation's own. This operation
 cannot see whether the stage that called it has an alternative source available, so a question
@@ -185,11 +262,15 @@ The stage raises it, at its own boundary, if it has nothing left.
 1. Ensure `.ai/figma/` exists at the project root (`mkdir -p .ai/figma`).
 2. Download the screenshot immediately, before doing anything else, to
    `.ai/figma/<file_key>-<node_id>.png` — e.g. `curl -sS -L -o ".ai/figma/<file_key>-<node_id>.png" "<image_url>"`.
-3. Write `.ai/figma/<file_key>-<node_id>.json`, an object with: `reference` (the original input
+3. When the design context returned a code block, write it verbatim to
+   `.ai/figma/<file_key>-<node_id>.context.txt`.
+4. Write `.ai/figma/<file_key>-<node_id>.json`, an object with: `reference` (the original input
    URL), `file_key`, `node_id`, `node_name` (from the metadata step), `geometry` (the `x`/`y`/
-   `width`/`height` from the metadata step), and `variables` (the map from the variable-defs step,
-   verbatim — including an empty object when it was empty).
-4. Continue to **Report pass**.
+   `width`/`height` from the metadata step), `variables` (the map from the variable-defs step,
+   verbatim — including an empty object when it was empty), and `design_context` — an object with
+   `code_file` (the path written in step 3) and `styles` (the verbatim styles text, or `null` when
+   the response had no such line); `null` when the design context returned no code block.
+5. Continue to **Report pass**.
 
 ### Report pass
 
@@ -197,23 +278,25 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the node and the Figma file the reference came from.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): both files written above, `.ai/figma/<file_key>-<node_id>.json` and
-  `.ai/figma/<file_key>-<node_id>.png`.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file written above — `.ai/figma/<file_key>-<node_id>.json`,
+  `.ai/figma/<file_key>-<node_id>.png`, and `.ai/figma/<file_key>-<node_id>.context.txt` when it
+  was written.
 - `next_action: none`
-- `metrics: variables=<count of entries in the variable map>`
+- `metrics: variables=<count of entries in the variable map> design_context=<code|structure_only>`
 
 ### Report fail
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong — the unsupported URL shape, the missing/
-  unauthenticated `figma` plugin, or the tool error that was returned. Never a guess at the cause.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong — the unsupported URL shape, the missing `figma` plugin, the
+  **authentication remedy** verbatim when authentication is what failed, or the tool error that
+  was returned. Never a guess at the cause.
 - `artifacts: []`
 - `next_action: none`
 - `error_class`: the class that brought the flow here, on **every** path into this node and never
   omitted — `VALIDATION` from **URL is a supported Figma design URL with a node id?**, `PERMANENT`
-  from **Tools loaded?**, and whatever **Classify the tool error** determined for the three tool
+  from **Tools loaded?**, and whatever **Classify the tool error** determined for the four tool
   calls. The caller branches on this, so it is read off what actually failed, never off what
   usually fails.
 
