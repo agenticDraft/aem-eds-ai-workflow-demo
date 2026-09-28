@@ -22,12 +22,26 @@
 # provider `design_context` of null (or none) is written as null and no code
 # file is written. The `image` mode always writes `design_context: null`.
 #
+# `viewports` — the provider's list of viewport variants, each
+# {name, node_id, width, image, context} — is carried through sorted widest
+# first. Each variant's image and context file are copied byte-for-byte to
+# their own files next to <out-image> and <out-context>, the node id added to
+# the name (`design-reference-1-118.png`, `design-context-1-118.txt`); a null
+# context stays null and writes no file. A provider with no `viewports`, or an
+# empty list, is a single width: the key is left out, and the record is exactly
+# what it was without it. A malformed entry, a missing file or a repeated node
+# id exits 2 before anything is written.
+#
 # Exit codes: 0 on success; 2 for a usage error.
 
 import json
 import os
+import re
 import shutil
 import sys
+
+VIEWPORT_KEYS = {"name", "node_id", "width", "image", "context"}
+NODE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:;_-]*$")
 
 
 def usage_error(msg):
@@ -45,6 +59,58 @@ def write_json(out_json, record):
     with open(out_json, "w", encoding="utf-8") as f:
         json.dump(record, f, indent=2, sort_keys=True)
         f.write("\n")
+
+
+def validated_viewports(provider_json_path, viewports):
+    if viewports is None or viewports == []:
+        return []
+    where = f"'{provider_json_path}': viewports"
+    if not isinstance(viewports, list):
+        usage_error(f"{where} must be a list")
+    seen = set()
+    for entry in viewports:
+        if not isinstance(entry, dict) or set(entry) != VIEWPORT_KEYS:
+            usage_error(f"{where}: each entry must have exactly {', '.join(sorted(VIEWPORT_KEYS))}")
+        node_id = entry["node_id"]
+        if not isinstance(entry["name"], str) or not isinstance(node_id, str) or not NODE_ID.match(node_id):
+            usage_error(f"{where}: name must be a string and node_id a node id, got {node_id!r}")
+        if node_suffix(node_id) in seen:
+            usage_error(f"{where}: node_id {node_id!r} appears twice")
+        seen.add(node_suffix(node_id))
+        width = entry["width"]
+        if isinstance(width, bool) or not isinstance(width, (int, float)) or width <= 0:
+            usage_error(f"{where}: {node_id} has no numeric width")
+        if not isinstance(entry["image"], str) or not os.path.isfile(entry["image"]):
+            usage_error(f"{where}: {node_id} image {entry['image']!r} not found")
+        context = entry["context"]
+        if context is not None and (not isinstance(context, str) or not os.path.isfile(context)):
+            usage_error(f"{where}: {node_id} context {context!r} not found")
+    return sorted(viewports, key=lambda v: v["width"], reverse=True)
+
+
+def node_suffix(node_id):
+    return node_id.replace(":", "-")
+
+
+def per_variant(path, node_id):
+    stem, ext = os.path.splitext(path)
+    return f"{stem}-{node_suffix(node_id)}{ext}"
+
+
+def copy_viewport(entry, out_image, out_context):
+    image = per_variant(out_image, entry["node_id"])
+    shutil.copyfile(entry["image"], image)
+    context = None
+    if entry["context"] is not None:
+        context = per_variant(out_context, entry["node_id"])
+        shutil.copyfile(entry["context"], context)
+    return {
+        "name": entry["name"],
+        "node_id": entry["node_id"],
+        "width": entry["width"],
+        "image": image,
+        "context": context,
+    }
 
 
 def main():
@@ -91,6 +157,8 @@ def main():
             if not os.path.isfile(provider_context["code_file"]):
                 usage_error(f"'{provider_context['code_file']}' not found — design_context names it as the code file")
 
+        viewports = validated_viewports(provider_json_path, provider.get("viewports"))
+
         os.makedirs(os.path.dirname(out_image) or ".", exist_ok=True)
         shutil.copyfile(provider_image_path, out_image)
 
@@ -110,6 +178,8 @@ def main():
             "design_context": design_context,
             "reference_image": out_image,
         }
+        if viewports:
+            record["viewports"] = [copy_viewport(v, out_image, out_context) for v in viewports]
         write_json(out_json, record)
         print(f"wrote: {out_json}")
         sys.exit(0)
