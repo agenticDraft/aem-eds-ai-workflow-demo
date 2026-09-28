@@ -224,8 +224,11 @@ code (`design_context: null`), the script writes `design_context: null` and no
 `design-context.txt`. It also carries the provider's `viewports` list, widest first, copying each
 variant's image and context to its own `design-reference-<node>.png` and
 `design-context-<node>.txt` beside those files; with no `viewports`, or an empty list, the key is
-left out. Exit `2` is a usage error — a missing input, a provider JSON naming a code, image or
-context file that is not on disk, or a malformed `viewports` entry — and stderr names which. Go to
+left out. It carries the provider's `screenshots` sizes the same way, each entry naming the
+run-context image it describes and whether that image is `downscaled`; with none, the key is left
+out. Exit `2` is a usage error — a missing input, a provider JSON naming a code, image or
+context file that is not on disk, or a malformed `viewports` or `screenshots` entry — and stderr
+names which. Go to
 **Report fail**.
 
 ### Download the attachment

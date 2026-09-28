@@ -92,6 +92,7 @@ digraph fetch_reference {
     "Screenshot fetched?" -> "Fetch reference screenshot" [label="yes — another target remains"];
     "Screenshot fetched?" -> "Write artifacts" [label="yes — every target done"];
     "Screenshot fetched?" -> "Classify the tool error" [label="no"];
+    "Fetch reference screenshot" -> "Report fail" [label="screenshot-size exit 2\nPERMANENT"];
     "Classify the tool error" -> "Class is TRANSIENT and attempts remain?";
     "Class is TRANSIENT and attempts remain?" -> "Fetch node metadata" [label="yes — the call that failed"];
     "Class is TRANSIENT and attempts remain?" -> "Fetch design context" [label="yes — the call that failed"];
@@ -274,10 +275,24 @@ errored — **Classify the tool error**, naming the error exactly as returned.
 
 ### Fetch reference screenshot
 
+Before each call, size the request from the metadata already on disk — no extra call:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/fetch-reference/scripts/screenshot-size.py max \
+  .ai/figma/<file_key>-<node_id>.metadata.xml <current target>
+```
+
+It prints one whole number: the target's longer edge, rounded up, capped at the tool's maximum.
+Exit 2 — the target has no usable size in the metadata — go to **Report fail** with
+`error_class: PERMANENT`, quoting stderr.
+
 Call `mcp__plugin_figma_figma__get_screenshot` once per target, one target at a time, with the
-parsed `file_key` and the current target as `nodeId`. It returns a short-lived `image_url` plus
-`width`/`height`. That URL is treated like a secret, per the tool's own description — never write
-it into the envelope, a log, or any other file; it exists only long enough for the download.
+parsed `file_key`, the current target as `nodeId`, and `maxDimension` set to that number. Without
+it the tool renders the longer edge at 1024 pixels, so a tall frame arrives far narrower than its
+own width. It returns a short-lived `image_url` plus `width`/`height` (the rendered size) and
+`original_width`/`original_height` (the node's own). Record those four numbers for the target. That
+URL is treated like a secret, per the tool's own description — never write it into the envelope, a
+log, or any other file; it exists only long enough for the download.
 
 For a variant target, download it at once, before the next call, to the plan line's image path —
 e.g. `curl -sS -L -o "<image path>" "<image_url>"` — because the URL expires.
@@ -343,6 +358,17 @@ The stage raises it, at its own boundary, if it has nothing left.
    verbatim — including an empty object when it was empty), and `design_context` — an object with
    `code_file` (the path written in step 3) and `styles` (the verbatim styles text, or `null` when
    the response had no such line); `null` when the design context returned no code block.
+   It also has `screenshots` — the array printed by:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/fetch-reference/scripts/screenshot-size.py list \
+     <target>=<width>x<height>/<original_width>x<original_height> ...
+   ```
+
+   one argument per target, with the four numbers **Fetch reference screenshot** recorded for it.
+   The script marks each entry `downscaled` when the render is smaller than the node; a consumer
+   reads that flag, never the PNG's own size. Exit 2 goes to **Report fail** with
+   `error_class: PERMANENT`, quoting stderr.
 5. Continue to **Report pass**.
 
 For **`variants`**, the screenshots and context files are already on disk at the plan's paths;
@@ -358,7 +384,8 @@ steps 2 and 3 write nothing. Instead:
 
    Exit 2 — a file is missing or an outcome is wrong — goes to **Report fail** with
    `error_class: PERMANENT`, quoting stderr.
-2. Write the JSON of step 4 with two differences: `viewports` is the array the script printed,
+2. Write the JSON of step 4 (including `screenshots`, one entry per variant) with two
+   differences: `viewports` is the array the script printed,
    verbatim, and `design_context` is the first (widest) variant's — `code_file` its context path
    and `styles` its styles text, or `null` when its outcome was `structure_only`. Consumers that
    read no `viewports` then see the widest variant.
@@ -378,7 +405,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `next_action: none`
 - `metrics: variables=<count of entries in the variable map> design_context=<code|structure_only> node_class=<single|variants>`,
   with ` viewports=<number of variants>` appended for `variants`; `design_context` there is the
-  widest variant's outcome.
+  widest variant's outcome. Append ` downscaled=<number of screenshots entries marked downscaled>`.
 
 ### Report fail
 
@@ -392,8 +419,9 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `next_action: none`
 - `error_class`: the class that brought the flow here, on **every** path into this node and never
   omitted — `VALIDATION` from **URL is a supported Figma design URL with a node id?**, `PERMANENT`
-  from **Tools loaded?**, `PERMANENT` from **Node class?**, **Plan written?** and the variants
-  list in **Write artifacts**, and whatever **Classify the tool
+  from **Tools loaded?**, `PERMANENT` from **Node class?**, **Plan written?**, the screenshot
+  size in **Fetch reference screenshot**, and the variants list and screenshot sizes in **Write
+  artifacts**, and whatever **Classify the tool
   error** determined for the four tool calls. The caller branches on this, so it is read off what actually failed, never off what
   usually fails.
 

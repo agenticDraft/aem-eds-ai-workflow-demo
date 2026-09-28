@@ -47,6 +47,8 @@ conventions.md`/`plan.yaml` (D76), since it is prose, not machine-parseable key/
 
 It also reads `.ai/run-context/design-context-values.tsv` (written by `eds-prototype`) when that
 file exists and is non-empty, only through `scripts/compare-design-values.py` — never parsed here.
+Which widths it captures, and which reference image each capture is compared against, come only
+from `../shared/scripts/pair-viewports.py targets` — never from reading `viewports` here.
 
 ## Flow
 
@@ -90,6 +92,7 @@ digraph eds_verify_design {
     "Page rendered?" -> "Capture and measure the draft page" [label="pass/warn"];
     "Page rendered?" -> "Report fail" [label="fail/question/invalid envelope"];
     "Capture and measure the draft page" -> "Compare against the design reference";
+    "Capture and measure the draft page" -> "Report fail" [label="targets script: exit 2"];
     "Compare against the design reference" -> "Any mismatch found?";
     "Compare against the design reference" -> "Report fail" [label="comparison script: exit 2"];
     "Any mismatch found?" -> "Any degradation to report?" [label="no"];
@@ -209,11 +212,23 @@ Read the captured envelope's `verdict`.
 
 ### Capture and measure the draft page
 
-1. Invoke `Skill(<packs.browser>:<capture skill name>)` once, at width `1440` — this stage's own
-   fixed convention, the same desktop width `eds-verify` also uses. This stage checks design
-   fidelity, not responsiveness across breakpoints (`verify`'s own job, core contract §4), so one
-   width is enough. Record the resulting screenshot path.
-2. List the selectors the prototype report ties to design nodes:
+1. List this check's comparisons:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py targets \
+     .ai/run-context/design-reference.json 1440
+   ```
+
+   It prints one tab-separated line per comparison: `<capture width> <node id> <variant width>
+   <image> <resolution> <name>`. With viewport variants there is one line per variant, at that
+   variant's own width, each with that variant's own image. Without, there is one line at `1440` —
+   this stage's own desktop convention — against the one reference image. Exit `2` — go to
+   **Report fail**, naming the script's stderr reason. Keep the lines, in order, for this check.
+2. Invoke `Skill(<packs.browser>:<capture skill name>)` once per line, at that line's capture
+   width, against the same target. Record each resulting screenshot path against its line. Every
+   check captures every line; a design is checked at each width it was drawn at, never at one width
+   standing in for another.
+3. List the selectors the prototype report ties to design nodes:
 
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
@@ -221,19 +236,19 @@ Read the captured envelope's `verdict`.
    ```
 
    It prints one selector per line, possibly none.
-3. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and these
+4. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and these
    selectors: `.<block name>` — the block wrapper's own convention, the same one `eds-verify` uses —
-   then every selector step 2 printed that is not `.<block name>`, in its order. Record the
+   then every selector step 3 printed that is not `.<block name>`, in its order. Record the
    measurement file path from the envelope's `artifacts:` and the resulting measurements, including
    `found: false` for a selector that did not match.
 
 ### Compare against the design reference
 
-Read `.ai/run-context/design-reference.json`'s `has_values`, `variables`, `geometry` and
-`reference_image`.
+Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `geometry`.
 
-1. **Visual comparison, always.** Read both images — this check's own screenshot and the
-   reference — and compare them by inspection, the same judgment-based comparison `eds-verify`
+1. **Visual comparison, always, once per comparison line.** For each line **Capture and measure
+   the draft page** listed, read that line's screenshot and that line's own image — never another
+   line's — and compare them by inspection, the same judgment-based comparison `eds-verify`
    applies rather than a pixel-diff library (D19: vision comparison, not a Layout Matrix). Note any
    material visual difference as a mismatch, in plain language, tagged `[fixable]` or
    `[content-asset gap]` — the second only when the difference exists because required content (a
@@ -241,7 +256,11 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables`, `geome
    `<name>.css`/`<name>.js` could produce it, never as a softer way to describe a difference a CSS or
    JS change could actually close. A wrong color, wrong spacing, wrong font application, or wrong
    layout is always `[fixable]`, however small — this tag exists for missing *content*, not for
-   difficulty or scope of the fix.
+   difficulty or scope of the fix. Each mismatch names its comparison — `<capture width> vs
+   <name> (<node id>)`, or `<capture width> vs the reference` when the node id is `-`. A line whose
+   resolution is `reduced` was compared against an image the design tool rendered smaller than the
+   design: record that the comparison at that width is at reduced resolution, so fine detail
+   (hairlines, small text, exact spacing) is judged from a scaled image, never as a pixel match.
 2. **Value comparison, when `has_values` is `true`.** `measure`'s own fixed property list is
    `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `line-height`,
    `padding-top`, `padding-right`, `padding-bottom`, `padding-left`, `gap`, `border-radius` —
@@ -258,7 +277,7 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables`, `geome
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
      compare .ai/run-context/design-context-values.tsv .ai/run-context/prototype-report.md \
-     <the measurement file step 3 of **Capture and measure the draft page** recorded>
+     <the measurement file step 4 of **Capture and measure the draft page** recorded>
    ```
 
    The script owns shorthand expansion, value normalisation and which properties are compared;
@@ -350,6 +369,8 @@ Any of the following — go to **Report warn**:
 - At least one `variables` entry named a property outside `measure`'s own list, or the
   comparison script printed at least one `unmeasured` line, so that value could only be judged
   visually, never confirmed numerically.
+- At least one comparison line's resolution was `reduced`, so that width was compared against a
+  scaled-down reference image.
 - `prototype-report.md` named the target block as already existing, and **Edit the block's CSS and
   JS** ran at least once this run — this run's own fix loop modified a real, currently-used
   component's CSS/JS ahead of plan approval, the same D78 risk `eds-prototype` already flags for its
@@ -378,7 +399,9 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 ### Report fail
 
 Run **Teardown**. Write `.ai/run-context/verify-design-report.md` when at least one check
-completed: the target block name and new/existing state, then per check its mismatch list, and
+completed: the target block name and new/existing state, then per check each comparison it made
+(capture width, variant name and node id or "the reference", the reference image path, and its
+resolution), then its mismatch list, and
 after it the edit that followed — each change made, the mismatch it answered, and the file it
 touched — then which of **Attempts exhausted or no improvement?**'s answers ended the loop (budget
 exhausted, with `edits-made`; no improvement; or the budget script's contract violation).
@@ -400,7 +423,9 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 ### Report warn
 
 Run **Teardown**. Write `.ai/run-context/verify-design-report.md`: the target block name and
-new/existing state, per check its mismatch list and the edit that followed it (each change, the
+new/existing state, per check each comparison it made (capture width, variant name and node id or
+"the reference", the reference image path, and its resolution — a `reduced` one stated as a
+comparison at reduced resolution), its mismatch list and the edit that followed it (each change, the
 mismatch it answered, the file it touched), the final check's list (empty, unless reached via
 **Every remaining mismatch a content-asset gap?**, in which case every remaining `[content-asset
 gap]` entry), and which degradation(s) applied.
@@ -431,10 +456,15 @@ gap]` entry), and which degradation(s) applied.
     <node> was judged visually only: <reason>"` — one entry per line
   - an edit to an already-existing block → `"this run edited an already-existing block's CSS/JS
     ('<name>') ahead of plan approval"`
+  - a `reduced` comparison line → `"design comparison at <capture width> was at reduced resolution:
+    the reference image for <name> (<node id>) was rendered smaller than the design"` — one entry
+    per such line, `the reference` in place of the name and node id when the node id is `-`
   - `[]` only when this node is reached with no degradation actually true — should not happen; if
     it does, that is a bug in this stage's own degradation detection.
 - `attachments`: one entry per screenshot **Capture and measure the draft page** wrote, across
-  every check — `{ "path": "<the file>", "width": 1440, "label": "design comparison, check <n>" }`.
+  every check — `{ "path": "<the file>", "width": <its capture width>, "label": "design
+  comparison, <name> at <capture width>, check <n>" }`, `reference` in place of `<name>` when the
+  line's name is `-`.
   Never the measurement file, which carries no natural width.
 
 If `.ai/run-context/evidence-manifest.json` already exists (unusual for this stage, which normally

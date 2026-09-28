@@ -362,10 +362,35 @@ named no component.
 
 When `fact-record.yaml`'s `design_source` or `design_mentioned` is `true`, look for
 `.ai/run-context/design-reference.json` and its companion reference image (written by
-`eds-extract`). Present — read both images (this run's capture and the reference) and compare them
-by inspection, the same judgment-based comparison a gate adapter applies rather than a pixel-diff
-library; also compare the reference's recorded `variables` values against this run's own `measure`
-output where a variable names a property `measure` reports. Absent — note plainly that the design
+`eds-extract`). Present — pair each capture with its own reference image first. This project's
+adopted breakpoints are the `@media (width >= Npx)` rules of `styles/styles.css`; read them, then
+pair, never deciding either by hand:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py breakpoints styles/styles.css
+python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py pair \
+  .ai/run-context/design-reference.json 375,768,1440 <the line the first command printed>
+```
+
+The second prints one tab-separated line per capture width: `<capture width> <status> <node id>
+<variant width> <image> <resolution> <also at> <name>`. A capture pairs with the variant drawn for
+the same breakpoint interval as the capture's width. Exit `2` from either — note plainly that the
+design comparison did not run, naming the script's stderr reason; that is a downgrade, never a
+match. For each line, by `status`:
+
+- `variant` — read that width's capture and that line's image, never another's, and compare them.
+- `single` — the reference has one width; compare that width's capture against the line's image.
+- `none` — no variant of the design covers that width. Compare nothing for it, and record "no
+  variant covers <capture width>".
+
+Compare by inspection, the same judgment-based comparison a gate adapter applies rather than a
+pixel-diff library. Name each comparison by its capture width and its variant (`<name> (<node
+id>)`, or "the reference" when the name is `-`). When `also at` is not `-`, record plainly that
+this one image was also compared at those widths — one image standing for several widths is always
+said, never implied. When `resolution` is `reduced`, record that the comparison at that width is at
+reduced resolution, so fine detail is judged from a scaled image, never as a pixel match. Also
+compare the reference's recorded `variables` values against this run's own `measure` output where a
+variable names a property `measure` reports. Absent — note plainly that the design
 comparison did not run: `design_source`/`design_mentioned` being `true` means the route's design
 stages were supposed to produce a reference by this point, not that one necessarily exists yet in
 this pack's current state, and a missing reference here is reported, never treated as a design
@@ -383,8 +408,8 @@ Any of the following, on the evidence gathered above, is a hard failure:
   that found nothing — see the downgrade bullet below for that case instead.
 - The baseline comparison (when one ran) found a landmark outside this change with a materially
   different geometry or computed style — a regression this change caused elsewhere on the page.
-- The design comparison (when one ran) found the rendered result does not visually match the
-  reference.
+- The design comparison (when one ran) found the rendered result at a width does not visually
+  match the reference image paired with that width.
 - A behaviour check that genuinely ran through `interact` found the expected state did not
   change — a click, an exclusivity check, or a keyboard press that had no effect where the block's
   own source says it should have one. This is what makes a criterion like "opening one item closes
@@ -402,7 +427,11 @@ Any of the following is true — go to **Report warn**:
 - No baseline comparison ran because no baseline capture artifact existed, even though this stage
   expected one might.
 - No design comparison ran despite `design_source` or `design_mentioned` being `true`, because no
-  design reference artifact existed yet.
+  design reference artifact existed yet, or the pairing script exited `2`.
+- The pairing printed `none` for a capture width — no variant of the design covers it, so that
+  width was not compared against the design at all.
+- A paired image's resolution was `reduced` — that width was compared against a scaled-down
+  reference image.
 - A plan-named selector (beyond the block wrapper itself) came back `found: false`, on a target
   block that did otherwise render — distinct from the next bullet, where the block has no
   renderable content at all.
@@ -495,7 +524,9 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 ### Report warn
 
 Run **Teardown**. Write `.ai/run-context/verify-report.md`: the target block name(s) and URL, the widths captured,
-the selectors measured and their findings, each behaviour check attempted through `interact` with
+each design comparison as the pairing named it (capture width, variant name and node id or "the
+reference", image, resolution, and every other width the same image was compared at — or "no
+variant covers <width>"), the selectors measured and their findings, each behaviour check attempted through `interact` with
 its own before/after state and verdict (or, when none ran, plainly why — unsupported operation, no
 interactive element identified, or which specific check's own `interact` call did not complete),
 and, plainly labeled, which of the downgraded/skipped conditions above applied. **When this run's
@@ -548,7 +579,13 @@ generated content makes every later run's evidence untrustworthy.
   - no baseline comparison → `"no baseline comparison ran: no baseline capture artifact existed
     for <block name>"`
   - no design comparison → `"no design comparison ran: design_source/design_mentioned is true but
-    no design reference artifact existed yet"`
+    no design reference artifact existed yet"`, or, when the pairing script exited `2`, `"no design
+    comparison ran: the captures could not be paired with the design reference: <stderr reason>"`
+  - a `none` pairing → `"no variant covers <capture width>: that width was not compared against the
+    design"` — one entry per such width
+  - a `reduced` pairing → `"design comparison at <capture width> was at reduced resolution: the
+    reference image for <name> (<node id>) was rendered smaller than the design"` — one entry per
+    such width, `the reference` in place of the name and node id when the name is `-`
   - a plan-named selector not found → `"selector '<selector>' named in the plan was not found on
     the rendered page"`
   - a target block with no renderable content → `"target block '<block name>' has no renderable
