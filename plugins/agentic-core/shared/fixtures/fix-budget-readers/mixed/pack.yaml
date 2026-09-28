@@ -1,0 +1,17 @@
+kind: platform
+stages:
+  - id: serve
+    skill: serve
+    fix_attempts: 5
+  - id: verify-design
+    skill: verify-design
+    fix_attempts: 2
+  - id: plan
+    skill: plan
+  - id: lint
+    skill: lint
+    fix_attempts: 3
+artifacts:
+  - id: lint-report
+    produced_by: lint
+    path: ".ai/run-context/lint-report.md"
