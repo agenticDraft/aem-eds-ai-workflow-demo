@@ -42,6 +42,14 @@
 # edge) exits 2 before anything is written. No `screenshots`, or an empty list,
 # leaves the key out.
 #
+# `assets` — the provider's downloaded images and icons, each
+# {node_id, file, mime} — is carried through unchanged and in order; the files
+# stay where the provider wrote them. `node_id` is a node id or null, `file` a
+# local path that exists (never a URL), `mime` one of image/png, image/jpeg,
+# image/gif, image/webp, image/svg+xml. No `assets`, or an empty list, is
+# written as `assets: []`, and the `image` mode always writes `assets: []`. A
+# malformed entry exits 2 before anything is written.
+#
 # Exit codes: 0 on success; 2 for a usage error.
 
 import json
@@ -54,6 +62,8 @@ VIEWPORT_KEYS = {"name", "node_id", "width", "image", "context"}
 SCREENSHOT_KEYS = {"node_id", "width", "height", "original_width", "original_height", "downscaled"}
 SIZE_KEYS = ("width", "height", "original_width", "original_height")
 NODE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:;_-]*$")
+ASSET_KEYS = {"node_id", "file", "mime"}
+ASSET_MIMES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"}
 
 
 def usage_error(msg):
@@ -133,6 +143,27 @@ def validated_screenshots(provider_json_path, screenshots, node_id, viewports, o
     return [carried[n] for n in images if n in carried]
 
 
+def validated_assets(provider_json_path, assets):
+    if assets is None or assets == []:
+        return []
+    where = f"'{provider_json_path}': assets"
+    if not isinstance(assets, list):
+        usage_error(f"{where} must be a list")
+    for entry in assets:
+        if not isinstance(entry, dict) or set(entry) != ASSET_KEYS:
+            usage_error(f"{where}: each entry must have exactly {', '.join(sorted(ASSET_KEYS))}")
+        node_id, file, mime = entry["node_id"], entry["file"], entry["mime"]
+        if node_id is not None and (not isinstance(node_id, str) or not NODE_ID.match(node_id)):
+            usage_error(f"{where}: node_id {node_id!r} is not a node id")
+        if not isinstance(file, str) or "://" in file:
+            usage_error(f"{where}: file must be a local path")
+        if not os.path.isfile(file):
+            usage_error(f"{where}: {file!r} not found")
+        if mime not in ASSET_MIMES:
+            usage_error(f"{where}: mime {mime!r} is not an image type")
+    return [{"node_id": a["node_id"], "file": a["file"], "mime": a["mime"]} for a in assets]
+
+
 def node_suffix(node_id):
     return node_id.replace(":", "-")
 
@@ -178,6 +209,7 @@ def main():
             "design_context": None,
             "reference_image": image_path,
             "mime": mime,
+            "assets": [],
         }
         write_json(out_json, record)
         print(f"wrote: {out_json}")
@@ -205,6 +237,7 @@ def main():
         viewports = validated_viewports(provider_json_path, provider.get("viewports"))
         screenshots = validated_screenshots(
             provider_json_path, provider.get("screenshots"), provider.get("node_id"), viewports, out_image)
+        assets = validated_assets(provider_json_path, provider.get("assets"))
 
         os.makedirs(os.path.dirname(out_image) or ".", exist_ok=True)
         shutil.copyfile(provider_image_path, out_image)
@@ -224,6 +257,7 @@ def main():
             "geometry": provider.get("geometry"),
             "design_context": design_context,
             "reference_image": out_image,
+            "assets": assets,
         }
         if viewports:
             record["viewports"] = [copy_viewport(v, out_image, out_context) for v in viewports]
