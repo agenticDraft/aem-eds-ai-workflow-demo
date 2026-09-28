@@ -13,7 +13,6 @@ stages:
     skill: eds-conventions
   - id: serve
     skill: eds-serve
-    fix_attempts: 5
   - id: baseline
     skill: eds-baseline
     when:

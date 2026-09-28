@@ -1,0 +1,5 @@
+kind: platform
+stages:
+  - id: verify-design
+    fix_attempts: 2
+    skill: verify-design

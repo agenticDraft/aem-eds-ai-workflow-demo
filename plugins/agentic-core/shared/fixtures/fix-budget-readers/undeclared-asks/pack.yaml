@@ -1,0 +1,4 @@
+kind: platform
+stages:
+  - id: plan
+    skill: plan
