@@ -33,7 +33,9 @@ None. This stage reads four fixed paths: `.ai/run-context/fact-record.yaml`,
 `.ai/run-context/design-conventions.md` (written by `eds-conventions`), and
 `.ai/run-context/sanitized-spec.md` (written by `eds-intake`) — plus
 `.ai/run-context/question-answer.yaml` when the route re-invokes this stage with the answer to its
-own question, read only through the core's `read-question-answer.sh`. It calls no `tracker`/`scm`/`design`/
+own question, read only through the core's `read-question-answer.sh`, and the reference code
+`design-reference.json`'s `design_context.code_file` names, read only through this stage's own
+`scripts/design-context-values.py`. It calls no `tracker`/`scm`/`design`/
 `browser` role operation — building the prototype is a content-authoring step, not a render/capture/
 measure step; `eds-verify-design` (not yet built) is the stage that renders and compares it.
 
@@ -47,6 +49,7 @@ digraph eds_prototype {
     "Block already exists?" [shape=diamond];
     "Read the existing block's markup, CSS, and JS" [shape=box];
     "Read the nearest exemplar's structure" [shape=box];
+    "Read the design-context values" [shape=box];
     "Compose the block-table content" [shape=box];
     "Compose the block CSS and minimal JS" [shape=box];
     "Write the prototype files" [shape=box];
@@ -65,8 +68,10 @@ digraph eds_prototype {
     "Target block identified?" -> "Report fail" [label="answer file names no owner"];
     "Block already exists?" -> "Read the existing block's markup, CSS, and JS" [label="yes"];
     "Block already exists?" -> "Read the nearest exemplar's structure" [label="no"];
-    "Read the existing block's markup, CSS, and JS" -> "Compose the block-table content";
-    "Read the nearest exemplar's structure" -> "Compose the block-table content";
+    "Read the existing block's markup, CSS, and JS" -> "Read the design-context values";
+    "Read the nearest exemplar's structure" -> "Read the design-context values";
+    "Read the design-context values" -> "Compose the block-table content" [label="exit 0 or 3"];
+    "Read the design-context values" -> "Report fail" [label="exit 2"];
     "Compose the block-table content" -> "Compose the block CSS and minimal JS";
     "Compose the block CSS and minimal JS" -> "Write the prototype files";
     "Write the prototype files" -> "Write the prototype report";
@@ -175,6 +180,34 @@ model. Note this explicitly as a degradation and fall back to the plainest block
 authored-content model requires (one section, one block div, rows of cells), styled only from
 `styles/styles.css`'s own custom properties.
 
+### Read the design-context values
+
+Run:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/design-context-values.py \
+  .ai/run-context/design-reference.json > .ai/run-context/design-context-values.tsv
+```
+
+The script reads the reference code through `design_context.code_file` and prints one
+`<node_id> TAB <css-property> TAB <value>` row per arbitrary-value class, keyed by the element's
+`data-node-id`. It owns every decision about which class means which property; take its rows as
+given and never parse the reference code's classes here, re-derive a property it left out, or read
+a reference-code file by a fixed path.
+
+- **Exit `0`** — the table holds zero or more rows. Continue to **Compose the block-table
+  content**.
+- **Exit `3`** — `design_context` is `null`: there is no reference code, and the table is empty.
+  Any reference-code file already in `.ai/run-context/` belongs to an earlier run; do not read it.
+  Record "design_context: null — no design-context values" for the report and continue.
+- **Exit `2`** — `design_context` names a code file that is missing, or is malformed. Go to
+  **Report fail**, naming the script's stderr reason.
+
+A node id is the design's own element identity. Apply a row to the element composed for that node
+— the outermost node is the block's styled element, a nested node the element nested inside it.
+Never match a node by its `data-name` or by the `get_metadata` name: those are layer names, not the
+rendered text.
+
 ### Compose the block-table content
 
 Using the sanitized spec and the design reference's own `variables`/`geometry`, write the block's
@@ -186,11 +219,9 @@ reusing, the chosen exemplar's when new.
 ### Compose the block CSS and minimal JS
 
 Write (new block) or update (existing block) `blocks/<name>/<name>.css`. When `design-reference.json`'s
-`has_values` is `true`, apply its `variables`/`geometry`, preferring an existing custom property in
-`styles/styles.css` over a literal value wherever one is an exact or close match — the same "prefer
-the project's own token over a raw value" judgment `dx-figma-prototype` makes in its own token-
-mapping step (checked before drafting, per the standing `dx-core` rule — see **Design decisions**
-in this task's own done file). Record every mapping decision (exact match / close match / no
+`has_values` is `true`, apply its `variables`/`geometry` and the design-context values, preferring
+an existing custom property in `styles/styles.css` over a literal value wherever one holds the same
+value, by the token rule below. Record every mapping decision (exact match / close match / no
 project equivalent) for the report below — informational detail, not itself what decides this
 stage's verdict; `design-conventions.md`'s own `## styles` section already states whether a design-
 system manifest exists to grade against at all (`no-manifest`/`no-values`/gradeable), and *that* is
@@ -200,6 +231,25 @@ count of how many values happened to match an existing token. `has_values: false
 design source) —
 there are no values to map; approximate the reference image's visual intent by inspection instead,
 and record this as a degradation.
+
+Read `design-context-values.tsv` next to `variables` and `geometry`. Take each CSS value from the
+first source that supplies it, in this order, and record which one it came from:
+
+1. `variables` — a design variable holding that value (a table row `#dfecc6` next to a variable
+   `Accent 2: #DFECC6` is sourced from `variables`, under that variable's name).
+2. `metadata` — `geometry` (the node's width, height and position).
+3. `design_context` — a row of `design-context-values.tsv`: the padding, gap, radius, spacing and
+   typography values neither source above carries.
+
+Write every table row the composed markup has an element for, as its property and value, in the
+CSS rule for that element. A shorthand the table names (`padding-inline`, `padding-block`) is
+written as that property, or as the equivalent longhands, never as a different number.
+
+Map each value, from any of the three sources, to a project token only where one exists: an
+existing custom property in `styles/styles.css` whose value is the same value (the same length in
+the same unit, or the same colour in any hex case). Then write `var(--that-property)`. Otherwise
+write the design's own value as a literal. The design owns the number; a token whose value is only
+close to it is recorded as the nearest token and never written in its place.
 
 Write (new block) or update (existing block) `blocks/<name>/<name>.js`: the minimal `decorate(block)`
 needed to demonstrate any interaction the sanitized spec or design implies — D8's own "MINIMAL —
@@ -228,6 +278,18 @@ exists?**); every file written or updated (`blocks/<name>/<name>.css`, `blocks/<
 the no-exemplar degradation; and, when the target block already existed, the explicit note from
 **Read the existing block's markup, CSS, and JS** that this run modified a real, currently-used
 component ahead of `plan`/`plan-gate` approval.
+
+Add a `## Design values` section with one line per value written to the block CSS:
+
+```
+<selector> — <css-property> — <value> — source: <variables|metadata|design_context> — token: <--name|none> [— node: <node_id>]
+```
+
+`node:` is required when the source is `design_context`. `token: none` may add `(nearest: --name)`.
+Every value in the CSS has a line, and every `design_context` value names its node. After the lines,
+state the row count of `design-context-values.tsv`, or "design_context: null — no design-context
+values" when the script exited `3`, and name any table row not applied, with the reason (no
+composed element for that node).
 
 ### Any degradation to report?
 
@@ -263,7 +325,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming which required input was missing — `design-reference.json` or
   `design-conventions.md` — verbatim, never reworded into something more general; or, from
   **Target block identified?**, the reason `read-question-answer.sh` gave for refusing the answer
-  file.
+  file; or, from **Read the design-context values**, the reason `design-context-values.py` gave.
 - `artifacts: []`
 - `next_action: none`
 
@@ -308,6 +370,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   - `blocks/<name>/<name>.js`
   - `drafts/<item_id>.plain.html`
   - `.ai/run-context/prototype-report.md`
+  - `.ai/run-context/design-context-values.tsv`
 - `next_action: none`
 
 ### Report pass
@@ -324,7 +387,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and whether it is new or existing.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): the same four paths as **Report warn**.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): the same five paths as **Report warn**.
 - `next_action: none`
 
 ## Known limitations
