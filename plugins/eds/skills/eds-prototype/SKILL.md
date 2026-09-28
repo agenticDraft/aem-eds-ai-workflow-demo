@@ -35,7 +35,8 @@ None. This stage reads four fixed paths: `.ai/run-context/fact-record.yaml`,
 `.ai/run-context/question-answer.yaml` when the route re-invokes this stage with the answer to its
 own question, read only through the core's `read-question-answer.sh`, and the reference code
 `design-reference.json`'s `design_context.code_file` names, read only through this stage's own
-`scripts/design-context-values.py`. It calls no `tracker`/`scm`/`design`/
+`scripts/design-context-values.py`, and each viewport variant's reference code, read only through
+this stage's own `scripts/viewport-overrides.py`. It calls no `tracker`/`scm`/`design`/
 `browser` role operation — building the prototype is a content-authoring step, not a render/capture/
 measure step; `eds-verify-design` (not yet built) is the stage that renders and compares it.
 
@@ -50,6 +51,8 @@ digraph eds_prototype {
     "Read the existing block's markup, CSS, and JS" [shape=box];
     "Read the nearest exemplar's structure" [shape=box];
     "Read the design-context values" [shape=box];
+    "Reference has viewports?" [shape=diamond];
+    "Read the viewport overrides" [shape=box];
     "Compose the block-table content" [shape=box];
     "Compose the block CSS and minimal JS" [shape=box];
     "Write the prototype files" [shape=box];
@@ -70,8 +73,12 @@ digraph eds_prototype {
     "Block already exists?" -> "Read the nearest exemplar's structure" [label="no"];
     "Read the existing block's markup, CSS, and JS" -> "Read the design-context values";
     "Read the nearest exemplar's structure" -> "Read the design-context values";
-    "Read the design-context values" -> "Compose the block-table content" [label="exit 0 or 3"];
+    "Read the design-context values" -> "Reference has viewports?" [label="exit 0 or 3"];
     "Read the design-context values" -> "Report fail" [label="exit 2"];
+    "Reference has viewports?" -> "Read the viewport overrides" [label="yes"];
+    "Reference has viewports?" -> "Compose the block-table content" [label="no"];
+    "Read the viewport overrides" -> "Compose the block-table content" [label="exit 0"];
+    "Read the viewport overrides" -> "Report fail" [label="exit 2"];
     "Compose the block-table content" -> "Compose the block CSS and minimal JS";
     "Compose the block CSS and minimal JS" -> "Write the prototype files";
     "Write the prototype files" -> "Write the prototype report";
@@ -208,6 +215,48 @@ A node id is the design's own element identity. Apply a row to the element compo
 Never match a node by its `data-name` or by the `get_metadata` name: those are layer names, not the
 rendered text.
 
+### Reference has viewports?
+
+`design-reference.json` has a non-empty `viewports` list — continue to **Read the viewport
+overrides**. No `viewports` key, or an empty list — a single-width reference: continue to **Compose
+the block-table content**; the value table above is the only design-context source, as before.
+
+### Read the viewport overrides
+
+Run:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py breakpoints styles/styles.css
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/viewport-overrides.py \
+  .ai/run-context/design-reference.json <breakpoints> > .ai/run-context/viewport-overrides.tsv
+```
+
+`<breakpoints>` is the first command's output, verbatim (`-` when the stylesheet has none). The
+second script diffs every variant's value table into a mobile-first base and one override block per
+adopted breakpoint, and names every variant it could not place. It owns the cross-variant element
+match, the interval each variant falls in, and every proposed threshold (derived by
+`../../../agentic-core/shared/breakpoint-thresholds.md`); take its lines as given. Never use a
+variant's own width as a media query, and never add a breakpoint the first command did not print.
+
+Its lines, tab-separated:
+
+- `base <name> <node> <width>` — the narrowest variant. Its `value base …` rows are the base.
+- `media <breakpoint> <name> <node> <width>` — an override block at an adopted breakpoint.
+- `value <base|breakpoint> <base node> <property> <value> <variant node> <path>` — one CSS value.
+  `<base node>` is always the base variant's node id, so a row is applied to the element composed
+  for that node, exactly as a value-table row is.
+- `same-interval <name> <node> <width> <interval variant> <threshold>` followed by its `differs …`
+  lines — a variant in an interval another variant already holds. Its values are not written
+  anywhere. `<threshold>` is a proposal only.
+- `not-overridden`, `unmatched`, `missing`, `no-context` — values or elements the script could not
+  turn into an override: a base value the wider variant sets without a readable value, an element
+  with no counterpart in the base, a base element absent from the wider variant, a variant with no
+  reference code.
+
+- **Exit `0`** — continue to **Compose the block-table content**.
+- **Exit `2`** — a variant's reference code is missing or the reference is malformed. Go to
+  **Report fail**, naming the script's stderr reason.
+
 ### Compose the block-table content
 
 Using the sanitized spec and the design reference's own `variables`/`geometry`, write the block's
@@ -242,7 +291,16 @@ first source that supplies it, in this order, and record which one it came from:
    typography values neither source above carries.
 
 Write every table row the composed markup has an element for, as its property and value, in the
-CSS rule for that element. A shorthand the table names (`padding-inline`, `padding-block`) is
+CSS rule for that element.
+
+With viewports, `viewport-overrides.tsv` replaces `design-context-values.tsv` as the
+`design_context` source, and the CSS is mobile-first:
+
+- Write every `value base` row in the element's rule outside any media query.
+- For each `media <breakpoint>` line, write one `@media (width >= <breakpoint>px)` block holding
+  that breakpoint's `value <breakpoint>` rows, and nothing else. Blocks follow in ascending
+  breakpoint order.
+- Write no value from a `same-interval` variant, and no media query for its proposed threshold. A shorthand the table names (`padding-inline`, `padding-block`) is
 written as that property, or as the equivalent longhands, never as a different number.
 
 Map each value, from any of the three sources, to a project token only where one exists: an
@@ -291,6 +349,13 @@ state the row count of `design-context-values.tsv`, or "design_context: null —
 values" when the script exited `3`, and name any table row not applied, with the reason (no
 composed element for that node).
 
+With viewports, add a `## Viewport overrides` section: the base variant and each override block
+(`<breakpoint> — <variant> — <n> values`), the `value` rows not applied with the reason, and then
+every finding line of `viewport-overrides.tsv` (`same-interval` with its `differs` lines,
+`not-overridden`, `unmatched`, `missing`, `no-context`), verbatim. For each `same-interval` line,
+state that the variant was not implemented and that `<threshold>` is a proposed breakpoint, adopted
+only by adding it to `styles/styles.css` first.
+
 ### Any degradation to report?
 
 Any of the following — go to **Report warn**:
@@ -306,6 +371,8 @@ Any of the following — go to **Report warn**:
   modeled for a new block.
 - `design-conventions.md`'s own `reuse=`/`new=` line for this block disagreed with this stage's own
   disk check.
+- `viewport-overrides.tsv` holds any `same-interval`, `not-overridden`, `unmatched`, `missing` or
+  `no-context` line, so part of a viewport variant was not written.
 
 None of these — go to **Report pass**.
 
@@ -371,6 +438,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   - `drafts/<item_id>.plain.html`
   - `.ai/run-context/prototype-report.md`
   - `.ai/run-context/design-context-values.tsv`
+  - `.ai/run-context/viewport-overrides.tsv`, only when **Read the viewport overrides** ran
 - `next_action: none`
 
 ### Report pass
@@ -387,7 +455,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and whether it is new or existing.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): the same five paths as **Report warn**.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): the same paths as **Report warn**.
 - `next_action: none`
 
 ## Known limitations
