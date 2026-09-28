@@ -35,21 +35,30 @@ it either.
 ## How the answer reaches the stage that asked
 
 The answer is written to a stage-readable file crossing the runner-stage boundary, the same bucket
-as the fact record and the resolved route:
+as the fact record and the resolved route. The file holds every answer given in the run, one entry
+per `(stage, question_id)`:
 
 ```yaml
-stage: "<the id of the stage that asked>"
-question: "<the question text, verbatim>"
-answer: "<the answer text>"
+answers:
+  - stage: "<the id of the stage that asked>"
+    question_id: "<the envelope's question_id, or default>"
+    question: "<the question text, verbatim>"
+    answer: "<the answer text>"
 ```
 
 Then the stage named in `stage` is invoked again, with the same invocation argument it was given
 the first time. This contract fixes only the file's shape and where it lives conceptually (the
 stage-readable boundary); the exact path is the route driver's to place.
 
-- **The answer belongs to `stage`.** The file stays on disk after the re-invocation, so a stage
-  reads it only through `lib/read-question-answer.sh` with its own id, which returns the answer
-  only when `stage` matches. Any other stage ignores it.
+- **An answer is keyed by the stage that asked and the question's own id.** `question_id` is the
+  envelope's own field (`result-envelope.md`); an envelope without one is keyed `default`.
+- **Writing upserts.** The same `(stage, question_id)` asked again replaces only its own entry, in
+  place; a new key is appended. Every other answer stays — a stage that asked two questions finds
+  both on its next invocation.
+- **A stage reads one answer by key.** The file stays on disk after the re-invocation, so a stage
+  reads it only through `lib/read-question-answer.sh` with its own id and the `question_id` it
+  asked under, which returns that one entry's answer. It never scans the file's free text for an
+  answer, and any entry keyed to another stage is invisible to it.
 - **Exactly once per answer.** The re-invocation's envelope is judged like any other stage's. A
   `question` from it is a new question: same mode rules, same per-run cap, and — when asked — its
   own single re-invocation.
@@ -81,6 +90,9 @@ literal rather than inventing a parallel one for the same meaning:
 - Recording the asking stage as completed before its re-invocation returns.
 - A stage acting on an answer whose `stage` is not its own id, or reading the file directly
   rather than through `lib/read-question-answer.sh`.
+- A stage deciding from an answer's free text which of its questions it answers — the key does
+  that; give each decision its own `question_id` instead.
+- Writing the file with a plain overwrite, which erases every answer but the last (G523).
 
 ## Reference, not restatement
 
@@ -99,18 +111,21 @@ is the override case) together with `fixtures/result-envelope/question.md`.
 `lib/handle-question.sh <path-to-pack.yaml> <mode> <stage id> <path-to-envelope>
 <questions-used> <questions-cap>` is the deterministic decision — no model involved, no side
 effects. It exits `0` and prints `decision: ask` plus the question, its options if any, the
-incremented budget, and `next_stage:` naming the stage to re-invoke once answered; `3` and `decision: terminate-failed` for the always-autonomous override; `4`
+incremented budget, `question_id:` (the envelope's, or `default`), and `next_stage:` naming the
+stage to re-invoke once answered; `3` and `decision: terminate-failed` for the always-autonomous override; `4`
 and `decision: terminate-blocked` for an exhausted budget or autonomous mode (with a
 `write-blocker:` line in the autonomous case); `1` with `invalid: <reason>` on stderr and
 `decision: terminate-contract-violation` for a malformed argument or a non-question envelope; `2`
 for a usage error.
 
-`lib/write-question-answer.sh <path> <stage id> <question> <answer>` writes the file above,
-creating the parent directory if needed.
+`lib/write-question-answer.sh <path> <stage id> <question id> <question> <answer>` upserts one
+entry into the file above, creating the file and its parent directory if needed. It exits `0`;
+`1` for a malformed value or an existing file that is not a well-formed 2.0 file (nothing is
+written); `2` for a usage error.
 
-`lib/read-question-answer.sh <path> <stage id>` exits `0` and prints the answer when the file
-exists and its `stage` is `<stage id>`; `3` with nothing on stdout when the file is absent or
-belongs to another stage; `1` for a malformed file; `2` for a usage error.
+`lib/read-question-answer.sh <path> <stage id> <question id>` exits `0` and prints the answer of
+the entry keyed `(<stage id>, <question id>)`; `3` with nothing on stdout when the file is absent or
+holds no entry under that key; `1` for a malformed file; `2` for a usage error.
 
 ```bash
 bash plugins/agentic-core/shared/lib/handle-question.test.sh

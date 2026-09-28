@@ -92,6 +92,28 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/error-class-with-pass.md" 2>&1); ST=$?
 assert_exit "error_class with verdict: pass rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason names the field, not the verdict" "'error_class:' is only valid" "$OUT"
 
+echo "[accept] question_id on a question verdict"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/question-id.md" 2>&1); ST=$?
+assert_exit "question-id.md accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "reports verdict question" "verdict: question" "$OUT"
+
+echo "[reject] question_id on a verdict it is not valid with"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/question-id-with-pass.md" 2>&1); ST=$?
+assert_exit "question_id with verdict: pass rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the field" "'question_id:' is only valid" "$OUT"
+
+echo "[reject] a question_id that is not a lowercase id"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/malformed-question-id.md" 2>&1); ST=$?
+assert_exit "malformed question_id rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names question_id" "question_id" "$OUT"
+
+echo "[reject] a question_id longer than 40 characters"
+LONG_FX="$(mktemp "${TMPDIR:-/tmp}/qid-long.XXXXXX")"
+sed 's/^question_id: .*/question_id: a-question-id-that-runs-well-past-forty-chars/' "$FIXDIR/question-id.md" > "$LONG_FX"
+OUT=$(bash "$VALIDATOR" "$LONG_FX" 2>&1); ST=$?
+rm -f "$LONG_FX"
+assert_exit "over-long question_id rejected (exit 1)" 1 $ST "$OUT"
+
 echo "[usage] no argument"
 OUT=$(bash "$VALIDATOR" 2>&1); ST=$?
 assert_exit "no arg -> usage error (exit 2)" 2 $ST "$OUT"

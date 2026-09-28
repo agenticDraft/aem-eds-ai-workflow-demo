@@ -33,7 +33,7 @@ None. This stage reads four fixed paths: `.ai/run-context/fact-record.yaml`,
 `.ai/run-context/design-conventions.md` (written by `eds-conventions`), and
 `.ai/run-context/sanitized-spec.md` (written by `eds-intake`) — plus
 `.ai/run-context/question-answer.yaml` when the route re-invokes this stage with the answer to its
-own question, read only through the core's `read-question-answer.sh`, and the reference code
+own question, read only through the core's `read-question-answer.sh` by its `question_id` key, and the reference code
 `design-reference.json`'s `design_context.code_file` names, read only through this stage's own
 `scripts/design-context-values.py`, and each viewport variant's reference code, read only through
 this stage's own `scripts/viewport-overrides.py`. The asset files `design-reference.json`'s `assets`
@@ -123,23 +123,28 @@ defect upstream — not something this stage can produce on its own.
 
 ### Target block identified?
 
-**First, an answer addressed to this stage.** Run:
+**First, the answer to this stage's target question.** Run:
 
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/read-question-answer.sh \
-  .ai/run-context/question-answer.yaml prototype
+  .ai/run-context/question-answer.yaml prototype target-block
 ```
 
-- **Exit `0`** — the route re-invoked this stage with the human's answer to the question below.
+The file can hold several answers — this stage's icon-collision answer, other stages' answers —
+and the script returns only the one stored under `(prototype, target-block)`, the key this stage's
+own target question is asked under (**Report question**). Never read the file directly or pick an
+answer by what its text says: which question an answer answers is the key's job, not a guess.
+
+- **Exit `0`** — the human's answer to the target question.
   The answer outranks both fact-record fields: it is the human resolving exactly the ambiguity they
   could not. Take the first `blocks/<name>/` path in it; failing that, the whole answer when it is a
   single block name (lowercase letters, digits, hyphens). One name resolved — continue to **Block
-  already exists?**. Neither — the answer names no block (it may answer the icon-collision
-  question instead); do not guess one from its free text, and continue below with the fact record.
-- **Exit `3`** — no answer for this stage (none recorded, or one another stage asked). Ignore the
-  file and continue below.
-- **Exit `1`** — the file exists but names no owner. Go to **Report fail**, naming the script's
-  reason: an answer nobody can prove is this stage's is never acted on.
+  already exists?**. Neither — the answer names no block; do not guess one from its free text, and
+  continue below with the fact record.
+- **Exit `3`** — no answer under that key (none recorded, or only answers to other questions).
+  Continue below.
+- **Exit `1`** — the file is malformed. Go to **Report fail**, naming the script's reason: an
+  answer read out of a file whose entries cannot be trusted is never acted on.
 
 Otherwise, take `fact-record.yaml`'s `components` list if non-empty — the first entry, in
 fact-record order.
@@ -528,6 +533,8 @@ From **Target block identified?**:
 - `artifacts: []`
 - `next_action: none`
 - `question`: "Which existing block, or what name for a new one, should this design change target?"
+- `question_id`: `target-block` — the key **Target block identified?** reads the answer back under;
+  keep it exactly this, or the answer is never found.
 - `blocker`: "the fact record names no component and no `files_named` path matches
   `blocks/<name>/…`, so this stage has nothing to prototype."
 
@@ -540,6 +547,8 @@ From **Record the icon collision** (the first `collision` row names the files):
 - `next_action: none`
 - `question`: "`<dest>` is wanted for design node `<node>` (`<asset file>`), but `<held by>` already
   holds different bytes under that content-hash name. Rename or remove `<held by>`, and re-run."
+- `question_id`: `icon-collision` — its own key, so its answer is stored beside the target-block
+  answer rather than over it.
 - `blocker`: "an icon file is never overwritten, and a content-hash name held by other bytes is
   not a naming choice this stage can make."
 

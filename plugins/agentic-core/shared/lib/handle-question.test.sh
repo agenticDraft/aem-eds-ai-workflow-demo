@@ -72,6 +72,17 @@ assert_exit "exits 0" 0 $ST "$OUT"
 assert_contains "names prototype as the one to re-invoke" "next_stage: prototype" "$OUT"
 assert_not_contains "names no other stage" "next_stage: intake" "$OUT"
 
+echo "[ask] an envelope with no question_id is keyed default"
+OUT=$(bash "$HANDLER" "$PACKFIX" interactive prototype "$ENVFIX/question.md" 0 3 2>&1); ST=$?
+assert_contains "prints question_id: default" "question_id: default" "$OUT"
+
+echo "[ask] an envelope's own question_id is handed on as the answer's key"
+OUT=$(bash "$HANDLER" "$PACKFIX" interactive prototype "$ENVFIX/question-id.md" 0 3 2>&1); ST=$?
+assert_exit "exits 0" 0 $ST "$OUT"
+assert_contains "prints the envelope's question_id" "question_id: target-component" "$OUT"
+assert_not_contains "is not keyed default" "question_id: default" "$OUT"
+assert_contains "options are still read past the question_id line" "  - columns" "$OUT"
+
 echo "[ask] a second question from the re-invoked stage is asked under the same budget"
 OUT=$(bash "$HANDLER" "$PACKFIX" interactive prototype "$ENVFIX/question.md" 1 3 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"

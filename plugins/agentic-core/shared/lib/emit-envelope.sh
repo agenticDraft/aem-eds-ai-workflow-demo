@@ -14,6 +14,7 @@
 #   --next-action <phrase>   default `none`
 #   --error-class <class>    fail or question only
 #   --question <text>        question only, required there
+#   --question-id <id>       question only; the key its answer is stored under (D527)
 #   --option <label>         question only; repeatable
 #   --blocker <text>         question only, required there
 #   --metrics <key=value …>  any verdict
@@ -43,6 +44,7 @@ SUMMARY=""
 NEXT_ACTION="none"
 ERROR_CLASS=""
 QUESTION=""
+QUESTION_ID=""
 BLOCKER=""
 METRICS=""
 ARTIFACTS=()
@@ -51,6 +53,7 @@ OPTIONS=()
 HAVE_VERDICT=0
 HAVE_SUMMARY=0
 HAVE_QUESTION=0
+HAVE_QUESTION_ID=0
 HAVE_BLOCKER=0
 HAVE_METRICS=0
 HAVE_ERROR_CLASS=0
@@ -63,6 +66,7 @@ while [ "$#" -gt 0 ]; do
     --next-action)  [ "$#" -ge 2 ] || usage "--next-action needs a value"; NEXT_ACTION="$2"; shift 2 ;;
     --error-class)  [ "$#" -ge 2 ] || usage "--error-class needs a value"; ERROR_CLASS="$2"; HAVE_ERROR_CLASS=1; shift 2 ;;
     --question)     [ "$#" -ge 2 ] || usage "--question needs a value"; QUESTION="$2"; HAVE_QUESTION=1; shift 2 ;;
+    --question-id)  [ "$#" -ge 2 ] || usage "--question-id needs a value"; QUESTION_ID="$2"; HAVE_QUESTION_ID=1; shift 2 ;;
     --option)       [ "$#" -ge 2 ] || usage "--option needs a value"; OPTIONS+=("$2"); shift 2 ;;
     --blocker)      [ "$#" -ge 2 ] || usage "--blocker needs a value"; BLOCKER="$2"; HAVE_BLOCKER=1; shift 2 ;;
     --metrics)      [ "$#" -ge 2 ] || usage "--metrics needs a value"; METRICS="$2"; HAVE_METRICS=1; shift 2 ;;
@@ -97,9 +101,14 @@ fi
 if [ "$VERDICT" = "question" ]; then
   [ "$HAVE_QUESTION" -eq 1 ] || usage "verdict question requires --question"
   [ "$HAVE_BLOCKER" -eq 1 ]  || usage "verdict question requires --blocker"
+  if [ "$HAVE_QUESTION_ID" -eq 1 ]; then
+    [[ "$QUESTION_ID" =~ ^[a-z][a-z0-9-]*$ ]] && [ "${#QUESTION_ID}" -le 40 ] \
+      || usage "--question-id must be a lowercase id of at most 40 characters (got '$QUESTION_ID')"
+  fi
 else
   [ "$HAVE_QUESTION" -eq 0 ] || usage "--question is valid only with verdict question"
   [ "$HAVE_BLOCKER" -eq 0 ]  || usage "--blocker is valid only with verdict question"
+  [ "$HAVE_QUESTION_ID" -eq 0 ] || usage "--question-id is valid only with verdict question"
   [ "${#OPTIONS[@]}" -eq 0 ] || usage "--option is valid only with verdict question"
 fi
 
@@ -125,6 +134,9 @@ error_class: $ERROR_CLASS"; fi
 
 if [ "$HAVE_QUESTION" -eq 1 ]; then BODY="$BODY
 question: $QUESTION"; fi
+
+if [ "$HAVE_QUESTION_ID" -eq 1 ]; then BODY="$BODY
+question_id: $QUESTION_ID"; fi
 
 if [ "${#OPTIONS[@]}" -gt 0 ]; then
   BODY="$BODY

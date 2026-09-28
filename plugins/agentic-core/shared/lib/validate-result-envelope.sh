@@ -14,6 +14,8 @@
 #     and verdict: question always carries a blocker
 #   * error_class, when present, is exactly one of TRANSIENT | VALIDATION |
 #     PERMANENT, and appears only with verdict: fail or verdict: question
+#   * question_id, when present, is a lowercase id of at most 40 characters and
+#     appears only with verdict: question (D527 — the key its answer is stored under)
 #
 # Usage:
 #   validate-result-envelope.sh <path>
@@ -110,7 +112,7 @@ if [[ "$next" == "artifacts:" || "$next" == "artifacts: []" ]]; then
   : # well-formed, handled below
 elif [[ "$next" =~ ^artifacts:\ .+$ ]]; then
   fail "'artifacts:' must be a list, even for a single path — write it as 'artifacts:' followed by '  - <path>' on the next line, not an inline value"
-elif [[ "$next" =~ ^(next_action|question|options|blocker|error_class|metrics):.*$ ]]; then
+elif [[ "$next" =~ ^(next_action|question|question_id|options|blocker|error_class|metrics):.*$ ]]; then
   fail "missing 'artifacts:' list"
 else
   fail "summary spans multiple lines"
@@ -161,6 +163,16 @@ if [[ "$verdict" == "question" ]]; then
     fail "verdict: question requires a 'question:' field"
   fi
 
+  # Optional: absent, the answer is keyed "default". A key that is not a plain
+  # lowercase id could not be written into or matched in the answer file.
+  if [[ "${LINES[cursor]:-}" =~ ^question_id:\ ?(.*)$ ]]; then
+    question_id="${BASH_REMATCH[1]}"
+    if [[ ! "$question_id" =~ ^[a-z][a-z0-9-]*$ ]] || (( ${#question_id} > 40 )); then
+      fail "question_id '$question_id' is not a lowercase id (letters, digits and hyphens, starting with a letter, at most 40 characters)"
+    fi
+    cursor=$((cursor + 1))
+  fi
+
   if [[ "${LINES[cursor]:-}" == "options:" ]]; then
     cursor=$((cursor + 1))
     consume_list_items
@@ -175,7 +187,7 @@ if [[ "$verdict" == "question" ]]; then
 else
   # Anti-pattern: question / blocker / options present with a non-question
   # verdict.
-  if [[ "${LINES[cursor]:-}" =~ ^(question|options|blocker):.*$ ]]; then
+  if [[ "${LINES[cursor]:-}" =~ ^(question|question_id|options|blocker):.*$ ]]; then
     fail "'${BASH_REMATCH[1]}:' is only valid with verdict: question"
   fi
 fi

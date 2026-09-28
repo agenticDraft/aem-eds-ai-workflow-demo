@@ -120,6 +120,24 @@ blocker: no attachment is named design-reference.png.' \
    --option a.png --option b.png \
    --blocker "no attachment is named design-reference.png."
 
+assert_emits "question_id sits right after question, before options" \
+'## Result
+verdict: question
+summary: a human has to choose.
+artifacts: []
+next_action: none
+question: which component should this change target?
+question_id: target-component
+options:
+  - table
+  - columns
+blocker: two candidate components and no answer.' \
+-- --verdict question --summary "a human has to choose." \
+   --question "which component should this change target?" \
+   --question-id target-component \
+   --option table --option columns \
+   --blocker "two candidate components and no answer."
+
 assert_emits "a non-default next_action is carried through" \
 '## Result
 verdict: pass
@@ -163,6 +181,12 @@ assert_refuses "question verdict with no blocker" \
   -- --verdict question --summary "x." --question "y?"
 assert_refuses "question text on a warn verdict" \
   -- --verdict warn --summary "x." --question "y?"
+assert_refuses "question_id on a pass verdict" \
+  -- --verdict pass --summary "x." --question-id target-component
+assert_refuses "question_id that is not a lowercase id" \
+  -- --verdict question --summary "x." --question "y?" --question-id "Target Component" --blocker "z."
+assert_refuses "question_id longer than 40 characters" \
+  -- --verdict question --summary "x." --question "y?" --question-id a-question-id-that-runs-well-past-forty-chars --blocker "z."
 assert_refuses "blocker on a fail verdict" \
   -- --verdict fail --summary "x." --blocker "y."
 assert_refuses "options on a pass verdict" \

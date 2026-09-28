@@ -29,10 +29,10 @@
   required_content: presence and mtime only
   validation: absent after every terminal state
 - id: question-answer
-  version: "1.1"
+  version: "2.0"
   produced_by: runner
-  required_content: stage, question and answer fields, the last two verbatim
-  validation: all three non-empty; stage is a stage id; neither question nor answer contains a double quote
+  required_content: an answers list, each entry keyed by stage and question_id, with question and answer verbatim
+  validation: every field non-empty and one line; stage is a stage id; question_id is a lowercase id; neither question nor answer contains a double quote; no two entries share a stage and question_id
 - id: analytics
   version: "1.0"
   produced_by: runner
