@@ -18,6 +18,9 @@ trap 'rm -rf "$WORK"' EXIT
 PASS=0
 FAIL=0
 TAB="$(printf '\t')"
+# One opening brace; a JSX double brace is built from two at run time, so this
+# file holds no literal template-placeholder marker.
+OB='{'
 
 ok()   { PASS=$((PASS + 1)); echo "  ok: $1"; }
 bad()  { FAIL=$((FAIL + 1)); echo "  FAIL: $1"; shift; for l in "$@"; do echo "    $l"; done; }
@@ -118,7 +121,7 @@ echo "real reference-code shape"
 D="$(case_dir real 'export default function Button() {
   return (
     <a className="bg-[#dfecc6] flex px-[22px] py-[14px] relative rounded-[1000px] size-full" href="https://example.com/x" data-node-id="1:185" target="_blank" data-name="Button">
-      <p className="font-bold leading-[1.4] text-[14px] text-black" data-node-id="I1:185;1:543" style={{ fontVariationSettings: '"'"'"opsz" 14'"'"', x: a > b ? 1 : 2 }}>
+      <p className="font-bold leading-[1.4] text-[14px] text-black" data-node-id="I1:185;1:543" style='"$OB$OB"' fontVariationSettings: '"'"'"opsz" 14'"'"', x: a > b ? 1 : 2 }}>
         Discover More
       </p>
       <span className="p-[9px]">no node id</span>
