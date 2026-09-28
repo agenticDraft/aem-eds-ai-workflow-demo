@@ -92,6 +92,12 @@ artifacts:
   - id: lint-report
     produced_by: lint
     path: ".ai/run-context/lint-report.md"
+  - id: plan-gate-report
+    produced_by: plan-gate
+    path: ".ai/run-context/plan-gate-report.md"
+  - id: publish-gate-report
+    produced_by: publish-gate
+    path: ".ai/run-context/publish-gate-report.md"
   - id: delivery-report
     produced_by: deliver
     path: ".ai/run-context/delivery-report.md"

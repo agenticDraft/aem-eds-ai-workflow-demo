@@ -43,15 +43,23 @@ ordinary decision vocabulary — nothing about being a gate changes what a verdi
 
 - `verdict: fail` — terminal. The run ends `failed`, the same outcome any other stage's `fail`
   produces.
-- `verdict: warn` — the run continues; the finding is recorded, not silently dropped.
+- `verdict: warn` — the run continues; the finding is recorded in the gate's report,
+  `.ai/run-context/<gate id>-report.md` under its given `project_root`, not silently dropped.
 - An envelope that fails to validate, or a deterministic check that could not run to a verdict at
   all, is a contract violation — indistinguishable in consequence from any other stage's
   unparseable return.
 
 ## Adapter hardening
 
-A gate adapter is read-only, runs in an isolated worktree, and reports findings it is confident
-in rather than everything it noticed — confidence-based filtering, not exhaustive listing. These
+A gate adapter writes exactly two files, both under the `project_root` it is given (see below),
+on every verdict:
+
+- `.ai/run-context/<gate id>-report.md` — its findings, listed under the envelope's `artifacts:`;
+- `.ai/run-context/envelope-<gate id>.txt` — its envelope.
+
+It writes nothing else: no other file under `project_root`, nothing in its own worktree, nothing
+through any role. It runs in an isolated worktree, and reports findings it is confident in rather
+than everything it noticed — confidence-based filtering, not exhaustive listing. These
 are obligations on whichever pack supplies the gate's adapter skill; this contract states them,
 it does not enforce them mechanically.
 
