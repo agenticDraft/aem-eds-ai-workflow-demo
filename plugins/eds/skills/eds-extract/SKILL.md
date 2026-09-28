@@ -221,8 +221,12 @@ script copies that code byte-for-byte to `.ai/run-context/design-context.txt` an
 `design_context` with `code_file` pointing at the copy and `styles` unchanged. Later stages read
 the code as returned, so it is never rewritten or summarised here. When the provider returned no
 code (`design_context: null`), the script writes `design_context: null` and no
-`design-context.txt`. Exit `2` is a usage error — a missing input, or a provider JSON naming a code
-file that is not on disk — and stderr names which. Go to **Report fail**.
+`design-context.txt`. It also carries the provider's `viewports` list, widest first, copying each
+variant's image and context to its own `design-reference-<node>.png` and
+`design-context-<node>.txt` beside those files; with no `viewports`, or an empty list, the key is
+left out. Exit `2` is a usage error — a missing input, a provider JSON naming a code, image or
+context file that is not on disk, or a malformed `viewports` entry — and stderr names which. Go to
+**Report fail**.
 
 ### Download the attachment
 
@@ -308,6 +312,8 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   - `.ai/run-context/design-reference.png` (or whatever extension the image case wrote)
   - `.ai/run-context/design-context.txt` — only for a design-tool source whose `design_context` is
     not null
+  - every `image`, then every non-null `context`, of `design-reference.json`'s `viewports`, in
+    list order — only when that key is present
 - `next_action: none`
 - `metrics: has_values=true|false`
 

@@ -19,10 +19,10 @@ marketplace plugin's MCP server (`mcp__plugin_figma_figma__*`).
 
 | Tool | Returns | Role in this operation |
 | --- | --- | --- |
-| `get_design_context` | Reference code whose classes carry layout (direction, alignment, gap, padding, size), colour, radius and typography (family, size, weight, line height, letter spacing), plus a line naming the styles and variables the node uses | **Default source** for layout, colour and typography |
+| `get_design_context` | Reference code whose classes carry layout (direction, alignment, gap, padding, size), colour, radius and typography (family, size, weight, line height, letter spacing), plus a line naming the styles and variables the node uses | **Default source** for layout, colour and typography; once per viewport variant when the node has them |
 | `get_variable_defs` | Flat map of variable name → value | Token names for the values above |
 | `get_metadata` | Node name and geometry (`x`, `y`, `width`, `height`) as XML | Confirms the node exists; exact geometry; whether the node is one frame, viewport variants, or several frames |
-| `get_screenshot` | Short-lived PNG URL with `width`/`height` | Reference image |
+| `get_screenshot` | Short-lived PNG URL with `width`/`height` | Reference image; once per viewport variant when the node has them |
 
 `get_design_context` requires the `figma-design-to-code` skill to be loaded first. Load it for that
 prerequisite only: this operation writes no application code, so that skill's implementation and
@@ -48,6 +48,8 @@ digraph fetch_reference {
     "Metadata fetched?" [shape=diamond];
     "Classify the node" [shape=box];
     "Node class?" [shape=diamond];
+    "Plan the variants" [shape=box];
+    "Plan written?" [shape=diamond];
     "Fetch design context" [shape=box];
     "Design context fetched?" [shape=diamond];
     "Fetch variable definitions" [shape=box];
@@ -71,18 +73,24 @@ digraph fetch_reference {
     "Fetch node metadata" -> "Metadata fetched?";
     "Metadata fetched?" -> "Classify the node" [label="yes"];
     "Classify the node" -> "Node class?";
-    "Node class?" -> "Fetch design context" [label="single or variants"];
+    "Node class?" -> "Fetch design context" [label="single — one target, the node"];
+    "Node class?" -> "Plan the variants" [label="variants"];
     "Node class?" -> "Report question" [label="page or multi-frame"];
     "Node class?" -> "Report fail" [label="exit 2 — unreadable metadata\nPERMANENT"];
+    "Plan the variants" -> "Plan written?";
+    "Plan written?" -> "Fetch design context" [label="yes — one target per variant, widest first"];
+    "Plan written?" -> "Report fail" [label="exit 2\nPERMANENT"];
     "Metadata fetched?" -> "Classify the tool error" [label="no"];
     "Fetch design context" -> "Design context fetched?";
-    "Design context fetched?" -> "Fetch variable definitions" [label="yes — code, or structure only\n(no code block, truncated, unparseable)"];
+    "Design context fetched?" -> "Fetch design context" [label="yes — another target remains"];
+    "Design context fetched?" -> "Fetch variable definitions" [label="yes — every target done; code, or structure only\n(no code block, truncated, unparseable)"];
     "Design context fetched?" -> "Classify the tool error" [label="no"];
     "Fetch variable definitions" -> "Variables fetched?";
     "Variables fetched?" -> "Fetch reference screenshot" [label="yes"];
     "Variables fetched?" -> "Classify the tool error" [label="no"];
     "Fetch reference screenshot" -> "Screenshot fetched?";
-    "Screenshot fetched?" -> "Write artifacts" [label="yes"];
+    "Screenshot fetched?" -> "Fetch reference screenshot" [label="yes — another target remains"];
+    "Screenshot fetched?" -> "Write artifacts" [label="yes — every target done"];
     "Screenshot fetched?" -> "Classify the tool error" [label="no"];
     "Classify the tool error" -> "Class is TRANSIENT and attempts remain?";
     "Class is TRANSIENT and attempts remain?" -> "Fetch node metadata" [label="yes — the call that failed"];
@@ -178,17 +186,39 @@ variants and by which rule, and whether the node needs a question. Read its firs
 
 ### Node class?
 
-- **`single`** or **`variants`** — continue to **Fetch design context** with the same node.
+- **`single`** — continue to **Fetch design context** with one **target**: the parsed `node_id`.
+- **`variants`** — continue to **Plan the variants**.
 - **`page`** or **`multi-frame`** — go to **Report question**. Never pick one of the candidates,
   not even one whose name matches the work item.
 - **Exit 2** — the metadata could not be read as a node. Go to **Report fail** with
   `error_class: PERMANENT`, quoting the script's stderr line.
 
+### Plan the variants
+
+Run:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/fetch-reference/scripts/viewports.py plan \
+  .ai/figma/<file_key>-<node_id>.classification.tsv <file_key>
+```
+
+It prints one tab-separated line per viewport variant the classifier detected, widest first:
+`<variant node id> <width> <image path> <context path> <name>`. Each line is one **target**, in
+that order. The script is the only source of targets: fetch no node it did not print, and add or
+drop none, because a variant is only real when the classification named it.
+
+### Plan written?
+
+- **Exit 0** — continue to **Fetch design context** with the first target.
+- **Exit 2** — go to **Report fail** with `error_class: PERMANENT`, quoting the script's stderr
+  line.
+
 ### Fetch design context
 
-Call `mcp__plugin_figma_figma__get_design_context` with:
+Call `mcp__plugin_figma_figma__get_design_context` once per target, one target at a time, with:
 
-- `fileKey`, `nodeId` — the parsed values
+- `fileKey` — the parsed value; `nodeId` — the current target (the parsed `node_id` for a single
+  node; the variant node id from the plan line for a variant)
 - `skillNames: "figma-design-to-code"`
 - `clientLanguages: "html,css,javascript"`, `clientFrameworks: "unknown"`
 - `excludeScreenshot: true` — **Fetch reference screenshot** supplies the image as a file; the
@@ -205,13 +235,20 @@ Keep, verbatim, two parts of the response:
 
 Do not translate the code into another form. Consumers read it as returned.
 
+For a variant target, write its `code` verbatim to the plan line's context path as soon as the
+response is in, and record the target's outcome as `code`; record `structure_only` when the
+branch below takes the structure-only path, and write no file for it. Keep each variant's
+`styles` alongside its outcome.
+
 ### Design context fetched?
 
-- **The response contains a code block** — continue to **Fetch variable definitions**.
+Each outcome below that succeeds goes back to **Fetch design context** for the next target while
+one remains, and to **Fetch variable definitions** once every target is done.
+
+- **The response contains a code block** — a success.
 - **The response contains no code block** (the tool returned structure only, because the node is
-  too large) — this is a successful call, not an error. Record `code` and `styles` as absent, and
-  continue to **Fetch variable definitions**. Metadata, variables and the screenshot still cover
-  the node.
+  too large) — this is a successful call, not an error. Record `code` and `styles` as absent.
+  Metadata, variables and the screenshot still cover the node.
 - **The response is truncated or cannot be parsed** — code that stops before its elements or
   function body close, text cut off mid-element, or output that is neither code nor structure.
   The code is often returned without markdown fences; unfenced code that closes is a complete
@@ -224,7 +261,8 @@ Do not translate the code into another form. Consumers read it as returned.
 
 ### Fetch variable definitions
 
-Call `mcp__plugin_figma_figma__get_variable_defs` with the same `file_key` and `node_id`. It
+Call `mcp__plugin_figma_figma__get_variable_defs` once, with the parsed `file_key` and `node_id`
+— the referenced node, never a variant, so one call covers the tokens every variant uses. It
 returns a flat map of variable name to value (colors, spacing, or any other token the node uses).
 An **empty** map is a normal, successful result — most nodes use no variables at all — and is not
 itself a reason to go to **Report fail**.
@@ -236,15 +274,19 @@ errored — **Classify the tool error**, naming the error exactly as returned.
 
 ### Fetch reference screenshot
 
-Call `mcp__plugin_figma_figma__get_screenshot` with the same `file_key` and `node_id`. It returns
-a short-lived `image_url` plus `width`/`height`. That URL is treated like a secret, per the tool's
-own description — never write it into the envelope, a log, or any other file; it exists only long
-enough for the next step's download.
+Call `mcp__plugin_figma_figma__get_screenshot` once per target, one target at a time, with the
+parsed `file_key` and the current target as `nodeId`. It returns a short-lived `image_url` plus
+`width`/`height`. That URL is treated like a secret, per the tool's own description — never write
+it into the envelope, a log, or any other file; it exists only long enough for the download.
+
+For a variant target, download it at once, before the next call, to the plan line's image path —
+e.g. `curl -sS -L -o "<image path>" "<image_url>"` — because the URL expires.
 
 ### Screenshot fetched?
 
-The call returned an `image_url` — continue to **Write artifacts**. The call errored — **Classify
-the tool error**, naming the error exactly as returned.
+The call returned an `image_url` — go back to **Fetch reference screenshot** for the next target
+while one remains, and continue to **Write artifacts** once every target is done. The call errored
+— **Classify the tool error**, naming the error exactly as returned.
 
 ### Classify the tool error
 
@@ -279,7 +321,7 @@ recovery each one permits; this node applies it, it does not restate it.
 `TRANSIENT` is the only class that permits a retry, and it permits exactly two — back off 2 seconds,
 then 4 seconds. Fewer than two retries have run and the class is `TRANSIENT`: go back to whichever
 of **Fetch node metadata**, **Fetch design context**, **Fetch variable definitions** or **Fetch
-reference screenshot** raised the error, and re-run only that call. Otherwise — the class is
+reference screenshot** raised the error, and re-run only that call, for the same target. Otherwise — the class is
 `VALIDATION` or `PERMANENT`, or the third `TRANSIENT` attempt has just failed — go to **Report
 fail**, carrying the class determined above.
 
@@ -303,6 +345,24 @@ The stage raises it, at its own boundary, if it has nothing left.
    the response had no such line); `null` when the design context returned no code block.
 5. Continue to **Report pass**.
 
+For **`variants`**, the screenshots and context files are already on disk at the plan's paths;
+steps 2 and 3 write nothing. Instead:
+
+1. Run, passing every target's recorded outcome:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/fetch-reference/scripts/viewports.py list \
+     .ai/figma/<file_key>-<node_id>.classification.tsv <file_key> \
+     <variant node id>=<code|structure_only> ...
+   ```
+
+   Exit 2 — a file is missing or an outcome is wrong — goes to **Report fail** with
+   `error_class: PERMANENT`, quoting stderr.
+2. Write the JSON of step 4 with two differences: `viewports` is the array the script printed,
+   verbatim, and `design_context` is the first (widest) variant's — `code_file` its context path
+   and `styles` its styles text, or `null` when its outcome was `structure_only`. Consumers that
+   read no `viewports` then see the widest variant.
+
 ### Report pass
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
@@ -312,9 +372,13 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file written above — `.ai/figma/<file_key>-<node_id>.json`,
   `.ai/figma/<file_key>-<node_id>.png`, `.ai/figma/<file_key>-<node_id>.metadata.xml`,
   `.ai/figma/<file_key>-<node_id>.classification.tsv`, and
-  `.ai/figma/<file_key>-<node_id>.context.txt` when it was written.
+  `.ai/figma/<file_key>-<node_id>.context.txt` when it was written. For `variants`, in place of
+  the node's own `.png` and `.context.txt`: every variant's image path, widest first, then every
+  context path written — so the first image listed is the widest variant's.
 - `next_action: none`
-- `metrics: variables=<count of entries in the variable map> design_context=<code|structure_only> node_class=<single|variants>`
+- `metrics: variables=<count of entries in the variable map> design_context=<code|structure_only> node_class=<single|variants>`,
+  with ` viewports=<number of variants>` appended for `variants`; `design_context` there is the
+  widest variant's outcome.
 
 ### Report fail
 
@@ -328,7 +392,8 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `next_action: none`
 - `error_class`: the class that brought the flow here, on **every** path into this node and never
   omitted — `VALIDATION` from **URL is a supported Figma design URL with a node id?**, `PERMANENT`
-  from **Tools loaded?**, `PERMANENT` from **Node class?**, and whatever **Classify the tool
+  from **Tools loaded?**, `PERMANENT` from **Node class?**, **Plan written?** and the variants
+  list in **Write artifacts**, and whatever **Classify the tool
   error** determined for the four tool calls. The caller branches on this, so it is read off what actually failed, never off what
   usually fails.
 
