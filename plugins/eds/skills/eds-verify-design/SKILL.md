@@ -45,6 +45,9 @@ None. This stage reads three fixed paths: `.ai/run-context/fact-record.yaml`,
 "read as a model, not through a parser" approach `eds-plan`/`eds-verify` take for `design-
 conventions.md`/`plan.yaml` (D76), since it is prose, not machine-parseable key/value data.
 
+It also reads `.ai/run-context/design-context-values.tsv` (written by `eds-prototype`) when that
+file exists and is non-empty, only through `scripts/compare-design-values.py` — never parsed here.
+
 ## Flow
 
 ```dot
@@ -88,6 +91,7 @@ digraph eds_verify_design {
     "Page rendered?" -> "Report fail" [label="fail/question/invalid envelope"];
     "Capture and measure the draft page" -> "Compare against the design reference";
     "Compare against the design reference" -> "Any mismatch found?";
+    "Compare against the design reference" -> "Report fail" [label="comparison script: exit 2"];
     "Any mismatch found?" -> "Any degradation to report?" [label="no"];
     "Any mismatch found?" -> "Attempts exhausted or no improvement?" [label="yes"];
     "Attempts exhausted or no improvement?" -> "Every remaining mismatch a content-asset gap?" [label="yes"];
@@ -209,9 +213,19 @@ Read the captured envelope's `verdict`.
    fixed convention, the same desktop width `eds-verify` also uses. This stage checks design
    fidelity, not responsiveness across breakpoints (`verify`'s own job, core contract §4), so one
    width is enough. Record the resulting screenshot path.
-2. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and one selector,
-   `.<block name>` — the block wrapper's own convention, the same one `eds-verify` uses. Record the
-   resulting measurements, including `found: false` if the selector did not match.
+2. List the selectors the prototype report ties to design nodes:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
+     selectors .ai/run-context/prototype-report.md
+   ```
+
+   It prints one selector per line, possibly none.
+3. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and these
+   selectors: `.<block name>` — the block wrapper's own convention, the same one `eds-verify` uses —
+   then every selector step 2 printed that is not `.<block name>`, in its order. Record the
+   measurement file path from the envelope's `artifacts:` and the resulting measurements, including
+   `found: false` for a selector that did not match.
 
 ### Compare against the design reference
 
@@ -229,15 +243,32 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables`, `geome
    layout is always `[fixable]`, however small — this tag exists for missing *content*, not for
    difficulty or scope of the fix.
 2. **Value comparison, when `has_values` is `true`.** `measure`'s own fixed property list is
-   `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `line-height` — geometry
-   (a bounding box) is separate and carries no padding/margin/gap. For each entry in `variables`
-   that names one of these properties (by the same "prefer the project's own token, judge the
-   semantic match" reasoning `eds-prototype` used to write it), compare the reference's value
-   against this check's own measured computed value on `.<block name>`. An exact mismatch is a
-   named mismatch (`<property>: expected <value>, measured <value>`). A variable naming spacing or
-   geometry (no corresponding measurable property, e.g. `space/md`) cannot be checked quantitatively
-   at all — note it as judged visually only, in the same step as 1, never as a numeric mismatch.
-3. Keep this check's own list of mismatches (or "none") only long enough to compare against the
+   `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `line-height`,
+   `padding-top`, `padding-right`, `padding-bottom`, `padding-left`, `gap`, `border-radius` —
+   geometry (a bounding box) is separate. Compare no property outside this list. For each entry in
+   `variables` that names one of these properties (by the same "prefer the project's own token,
+   judge the semantic match" reasoning `eds-prototype` used to write it), compare the reference's
+   value against this check's own measured computed value on `.<block name>`. An exact mismatch is
+   a named mismatch (`<property>: expected <value>, measured <value>`). A variable naming anything
+   else (margin, width, a spacing token with no measured counterpart) cannot be checked
+   quantitatively — note it as judged visually only, in the same step as 1, never as a numeric
+   mismatch.
+3. **Design-context values, when `design-context-values.tsv` exists and is non-empty.** Run:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
+     compare .ai/run-context/design-context-values.tsv .ai/run-context/prototype-report.md \
+     <the measurement file step 3 of **Capture and measure the draft page** recorded>
+   ```
+
+   The script owns shorthand expansion, value normalisation and which properties are compared;
+   take its lines as given. Each line is `<status> TAB <node> TAB <selector> TAB <property> TAB
+   <detail>`.
+   - Exit `0` or `1` — every `mismatch` line is a named mismatch, tagged `[fixable]`, written as
+     `<selector> <property>: <detail>`. Every `unmeasured` line is a value judged visually only,
+     recorded with its reason. `match` lines are recorded as confirmed.
+   - Exit `2` — go to **Report fail**, naming the script's stderr reason.
+4. Keep this check's own list of mismatches (or "none") only long enough to compare against the
    next check's, the same "kept only long enough to compare" scope `eds-lint` gives its own
    output, and to write into the report below.
 
@@ -316,8 +347,9 @@ Any of the following — go to **Report warn**:
   missing, in the report; this is the degradation itself, not a side note.
 - `design-reference.json`'s `has_values` is `false` (an image-only source), so the whole comparison
   was visual-only; no value could be checked quantitatively at all.
-- At least one `variables` entry named spacing or geometry rather than one of `measure`'s own
-  properties, so it could only be judged visually, never confirmed numerically.
+- At least one `variables` entry named a property outside `measure`'s own list, or the
+  comparison script printed at least one `unmeasured` line, so that value could only be judged
+  visually, never confirmed numerically.
 - `prototype-report.md` named the target block as already existing, and **Edit the block's CSS and
   JS** ran at least once this run — this run's own fix loop modified a real, currently-used
   component's CSS/JS ahead of plan approval, the same D78 risk `eds-prototype` already flags for its
@@ -393,8 +425,10 @@ gap]` entry), and which degradation(s) applied.
     combined string
   - `has_values: false` on the design reference → `"design comparison was visual-only: the design
     reference has no resolved token values to check quantitatively (image-only source)"`
-  - a `variables` entry naming spacing/geometry → `"design variable '<name>' was judged visually
-    only, not confirmed numerically — no corresponding measured property"`
+  - a `variables` entry naming a property outside `measure`'s list → `"design variable '<name>'
+    was judged visually only, not confirmed numerically — no corresponding measured property"`
+  - an `unmeasured` line from the comparison script → `"design value '<property> <value>' on node
+    <node> was judged visually only: <reason>"` — one entry per line
   - an edit to an already-existing block → `"this run edited an already-existing block's CSS/JS
     ('<name>') ahead of plan approval"`
   - `[]` only when this node is reached with no degradation actually true — should not happen; if
@@ -477,17 +511,16 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ## Known limitations
 
-- **Only six computed properties are ever confirmed quantitatively, and this stage does not widen
-  that list.** `measure`'s own fixed property list is exactly `color`, `background-color`,
-  `font-family`, `font-size`, `font-weight`, `line-height` — confirmed by running it for real
-  against this task's own fixture below: a `border` value is genuinely invisible to it (no
-  `border-color` in its output at all), not merely an oversight in this write-up. Spacing, geometry
-  (only a selector's own bounding box is available, which is not the same fact as a padding/margin
-  value), border color/width, and every other computed property outside that exact six-item list are
-  always judged by inspection alongside the overall visual comparison, never measured — the same
-  "Phase A gets vision comparison, turning judgment into measurement is what Phase B is now for"
-  boundary D19 already drew for the Layout Matrix. A `variables` entry naming any of these maps to
-  the visual-only path in **Compare against the design reference**, step 2.
+- **Only `measure`'s twelve computed properties are ever confirmed quantitatively.** Margin, width
+  and height (only a selector's own bounding box is available, which is not the same fact),
+  `row-gap`/`column-gap` on their own, per-corner radii, border color and width, letter-spacing,
+  opacity, and every other property outside that list are judged by inspection alongside the
+  overall visual comparison, never measured. So is a value whose form the comparison script cannot
+  decide against the computed value: a unitless `line-height`, `rem`/`em`/`%` lengths, `var()` and
+  `calc()`.
+- **Logical padding is compared for a horizontal left-to-right writing mode.** `padding-inline`'s
+  start and end map to left and right; a right-to-left block would report its two inline sides
+  swapped.
 - **The draft server's own port is derived, not configured.** `paths.preview`'s port plus one is
   this stage's own fixed convention; a project whose preview port is itself one below something else
   already bound could collide. Not observed in this project's own real run below.

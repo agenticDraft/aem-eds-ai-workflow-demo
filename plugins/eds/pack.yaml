@@ -74,6 +74,9 @@ artifacts:
   - id: prototype-report
     produced_by: prototype
     path: ".ai/run-context/prototype-report.md"
+  - id: design-context-values
+    produced_by: prototype
+    path: ".ai/run-context/design-context-values.tsv"
   - id: verify-design-report
     produced_by: verify-design
     path: ".ai/run-context/verify-design-report.md"
