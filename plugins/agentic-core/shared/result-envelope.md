@@ -33,6 +33,7 @@ Additional fields, valid only with the verdict shown:
 ```markdown
 error_class: TRANSIENT | VALIDATION | PERMANENT   # verdict: fail or question only
 question: <the question text>          # verdict: question only
+question_id: <short lowercase id>      # verdict: question, optional
 options:                               # verdict: question, optional
   - <short option label>
 blocker: <what is missing>             # verdict: question, required
@@ -60,7 +61,7 @@ carry.
 
 Options beyond the two required: `--artifact <path>` (repeatable; none emits `artifacts: []`),
 `--next-action <phrase>` (default `none`), `--error-class <class>`, `--question <text>`,
-`--option <label>` (repeatable), `--blocker <text>`, `--metrics <key=value …>`.
+`--question-id <id>`, `--option <label>` (repeatable), `--blocker <text>`, `--metrics <key=value …>`.
 
 A stage that has not yet adopted the emitter still ends its output with the block, and everything
 below still governs what that block must contain. Both paths are read the same way.
@@ -87,6 +88,11 @@ below still governs what that block must contain. Both paths are read the same w
   existed still validates. `error-handling.md` is what asks an operation that *did* classify a
   failure to report the class it determined.
 - `question` — the question text. Required when `verdict: question`, absent otherwise.
+- `question_id` — the decision the question asks for, named by the asking stage: lowercase letters,
+  digits and hyphens, starting with a letter, at most 40 characters. The same decision asked again
+  carries the same id, because the answer is stored and read back under `(stage, question_id)`
+  (`question-protocol.md`). Optional, `verdict: question` only; absent, the question is keyed
+  `default`. A stage that can ask about more than one decision gives each its own id.
 - `options` — short option labels for the human or the `tracker` role to choose from. Optional,
   `verdict: question` only.
 - `blocker` — what is missing that stopped the stage from reaching a `pass`/`warn`/`fail`
@@ -156,6 +162,7 @@ blocker: An image-only design source cannot be identified as reference or eviden
 - Tables or ASCII art inside `summary`.
 - `question` or `blocker` present with a verdict other than `question`.
 - `blocker` absent when `verdict: question`.
+- `question_id` present with a verdict other than `question`, or not a lowercase id.
 - An `error_class` outside the three literals, or one present with `verdict: pass` or
   `verdict: warn`.
 - `error_class` carried as a `metrics` key instead of as its own field — nothing validates
@@ -181,7 +188,9 @@ block for that verdict. `fixtures/result-envelope/invalid/` holds one fixture pe
 the validator must catch: `unknown-verdict.md`, `multiline-summary.md`, `missing-artifacts.md`,
 `trailing-text.md`. `fail-error-class.md` and `question-error-class.md` carry `error_class` on the
 two verdicts it is valid with; `invalid/unknown-error-class.md` and
-`invalid/error-class-with-pass.md` are its two rejection cases.
+`invalid/error-class-with-pass.md` are its two rejection cases. `question-id.md` carries a
+`question_id`; `invalid/question-id-with-pass.md` and `invalid/malformed-question-id.md` are its
+two rejection cases.
 
 ## Verification
 

@@ -10,7 +10,9 @@
 #
 # Exit codes and the "decision:" line they print:
 #   0 — decision: ask                 (interactive, budget left — "question:"/"options:" lines
-#                                       follow, plus the incremented "questions_used:" and
+#                                       follow, plus the incremented "questions_used:",
+#                                       "question_id:" (the key the answer is written under,
+#                                       "default" when the envelope has none — D527) and
 #                                       "next_stage:", the stage to re-invoke once answered)
 #   3 — decision: terminate-failed    (the stage is always-autonomous — its question is treated
 #                                       as fail, in both modes)
@@ -76,6 +78,9 @@ fi
 # --- pull the question's own fields out of the already-conformant file ----
 QUESTION="$(grep -m1 '^question: ' "$ENVELOPE" | sed 's/^question: //')"
 BLOCKER="$(grep -m1 '^blocker: ' "$ENVELOPE" | sed 's/^blocker: //')"
+# The validator already proved a present question_id is a lowercase id.
+QUESTION_ID="$(grep -m1 '^question_id: ' "$ENVELOPE" | sed 's/^question_id: //')"
+QUESTION_ID="${QUESTION_ID:-default}"
 OPTIONS="$(awk '/^options:$/{flag=1; next} /^blocker: /{flag=0} flag' "$ENVELOPE")"
 
 # --- always_autonomous: [<stage id>, ...] on one line ----------------------
@@ -106,6 +111,7 @@ if [[ "$MODE" == "interactive" ]]; then
       echo "$OPTIONS"
     fi
     echo "questions_used: $((QUESTIONS_USED + 1))"
+    echo "question_id: $QUESTION_ID"
     # Once answered, the stage that asked is the one that runs next — it is
     # re-invoked exactly once with the answer; the answer is never handed
     # forward to the stage after it.
