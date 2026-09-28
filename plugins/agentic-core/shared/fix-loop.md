@@ -21,6 +21,11 @@ to the stage that owns it.
 The budget is the stage's own `fix_attempts` in the pack manifest (`pack-manifest.md`), or, when the
 stage declares none, `limits.fix_attempts_default` in the project config (`project-config.md`).
 
+A pack declares `fix_attempts` only on a stage that runs this loop and asks the script below.
+`check-fix-budget-readers.sh <pack root>` fails on any stage that declares it while its skill never
+invokes `check-fix-budget.sh`. A stage with no edit loop — one that polls, retries or waits — keeps
+that bound in its own script and declares no `fix_attempts`.
+
 ## Who counts
 
 The stage never counts against the number itself, and its instructions never restate the number.
