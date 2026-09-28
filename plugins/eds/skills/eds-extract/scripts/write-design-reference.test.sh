@@ -71,6 +71,7 @@ if [ -f "$OUT" ]; then
   check "geometry still carried" '.geometry.width == 138' "$OUT"
   check "has_values stays true" '.has_values == true' "$OUT"
   check "no viewports key without viewports" 'has("viewports") | not' "$OUT"
+  check "no screenshots key without screenshots" 'has("screenshots") | not' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
@@ -94,6 +95,7 @@ if [ -f "$OUT" ]; then
   check "design_context key present and null" 'has("design_context") and .design_context == null' "$OUT"
   check "variables still carried as {}" '.variables == {}' "$OUT"
   check "no viewports key without viewports" 'has("viewports") | not' "$OUT"
+  check "no screenshots key without screenshots" 'has("screenshots") | not' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
@@ -231,6 +233,69 @@ refused "a node id that is not a node id" badid \
   '[{"name": "Desktop", "node_id": "../x", "width": 1280, "image": ".ai/figma/abc123-1-118.png", "context": null},
     {"name": "Mobile", "node_id": "1-430", "width": 375, "image": ".ai/figma/abc123-1-430.png", "context": null}]'
 refused "viewports that is not a list" notlist '{"Desktop": 1280}'
+
+# shot <node-id> <w> <h> <ow> <oh> <downscaled> — one provider screenshot size entry
+shot() {
+  printf '{"node_id": "%s", "width": %s, "height": %s, "original_width": %s, "original_height": %s, "downscaled": %s}' "$@"
+}
+
+echo "design_tool: a single node's screenshot size is carried against its run-context image"
+D="$(case_dir shotsingle)"
+jq -n --argjson shots "[$(shot 1-185 138 48 138 48 false)]" '{
+  reference: "x", file_key: "abc123", node_id: "1-185", node_name: "Button",
+  geometry: {x: 0, y: 0, width: 138, height: 48}, variables: {},
+  design_context: null, screenshots: $shots
+}' > "$D/.ai/figma/abc123-1-185.json"
+if run_design_tool "$D"; then ok "exits 0"; else bad "exits 0" "stderr: $(cat "$D/stderr")"; fi
+OUT="$D/.ai/run-context/design-reference.json"
+if [ -f "$OUT" ]; then
+  check "one entry, keyed by the run-context image" \
+    '.screenshots == [{"image": ".ai/run-context/design-reference.png", "width": 138, "height": 48, "original_width": 138, "original_height": 48, "downscaled": false}]' "$OUT"
+else
+  bad "design-reference.json written" "missing: $OUT"
+fi
+
+echo "design_tool: each variant's screenshot size is carried against its own image"
+D="$(case_dir shotvariants)"
+variant "$D" 1-118 code; variant "$D" 1-274; variant "$D" 1-430 code
+provider_with_viewports "$D" "$VP3"
+jq --argjson shots "[$(shot 1-430 44 1024 375 8832.46875 true), $(shot 1-118 1280 7389 1280 7388.66748046875 false), $(shot 1-274 800 8825 800 8824.921875 false)]" \
+  '. + {screenshots: $shots}' "$D/.ai/figma/abc123-1-185.json" > "$D/p.json" && mv "$D/p.json" "$D/.ai/figma/abc123-1-185.json"
+if run_design_tool "$D"; then ok "exits 0"; else bad "exits 0" "stderr: $(cat "$D/stderr")"; fi
+OUT="$D/.ai/run-context/design-reference.json"
+if [ -f "$OUT" ]; then
+  check "three entries, widest variant first" \
+    '[.screenshots[].image] == [".ai/run-context/design-reference-1-118.png", ".ai/run-context/design-reference-1-274.png", ".ai/run-context/design-reference-1-430.png"]' "$OUT"
+  check "downscaled carried" '[.screenshots[].downscaled] == [false, false, true]' "$OUT"
+  check "sizes carried" '.screenshots[2].width == 44 and .screenshots[2].original_width == 375' "$OUT"
+  check "viewport entries keep exactly their five keys" \
+    'all(.viewports[]; (keys == ["context","image","name","node_id","width"]))' "$OUT"
+else
+  bad "design-reference.json written" "missing: $OUT"
+fi
+
+# refused_shots <desc> <case-name> <screenshots-json> — exit 2, and nothing written
+refused_shots() {
+  local dir status
+  dir="$(case_dir "$2")"
+  jq -n --argjson shots "$3" '{
+    reference: "x", file_key: "abc123", node_id: "1-185", node_name: "Button",
+    geometry: {x: 0, y: 0, width: 138, height: 48}, variables: {},
+    design_context: null, screenshots: $shots
+  }' > "$dir/.ai/figma/abc123-1-185.json"
+  echo "design_tool: $1"
+  run_design_tool "$dir"
+  status=$?
+  if [ "$status" -eq 2 ]; then ok "exits 2"; else bad "exits 2" "got: $status"; fi
+  if [ -e "$dir/.ai/run-context/design-reference.json" ]; then bad "writes nothing" "found output"; else ok "writes nothing"; fi
+}
+
+refused_shots "a screenshot size for a node that has no image" shotunknown "[$(shot 9-9 10 10 10 10 false)]"
+refused_shots "downscaled that contradicts the sizes" shotlie "[$(shot 1-185 69 24 138 48 false)]"
+refused_shots "a screenshot size that is not a number" shotnan '[{"node_id": "1-185", "width": "138", "height": 48, "original_width": 138, "original_height": 48, "downscaled": false}]'
+refused_shots "a screenshot entry missing a key" shotkey '[{"node_id": "1-185", "width": 138, "height": 48, "original_width": 138, "downscaled": false}]'
+refused_shots "two sizes for one node" shotdup "[$(shot 1-185 138 48 138 48 false), $(shot 1-185 138 48 138 48 false)]"
+refused_shots "screenshots that is not a list" shotnotlist '{"1-185": 138}'
 
 echo "image mode"
 D="$(case_dir image)"
