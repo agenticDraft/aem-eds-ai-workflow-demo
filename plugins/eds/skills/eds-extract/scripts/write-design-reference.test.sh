@@ -70,6 +70,7 @@ if [ -f "$OUT" ]; then
   check "variables still carried" '.variables == {"Accent/Accent 2": "#DFECC6"}' "$OUT"
   check "geometry still carried" '.geometry.width == 138' "$OUT"
   check "has_values stays true" '.has_values == true' "$OUT"
+  check "no viewports key without viewports" 'has("viewports") | not' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
@@ -92,6 +93,7 @@ OUT="$D/.ai/run-context/design-reference.json"
 if [ -f "$OUT" ]; then
   check "design_context key present and null" 'has("design_context") and .design_context == null' "$OUT"
   check "variables still carried as {}" '.variables == {}' "$OUT"
+  check "no viewports key without viewports" 'has("viewports") | not' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
@@ -115,6 +117,121 @@ else
   ok "writes no design-reference.json"
 fi
 
+# variant <case-dir> <node-id> [code] — a variant's image, and its code file when asked
+variant() {
+  printf 'PNG-%s' "$2" > "$1/.ai/figma/abc123-$2.png"
+  if [ "${3:-}" = code ]; then printf 'code\tfor %s \xe2\x80\x94' "$2" > "$1/.ai/figma/abc123-$2.context.txt"; fi
+}
+
+# provider_with_viewports <case-dir> <viewports-json> — a provider JSON whose
+# own design_context is the widest variant's
+provider_with_viewports() {
+  jq -n --arg styles "$STYLES" --argjson vp "$2" '{
+    reference: "x", file_key: "abc123", node_id: "1-586", node_name: "Home",
+    geometry: {x: 0, y: 0, width: 2711, height: 8996},
+    variables: {"Accent/Accent 2": "#DFECC6"},
+    design_context: {code_file: ".ai/figma/abc123-1-118.context.txt", styles: $styles},
+    viewports: $vp
+  }' > "$1/.ai/figma/abc123-1-185.json"
+}
+
+VP3='[
+  {"name": "Tablet", "node_id": "1-274", "width": 800, "image": ".ai/figma/abc123-1-274.png", "context": null},
+  {"name": "Desktop", "node_id": "1-118", "width": 1280, "image": ".ai/figma/abc123-1-118.png", "context": ".ai/figma/abc123-1-118.context.txt"},
+  {"name": "Mobile", "node_id": "1-430", "width": 375, "image": ".ai/figma/abc123-1-430.png", "context": ".ai/figma/abc123-1-430.context.txt"}
+]'
+
+echo "design_tool: provider JSON with three viewport variants"
+D="$(case_dir viewports)"
+variant "$D" 1-118 code; variant "$D" 1-274; variant "$D" 1-430 code
+provider_with_viewports "$D" "$VP3"
+if run_design_tool "$D"; then ok "exits 0"; else bad "exits 0" "stderr: $(cat "$D/stderr")"; fi
+OUT="$D/.ai/run-context/design-reference.json"
+if [ -f "$OUT" ]; then
+  check "viewports is a list of three" '.viewports | type == "array" and length == 3' "$OUT"
+  check "each entry has exactly name, node_id, width, image, context" \
+    'all(.viewports[]; (keys == ["context","image","name","node_id","width"]))' "$OUT"
+  check "sorted widest first" '[.viewports[].width] == [1280, 800, 375]' "$OUT"
+  check "names and node ids carried" \
+    '[.viewports[] | .name + "=" + .node_id] == ["Desktop=1-118", "Tablet=1-274", "Mobile=1-430"]' "$OUT"
+  check "each image is a run-context copy of its own" \
+    '[.viewports[].image] == [".ai/run-context/design-reference-1-118.png", ".ai/run-context/design-reference-1-274.png", ".ai/run-context/design-reference-1-430.png"]' "$OUT"
+  check "each context is a run-context copy of its own, or null" \
+    '[.viewports[].context] == [".ai/run-context/design-context-1-118.txt", null, ".ai/run-context/design-context-1-430.txt"]' "$OUT"
+  check "top-level fields unchanged" \
+    '.geometry.width == 2711 and .variables == {"Accent/Accent 2": "#DFECC6"} and .design_context.code_file == ".ai/run-context/design-context.txt" and .reference_image == ".ai/run-context/design-reference.png"' "$OUT"
+  for id in 1-118 1-274 1-430; do
+    if cmp -s "$D/.ai/figma/abc123-$id.png" "$D/.ai/run-context/design-reference-$id.png"; then
+      ok "image $id copied byte-for-byte"
+    else
+      bad "image $id copied byte-for-byte" "missing or different"
+    fi
+  done
+  for id in 1-118 1-430; do
+    if cmp -s "$D/.ai/figma/abc123-$id.context.txt" "$D/.ai/run-context/design-context-$id.txt"; then
+      ok "context $id copied byte-for-byte"
+    else
+      bad "context $id copied byte-for-byte" "missing or different"
+    fi
+  done
+  if [ -e "$D/.ai/run-context/design-context-1-274.txt" ]; then
+    bad "no context file for a structure-only variant" "found one"
+  else
+    ok "no context file for a structure-only variant"
+  fi
+else
+  bad "design-reference.json written" "missing: $OUT"
+fi
+
+echo "design_tool: an empty viewports list is a single width"
+D="$(case_dir emptyvp)"
+jq -n '{geometry: {width: 138}, variables: {}, design_context: null, viewports: []}' \
+  > "$D/.ai/figma/abc123-1-185.json"
+if run_design_tool "$D"; then ok "exits 0"; else bad "exits 0" "stderr: $(cat "$D/stderr")"; fi
+OUT="$D/.ai/run-context/design-reference.json"
+if [ -f "$OUT" ]; then
+  check "no viewports key" 'has("viewports") | not' "$OUT"
+else
+  bad "design-reference.json written" "missing: $OUT"
+fi
+
+# refused <desc> <case-name> <viewports-json> — exit 2, and nothing written
+refused() {
+  local dir status
+  dir="$(case_dir "$2")"
+  variant "$dir" 1-118 code; variant "$dir" 1-274; variant "$dir" 1-430 code
+  provider_with_viewports "$dir" "$3"
+  echo "design_tool: $1"
+  run_design_tool "$dir"
+  status=$?
+  if [ "$status" -eq 2 ]; then ok "exits 2"; else bad "exits 2" "got: $status"; fi
+  if [ -e "$dir/.ai/run-context/design-reference.json" ] || [ -e "$dir/.ai/run-context/design-reference.png" ]; then
+    bad "writes nothing" "found output"
+  else
+    ok "writes nothing"
+  fi
+}
+
+refused "a variant whose image is missing" noimg \
+  '[{"name": "Desktop", "node_id": "1-118", "width": 1280, "image": ".ai/figma/absent.png", "context": null},
+    {"name": "Mobile", "node_id": "1-430", "width": 375, "image": ".ai/figma/abc123-1-430.png", "context": null}]'
+refused "a variant whose context file is missing" noctx \
+  '[{"name": "Desktop", "node_id": "1-118", "width": 1280, "image": ".ai/figma/abc123-1-118.png", "context": ".ai/figma/absent.txt"},
+    {"name": "Mobile", "node_id": "1-430", "width": 375, "image": ".ai/figma/abc123-1-430.png", "context": null}]'
+refused "a variant with no numeric width" nowidth \
+  '[{"name": "Desktop", "node_id": "1-118", "width": "1280", "image": ".ai/figma/abc123-1-118.png", "context": null},
+    {"name": "Mobile", "node_id": "1-430", "width": 375, "image": ".ai/figma/abc123-1-430.png", "context": null}]'
+refused "a variant missing a key" nokey \
+  '[{"name": "Desktop", "node_id": "1-118", "width": 1280, "image": ".ai/figma/abc123-1-118.png"},
+    {"name": "Mobile", "node_id": "1-430", "width": 375, "image": ".ai/figma/abc123-1-430.png", "context": null}]'
+refused "two variants with one node id" dupid \
+  '[{"name": "Desktop", "node_id": "1-118", "width": 1280, "image": ".ai/figma/abc123-1-118.png", "context": null},
+    {"name": "Mobile", "node_id": "1-118", "width": 375, "image": ".ai/figma/abc123-1-430.png", "context": null}]'
+refused "a node id that is not a node id" badid \
+  '[{"name": "Desktop", "node_id": "../x", "width": 1280, "image": ".ai/figma/abc123-1-118.png", "context": null},
+    {"name": "Mobile", "node_id": "1-430", "width": 375, "image": ".ai/figma/abc123-1-430.png", "context": null}]'
+refused "viewports that is not a list" notlist '{"Desktop": 1280}'
+
 echo "image mode"
 D="$(case_dir image)"
 (cd "$D" && python3 "$WRITER" image design-reference.png image/png \
@@ -125,6 +242,7 @@ OUT="$D/.ai/run-context/design-reference.json"
 if [ -f "$OUT" ]; then
   check "design_context key present and null" 'has("design_context") and .design_context == null' "$OUT"
   check "variables null, has_values false" '.variables == null and .has_values == false' "$OUT"
+  check "no viewports key" 'has("viewports") | not' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
