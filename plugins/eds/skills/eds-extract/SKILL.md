@@ -67,7 +67,8 @@ digraph eds_extract {
     "Fallback available?" -> "Download the attachment" [label="yes — TRANSIENT or PERMANENT,\nand a declared reference image"];
     "Fallback available?" -> "Report question" [label="no attachment, TRANSIENT"];
     "Fallback available?" -> "Report fail" [label="VALIDATION, or no attachment\nwith any other class"];
-    "Normalize the design-tool reference" -> "Report pass";
+    "Normalize the design-tool reference" -> "Report pass" [label="exit 0"];
+    "Normalize the design-tool reference" -> "Report fail" [label="exit 2"];
     "Download the attachment" -> "Download succeeded?";
     "Download succeeded?" -> "Write the image reference" [label="yes"];
     "Download succeeded?" -> "Report fail" [label="no"];
@@ -206,13 +207,22 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-extract/scripts/write-design-reference.
   <provider's reference JSON path> \
   <provider's reference image path> \
   .ai/run-context/design-reference.json \
-  .ai/run-context/design-reference.png
+  .ai/run-context/design-reference.png \
+  .ai/run-context/design-context.txt
 ```
 
 This writes this pack's own `design-reference.json` — `source_kind: "design_tool"`,
 `has_values: true`, the provider's `variables` and `geometry` carried through, and a copy of the
 provider's reference image at this pack's own fixed path — never the provider's raw JSON returned
 as-is (D34).
+
+It also carries the provider's `design_context`. When the provider returned reference code, the
+script copies that code byte-for-byte to `.ai/run-context/design-context.txt` and writes
+`design_context` with `code_file` pointing at the copy and `styles` unchanged. Later stages read
+the code as returned, so it is never rewritten or summarised here. When the provider returned no
+code (`design_context: null`), the script writes `design_context: null` and no
+`design-context.txt`. Exit `2` is a usage error — a missing input, or a provider JSON naming a code
+file that is not on disk — and stderr names which. Go to **Report fail**.
 
 ### Download the attachment
 
@@ -248,8 +258,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-extract/scripts/write-design-reference.
 ```
 
 This writes `design-reference.json` with `source_kind: "image"`, `has_values: false`,
-`variables: null`, `geometry: null` — §6.1's no-values case, represented explicitly rather than as
-an empty result. It is the same artifact on both paths into this node, which is the point: every
+`variables: null`, `geometry: null`, `design_context: null` — §6.1's no-values case, represented
+explicitly rather than as an empty result. It is the same artifact on both paths into this node, which is the point: every
 downstream consumer already honors `has_values: false`, so none of them has to learn that a
 substitution happened.
 
@@ -296,6 +306,8 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 - `artifacts`:
   - `.ai/run-context/design-reference.json`
   - `.ai/run-context/design-reference.png` (or whatever extension the image case wrote)
+  - `.ai/run-context/design-context.txt` — only for a design-tool source whose `design_context` is
+    not null
 - `next_action: none`
 - `metrics: has_values=true|false`
 
