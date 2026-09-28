@@ -1,0 +1,9 @@
+<frame id="1:118" name="Desktop" x="64" y="100" width="1280" height="7388.66748046875">
+  <instance id="1:119" name="Navigation" x="40" y="0" width="1200" height="148" />
+  <frame id="1:120" name="Header" x="40" y="148" width="1200" height="738" />
+  <frame id="1:123" name="Main" x="40" y="886" width="1200" height="6232.66748046875" />
+  <frame id="1:257" name="Footer" x="40" y="7118.66748046875" width="1200" height="250" />
+  <frame id="1:269" name="Nav Items" x="440.5" y="15.999994277954102" width="399" height="60" />
+</frame>
+    
+IMPORTANT: After you call this tool, you MUST call get_design_context if trying to implement the design, since this tool only returns metadata. If you do not call get_design_context, the agent will not be able to implement the design.

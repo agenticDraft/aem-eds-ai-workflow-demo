@@ -1,0 +1,3 @@
+<instance id="1:185" name="Button" x="0" y="0" width="138" height="48">
+  <text id="I1:185;1:543" name="Learn More" x="22" y="14" width="94" height="20" />
+</instance>IMPORTANT: After you call this tool, you MUST call get_design_context if trying to implement the design, since this tool only returns metadata. If you do not call get_design_context, the agent will not be able to implement the design.

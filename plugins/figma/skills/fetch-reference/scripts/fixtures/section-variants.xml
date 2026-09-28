@@ -1,0 +1,6 @@
+<section id="1:586" name="Home" x="-1328" y="-4499" width="2711" height="8996.46875">
+  <frame id="1:118" name="Desktop" x="64" y="100" width="1280" height="7388.66748046875" />
+  <frame id="1:274" name="Tablet" x="1408" y="100" width="800" height="8824.921875" />
+  <frame id="1:430" name="Mobile" x="2272" y="100" width="375" height="8832.46875" />
+</section>
+IMPORTANT: After you call this tool, you MUST call get_design_context if trying to implement the design, since this tool only returns metadata. If you do not call get_design_context, the agent will not be able to implement the design.
