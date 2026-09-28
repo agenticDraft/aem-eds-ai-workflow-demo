@@ -47,8 +47,8 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
 input.**
 - `.ai/run-context/orchestrating.flag` — the orchestration marker (`shared/orchestration-flag.md`)
 - `.ai/run-context/fact-record.yaml` — the fact record `intake` emits (`shared/fact-record.md`)
-- `.ai/run-context/question-answer.yaml` — the asking stage's id with its question/answer pair,
-  when a stage asked one (`shared/question-protocol.md`)
+- `.ai/run-context/question-answer.yaml` — every answer given this run, each keyed by the asking
+  stage's id and the question's `question_id`, when a stage asked one (`shared/question-protocol.md`)
 - `.ai/run-context/envelope-<stage id>.txt` — one stage's captured envelope, overwritten per
   stage; not an artifact any later stage reads, purely this skill's own scratch space for handing
   a captured envelope to `run-stage.sh`
@@ -597,12 +597,17 @@ reporting; that call belongs here, at this boundary, never inside a stage.
 ### Ask human, record answer
 
 Put the reported `question` (and `options`, if any) to the human with `AskUserQuestion`. Write the
-answer, naming the stage it belongs to — the `next_stage` line `handle-question.sh` printed:
+answer under its key — the `next_stage` and `question_id` lines `handle-question.sh` printed:
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/write-question-answer.sh .ai/run-context/question-answer.yaml \
-  <next_stage> "<question>" "<answer>"
+  <next_stage> <question_id> "<question>" "<answer>"
 ```
+
+The script upserts: it replaces only the answer already on file under the same
+`(next_stage, question_id)` and keeps every other one, so a stage that asked twice finds both
+answers on its re-invocation. Never write or edit the file any other way — a plain overwrite erases
+every earlier answer (`shared/question-protocol.md`).
 
 Carry the `questions_used` value the script printed forward as the run's count — it is already
 incremented. This is not a terminal state. Go to **Re-invoke the asking stage**.
@@ -684,4 +689,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: d3fa8094a996 -->
+<!-- instructions-stamp: cbf7a8b2962e -->
