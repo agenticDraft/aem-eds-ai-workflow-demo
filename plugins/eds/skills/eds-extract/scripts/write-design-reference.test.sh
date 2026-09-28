@@ -72,6 +72,7 @@ if [ -f "$OUT" ]; then
   check "has_values stays true" '.has_values == true' "$OUT"
   check "no viewports key without viewports" 'has("viewports") | not' "$OUT"
   check "no screenshots key without screenshots" 'has("screenshots") | not' "$OUT"
+  check "no provider assets gives an explicit empty list" 'has("assets") and .assets == []' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
@@ -308,6 +309,70 @@ status=$?
 if [ "$status" -eq 2 ]; then ok "exits 2"; else bad "exits 2" "got: $status"; fi
 if [ -e "$D/.ai/run-context/design-reference.json" ]; then bad "writes nothing" "found output"; else ok "writes nothing"; fi
 
+# asset_file <case-dir> <name> — an asset file already downloaded by the provider
+asset_file() {
+  mkdir -p "$1/.ai/figma/assets"
+  printf 'bytes' > "$1/.ai/figma/assets/$2"
+}
+
+# provider_with_assets <case-dir> <assets-json>
+provider_with_assets() {
+  jq -n --argjson assets "$2" '{
+    reference: "x", file_key: "abc123", node_id: "1-185", node_name: "Button",
+    geometry: {x: 0, y: 0, width: 138, height: 48}, variables: {},
+    design_context: null, assets: $assets
+  }' > "$1/.ai/figma/abc123-1-185.json"
+}
+
+ASSETS='[{"node_id": "1:147", "file": ".ai/figma/assets/0123456789abcdef.svg", "mime": "image/svg+xml"},
+  {"node_id": "1:166", "file": ".ai/figma/assets/fedcba9876543210.jpg", "mime": "image/jpeg"},
+  {"node_id": null, "file": ".ai/figma/assets/fedcba9876543210.jpg", "mime": "image/jpeg"}]'
+
+echo "design_tool: the provider's assets are carried"
+D="$(case_dir assets)"
+asset_file "$D" 0123456789abcdef.svg; asset_file "$D" fedcba9876543210.jpg
+provider_with_assets "$D" "$ASSETS"
+if run_design_tool "$D"; then ok "exits 0"; else bad "exits 0" "stderr: $(cat "$D/stderr")"; fi
+OUT="$D/.ai/run-context/design-reference.json"
+if [ -f "$OUT" ]; then
+  check "assets carried in order, unchanged" ".assets == $ASSETS" "$OUT"
+else
+  bad "design-reference.json written" "missing: $OUT"
+fi
+
+echo "design_tool: an empty assets list stays an explicit empty list"
+D="$(case_dir assetsempty)"
+provider_with_assets "$D" '[]'
+if run_design_tool "$D"; then ok "exits 0"; else bad "exits 0" "stderr: $(cat "$D/stderr")"; fi
+check "assets is []" 'has("assets") and .assets == []' "$D/.ai/run-context/design-reference.json"
+
+# refused_assets <desc> <case-name> <assets-json> — exit 2, and nothing written
+refused_assets() {
+  local dir status
+  dir="$(case_dir "$2")"
+  asset_file "$dir" 0123456789abcdef.svg
+  provider_with_assets "$dir" "$3"
+  echo "design_tool: $1"
+  run_design_tool "$dir"
+  status=$?
+  if [ "$status" -eq 2 ]; then ok "exits 2"; else bad "exits 2" "got: $status"; fi
+  if [ -e "$dir/.ai/run-context/design-reference.json" ]; then bad "writes nothing" "found output"; else ok "writes nothing"; fi
+}
+
+refused_assets "an asset file that does not exist" assetmissing \
+  '[{"node_id": "1:147", "file": ".ai/figma/assets/nope.svg", "mime": "image/svg+xml"}]'
+refused_assets "a URL in place of a file" asseturl \
+  '[{"node_id": "1:147", "file": "https://www.figma.com/api/mcp/asset/x/f590d.svg", "mime": "image/svg+xml"}]'
+refused_assets "an asset entry missing a key" assetkey \
+  '[{"node_id": "1:147", "file": ".ai/figma/assets/0123456789abcdef.svg"}]'
+refused_assets "an asset entry with an extra key" assetextra \
+  '[{"node_id": "1:147", "file": ".ai/figma/assets/0123456789abcdef.svg", "mime": "image/svg+xml", "url": "x"}]'
+refused_assets "a MIME type the sniffer never gives" assetmime \
+  '[{"node_id": "1:147", "file": ".ai/figma/assets/0123456789abcdef.svg", "mime": "text/html"}]'
+refused_assets "a node id that is not a node id" assetnode \
+  '[{"node_id": "../x", "file": ".ai/figma/assets/0123456789abcdef.svg", "mime": "image/svg+xml"}]'
+refused_assets "assets that is not a list" assetnotlist '{"1:147": "x"}'
+
 echo "image mode"
 D="$(case_dir image)"
 (cd "$D" && python3 "$WRITER" image design-reference.png image/png \
@@ -319,6 +384,7 @@ if [ -f "$OUT" ]; then
   check "design_context key present and null" 'has("design_context") and .design_context == null' "$OUT"
   check "variables null, has_values false" '.variables == null and .has_values == false' "$OUT"
   check "no viewports key" 'has("viewports") | not' "$OUT"
+  check "assets is an explicit empty list" 'has("assets") and .assets == []' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
