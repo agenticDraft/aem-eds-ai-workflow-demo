@@ -21,7 +21,7 @@ marketplace plugin's MCP server (`mcp__plugin_figma_figma__*`).
 | --- | --- | --- |
 | `get_design_context` | Reference code whose classes carry layout (direction, alignment, gap, padding, size), colour, radius and typography (family, size, weight, line height, letter spacing), plus a line naming the styles and variables the node uses | **Default source** for layout, colour and typography |
 | `get_variable_defs` | Flat map of variable name → value | Token names for the values above |
-| `get_metadata` | Node name and geometry (`x`, `y`, `width`, `height`) as XML | Confirms the node exists; exact geometry |
+| `get_metadata` | Node name and geometry (`x`, `y`, `width`, `height`) as XML | Confirms the node exists; exact geometry; whether the node is one frame, viewport variants, or several frames |
 | `get_screenshot` | Short-lived PNG URL with `width`/`height` | Reference image |
 
 `get_design_context` requires the `figma-design-to-code` skill to be loaded first. Load it for that
@@ -46,6 +46,8 @@ digraph fetch_reference {
     "Tools loaded?" [shape=diamond];
     "Fetch node metadata" [shape=box];
     "Metadata fetched?" [shape=diamond];
+    "Classify the node" [shape=box];
+    "Node class?" [shape=diamond];
     "Fetch design context" [shape=box];
     "Design context fetched?" [shape=diamond];
     "Fetch variable definitions" [shape=box];
@@ -67,7 +69,11 @@ digraph fetch_reference {
     "Tools loaded?" -> "Fetch node metadata" [label="yes"];
     "Tools loaded?" -> "Report fail" [label="no — not installed, or not authenticated\nPERMANENT"];
     "Fetch node metadata" -> "Metadata fetched?";
-    "Metadata fetched?" -> "Fetch design context" [label="yes"];
+    "Metadata fetched?" -> "Classify the node" [label="yes"];
+    "Classify the node" -> "Node class?";
+    "Node class?" -> "Fetch design context" [label="single or variants"];
+    "Node class?" -> "Report question" [label="page or multi-frame"];
+    "Node class?" -> "Report fail" [label="exit 2 — unreadable metadata\nPERMANENT"];
     "Metadata fetched?" -> "Classify the tool error" [label="no"];
     "Fetch design context" -> "Design context fetched?";
     "Design context fetched?" -> "Fetch variable definitions" [label="yes — code, or structure only\n(no code block, truncated, unparseable)"];
@@ -149,9 +155,34 @@ attributes on the matching element.
 
 ### Metadata fetched?
 
-The call returned the node's XML element — continue to **Fetch design context**. The call errored
+The call returned the node's XML element — continue to **Classify the node**. The call errored
 (file or node not found, no access, or any other tool error) — **Classify the tool error**, naming
 the error exactly as returned, never guessed or reworded into something more general.
+
+### Classify the node
+
+1. Ensure `.ai/figma/` exists at the project root (`mkdir -p .ai/figma`).
+2. Write the `get_metadata` response text, verbatim and whole, to
+   `.ai/figma/<file_key>-<node_id>.metadata.xml`. Text before or after the XML stays in; the
+   script skips it.
+3. Run:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/fetch-reference/scripts/classify-node.py \
+     .ai/figma/<file_key>-<node_id>.metadata.xml > .ai/figma/<file_key>-<node_id>.classification.tsv
+   ```
+
+The script owns every classification decision: which children are frames, which are viewport
+variants and by which rule, and whether the node needs a question. Read its first line,
+`class<TAB><class>`; never re-decide the class from names, sizes or the work item.
+
+### Node class?
+
+- **`single`** or **`variants`** — continue to **Fetch design context** with the same node.
+- **`page`** or **`multi-frame`** — go to **Report question**. Never pick one of the candidates,
+  not even one whose name matches the work item.
+- **Exit 2** — the metadata could not be read as a node. Go to **Report fail** with
+  `error_class: PERMANENT`, quoting the script's stderr line.
 
 ### Fetch design context
 
@@ -279,10 +310,11 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the node and the Figma file the reference came from.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file written above — `.ai/figma/<file_key>-<node_id>.json`,
-  `.ai/figma/<file_key>-<node_id>.png`, and `.ai/figma/<file_key>-<node_id>.context.txt` when it
-  was written.
+  `.ai/figma/<file_key>-<node_id>.png`, `.ai/figma/<file_key>-<node_id>.metadata.xml`,
+  `.ai/figma/<file_key>-<node_id>.classification.tsv`, and
+  `.ai/figma/<file_key>-<node_id>.context.txt` when it was written.
 - `next_action: none`
-- `metrics: variables=<count of entries in the variable map> design_context=<code|structure_only>`
+- `metrics: variables=<count of entries in the variable map> design_context=<code|structure_only> node_class=<single|variants>`
 
 ### Report fail
 
@@ -296,8 +328,8 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `next_action: none`
 - `error_class`: the class that brought the flow here, on **every** path into this node and never
   omitted — `VALIDATION` from **URL is a supported Figma design URL with a node id?**, `PERMANENT`
-  from **Tools loaded?**, and whatever **Classify the tool error** determined for the four tool
-  calls. The caller branches on this, so it is read off what actually failed, never off what
+  from **Tools loaded?**, `PERMANENT` from **Node class?**, and whatever **Classify the tool
+  error** determined for the four tool calls. The caller branches on this, so it is read off what actually failed, never off what
   usually fails.
 
 ### Report question
@@ -305,11 +337,20 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: question`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the given URL has no node-id.
-- `artifacts: []`
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the given URL has no node-id, or the node is a page or holds several frames.
+- `artifacts`: `[]` from **URL is a supported Figma design URL with a node id?**; from **Node
+  class?**, a list of `.ai/figma/<file_key>-<node_id>.metadata.xml` and
+  `.ai/figma/<file_key>-<node_id>.classification.tsv`.
 - `next_action: none`
-- `question`: ask which frame or node in the file should be the design reference.
-- `blocker`: the reference URL has no `node-id`.
+- `question`: from **URL is a supported Figma design URL with a node id?**, ask which frame or node
+  in the file should be the design reference. From **Node class?**, the single line printed by
+  `classify-node.py .ai/figma/<file_key>-<node_id>.metadata.xml --question`, verbatim — it names
+  every candidate frame with its node id.
+- `options`: from **Node class?** only, one entry per line printed by the same script with
+  `--options`, verbatim and in that order. Every candidate is an option; none is dropped,
+  reordered or marked as preferred.
+- `blocker`: the reference URL has no `node-id`; or, from **Node class?**, the reference node is a
+  page or holds several frames, and no frame is chosen without a human.
 
-This node reports no `error_class`: a URL with no node id is a clarification the item's author can
-answer, not a classified failure of this operation.
+This node reports no `error_class`: a URL with no node id, or a node that is several frames, is a
+clarification the item's author can answer, not a classified failure of this operation.
