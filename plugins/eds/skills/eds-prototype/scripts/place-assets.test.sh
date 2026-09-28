@@ -39,6 +39,12 @@ CODE='export default function Frame() {
 }'
 
 sha16() { shasum -a 256 "$1" | cut -c1-16; }
+h4() { shasum -a 256 "$1" | cut -c1-4; }
+h8() { shasum -a 256 "$1" | cut -c1-8; }
+
+# Two SVGs whose SHA-256 (with the trailing newline) both begin f81b
+TIE_1='<svg xmlns="http://www.w3.org/2000/svg"><path d="M177 0"/></svg>'
+TIE_2='<svg xmlns="http://www.w3.org/2000/svg"><path d="M369 0"/></svg>'
 
 # project <name> — a project root with five assets; echoes its path
 project() {
@@ -91,6 +97,10 @@ absent() {
   if [ -e "$2" ]; then bad "$1" "exists: $2"; else ok "$1"; fi
 }
 
+no_collision() {
+  if grep -q '^collision' "$WORK/stdout"; then bad "$1" "$(cat "$WORK/stdout")"; else ok "$1"; fi
+}
+
 no_url() {
   if grep -q '://' "$WORK/stdout" "$WORK/stderr"; then bad "$1" "$(cat "$WORK/stdout" "$WORK/stderr")"; else ok "$1"; fi
 }
@@ -113,22 +123,26 @@ status_is "exits 0" 0
 has_line "reused row" "reused${TAB}1:147${TAB}image/svg+xml${TAB}icons/cable-icon.svg${TAB}<span class=\"icon icon-cable-icon\"></span>"
 if [ "$(ls -l "$D/icons/cable-icon.svg")" = "$before" ]; then ok "file untouched"; else bad "file untouched"; fi
 
-echo "an icon present with different bytes is a collision; nothing is written"
+echo "an icon present with different bytes counts as one more design: the new one splits off"
 D="$(project diff-icon)"
 printf '%s\n' "$SVG_B" > "$D/icons/cable-icon.svg"
+a="$(h4 "$D/.ai/figma/assets/aaaa.svg")"
 run "$D" ITEM-1 1:147 1:166
-status_is "exits 4" 4
-has_line "collision row names both files" "collision${TAB}1:147${TAB}image/svg+xml${TAB}icons/cable-icon.svg${TAB}.ai/figma/assets/aaaa.svg${TAB}icons/cable-icon.svg"
+status_is "exits 0" 0
+has_line "placed under the hash4 name" "placed${TAB}1:147${TAB}image/svg+xml${TAB}icons/cable-icon-$a.svg${TAB}<span class=\"icon icon-cable-icon-$a\"></span>"
+has_line "split row" "split${TAB}icons/cable-icon.svg${TAB}icons/cable-icon-$a.svg"
 same_bytes "existing icon not overwritten" "$D/icons/cable-icon.svg" "$D/.ai/figma/assets/bbbb.svg"
-absent "no other asset written either" "$D/drafts/ITEM-1-$(sha16 "$D/.ai/figma/assets/cccc.jpg").jpg"
+same_bytes "new icon written" "$D/icons/cable-icon-$a.svg" "$D/.ai/figma/assets/aaaa.svg"
+no_collision "no collision row"
 
-echo "two layers slugifying to one name with different bytes collide; nothing is written"
+echo "two layers slugifying to one name with different bytes both split; no base file"
 D="$(project twin-slug)"
+a="$(h4 "$D/.ai/figma/assets/aaaa.svg")"; b="$(h4 "$D/.ai/figma/assets/bbbb.svg")"
 run "$D" ITEM-1 1:147 1:152
-status_is "exits 4" 4
-has_line "second layer collides with the first's file" "collision${TAB}1:152${TAB}image/svg+xml${TAB}icons/cable-icon.svg${TAB}.ai/figma/assets/bbbb.svg${TAB}.ai/figma/assets/aaaa.svg"
-has_line "first layer's row still listed" "placed${TAB}1:147${TAB}image/svg+xml${TAB}icons/cable-icon.svg${TAB}<span class=\"icon icon-cable-icon\"></span>"
-absent "nothing written" "$D/icons/cable-icon.svg"
+status_is "exits 0" 0
+has_line "first layer hash-named" "placed${TAB}1:147${TAB}image/svg+xml${TAB}icons/cable-icon-$a.svg${TAB}<span class=\"icon icon-cable-icon-$a\"></span>"
+has_line "second layer hash-named" "placed${TAB}1:152${TAB}image/svg+xml${TAB}icons/cable-icon-$b.svg${TAB}<span class=\"icon icon-cable-icon-$b\"></span>"
+absent "no base file" "$D/icons/cable-icon.svg"
 
 echo "two layers slugifying to one name with identical bytes share one file"
 D="$(project twin-same)"
@@ -139,12 +153,121 @@ status_is "exits 0" 0
 has_line "first placed" "placed${TAB}1:147${TAB}image/svg+xml${TAB}icons/cable-icon.svg${TAB}<span class=\"icon icon-cable-icon\"></span>"
 has_line "second reuses it" "reused${TAB}1:152${TAB}image/svg+xml${TAB}icons/cable-icon.svg${TAB}<span class=\"icon icon-cable-icon\"></span>"
 
-echo "an existing project icon with another name is never touched"
+echo "a project icon holding the base name is never touched; the design splits off"
 D="$(project project-icon)"
 printf '<svg xmlns="http://www.w3.org/2000/svg">project</svg>\n' > "$D/icons/search.svg"
+before="$(cat "$D/icons/search.svg")"
+b="$(h4 "$D/.ai/figma/assets/bbbb.svg")"
 run "$D" ITEM-1 1:160
+status_is "exits 0" 0
+has_line "placed beside the project's icon" "placed${TAB}1:160${TAB}image/svg+xml${TAB}icons/search-$b.svg${TAB}<span class=\"icon icon-search-$b\"></span>"
+if [ "$(cat "$D/icons/search.svg")" = "$before" ]; then ok "project icon untouched"; else bad "project icon untouched"; fi
+
+# checks <name> <file>... — a project whose layers 2:1..2:N are all named
+# "Check icon", layer i carrying the i-th file given (EDS-18's shape)
+checks() {
+  local dir; dir="$(project "$1")"; shift
+  local code='<div data-node-id="2:0" data-name="Card">' assets='[]' i=1 f
+  for f in "$@"; do
+    code="$code<div data-node-id=\"2:$i\" data-name=\"Check icon\"></div>"
+    assets="$(jq -c --arg n "2:$i" --arg f ".ai/figma/assets/$f" '. + [{node_id: $n, file: $f, mime: "image/svg+xml"}]' <<<"$assets")"
+    i=$((i + 1))
+  done
+  printf '%s</div>' "$code" > "$dir/.ai/run-context/design-context.txt"
+  jq --argjson a "$assets" '.assets = $a' "$dir/.ai/run-context/design-reference.json" > "$dir/r.json" \
+    && mv "$dir/r.json" "$dir/.ai/run-context/design-reference.json"
+  echo "$dir"
+}
+
+echo "three distinct designs under one layer name: three hash4 files, no base file, exit 0"
+D="$(checks three aaaa.svg aaaa.svg bbbb.svg dddd.svg bbbb.svg dddd.svg)"
+a="$(h4 "$D/.ai/figma/assets/aaaa.svg")"; b="$(h4 "$D/.ai/figma/assets/bbbb.svg")"; d="$(h4 "$D/.ai/figma/assets/dddd.svg")"
+run "$D" ITEM-1 2:1 2:2 2:3 2:4 2:5 2:6
+status_is "exits 0" 0
+same_bytes "first design" "$D/icons/check-icon-$a.svg" "$D/.ai/figma/assets/aaaa.svg"
+same_bytes "second design" "$D/icons/check-icon-$b.svg" "$D/.ai/figma/assets/bbbb.svg"
+same_bytes "third design" "$D/icons/check-icon-$d.svg" "$D/.ai/figma/assets/dddd.svg"
+absent "no base file" "$D/icons/check-icon.svg"
+has_line "a copy reuses its design's file" "reused${TAB}2:2${TAB}image/svg+xml${TAB}icons/check-icon-$a.svg${TAB}<span class=\"icon icon-check-icon-$a\"></span>"
+split="$(printf 'icons/check-icon-%s.svg\n' "$a" "$b" "$d" | sort | tr '\n' "$TAB")"
+has_line "one split row listing every name, sorted" "split${TAB}icons/check-icon.svg${TAB}${split%"$TAB"}"
+no_collision "no collision row"
+forward="$(ls "$D/icons")"
+
+echo "reversed layer order gives the same names"
+D="$(checks reversed dddd.svg bbbb.svg dddd.svg bbbb.svg aaaa.svg aaaa.svg)"
+run "$D" ITEM-1 2:6 2:5 2:4 2:3 2:2 2:1
+status_is "exits 0" 0
+if [ "$(ls "$D/icons")" = "$forward" ]; then ok "same file names"; else bad "same file names" "forward: $forward" "reversed: $(ls "$D/icons")"; fi
+same_bytes "each design keeps its name" "$D/icons/check-icon-$a.svg" "$D/.ai/figma/assets/aaaa.svg"
+
+echo "identical copies under one layer name keep one base file"
+D="$(checks copies aaaa.svg twin.svg aaaa.svg)"
+run "$D" ITEM-1 2:1 2:2 2:3
+status_is "exits 0" 0
+same_bytes "one base file" "$D/icons/check-icon.svg" "$D/.ai/figma/assets/aaaa.svg"
+if ls "$D/icons" | grep -q '^check-icon-'; then bad "no hash-named file" "$(ls "$D/icons")"; else ok "no hash-named file"; fi
+if grep -q "^split" "$WORK/stdout"; then bad "no split row" "$(cat "$WORK/stdout")"; else ok "no split row"; fi
+
+echo "two designs sharing a hash4 both widen to 8"
+D="$(checks tie tie1.svg tie2.svg)"
+printf '%s\n' "$TIE_1" > "$D/.ai/figma/assets/tie1.svg"
+printf '%s\n' "$TIE_2" > "$D/.ai/figma/assets/tie2.svg"
+run "$D" ITEM-1 2:1 2:2
+status_is "exits 0" 0
+if [ "$(h4 "$D/.ai/figma/assets/tie1.svg")" = "$(h4 "$D/.ai/figma/assets/tie2.svg")" ]; then ok "fixture ties at 4"; else bad "fixture ties at 4"; fi
+same_bytes "first widened" "$D/icons/check-icon-$(h8 "$D/.ai/figma/assets/tie1.svg").svg" "$D/.ai/figma/assets/tie1.svg"
+same_bytes "second widened" "$D/icons/check-icon-$(h8 "$D/.ai/figma/assets/tie2.svg").svg" "$D/.ai/figma/assets/tie2.svg"
+absent "no 4-wide name" "$D/icons/check-icon-$(h4 "$D/.ai/figma/assets/tie1.svg").svg"
+
+echo "a project file holding the hash4 name with other bytes widens that name to 8"
+D="$(checks held4 aaaa.svg bbbb.svg)"
+a="$(h4 "$D/.ai/figma/assets/aaaa.svg")"; b="$(h4 "$D/.ai/figma/assets/bbbb.svg")"
+printf 'squatter\n' > "$D/icons/check-icon-$a.svg"
+run "$D" ITEM-1 2:1 2:2
+status_is "exits 0" 0
+same_bytes "widened" "$D/icons/check-icon-$(h8 "$D/.ai/figma/assets/aaaa.svg").svg" "$D/.ai/figma/assets/aaaa.svg"
+same_bytes "the other keeps hash4" "$D/icons/check-icon-$b.svg" "$D/.ai/figma/assets/bbbb.svg"
+if [ "$(cat "$D/icons/check-icon-$a.svg")" = "squatter" ]; then ok "squatter not overwritten"; else bad "squatter not overwritten"; fi
+
+# literal <name> <file> — checks' project with aaaa.svg and bbbb.svg under
+# "Check icon" (2:1, 2:2), plus 2:3 literally named check-icon-<hash4 of aaaa>
+# carrying <file>
+literal() {
+  local dir a; dir="$(checks "$1" aaaa.svg bbbb.svg "$2")"
+  a="$(h4 "$dir/.ai/figma/assets/aaaa.svg")"
+  sed "s/data-node-id=\"2:3\" data-name=\"Check icon\"/data-node-id=\"2:3\" data-name=\"check-icon-$a\"/" \
+    "$dir/.ai/run-context/design-context.txt" > "$dir/c.txt" && mv "$dir/c.txt" "$dir/.ai/run-context/design-context.txt"
+  echo "$dir"
+}
+
+echo "a layer literally named like a split name, other bytes: exit 4, same collision row in either order"
+D="$(literal cross dddd.svg)"
+a="$(h4 "$D/.ai/figma/assets/aaaa.svg")"
+run "$D" ITEM-1 2:1 2:2 2:3
 status_is "exits 4" 4
-has_line "collision with the project's own icon" "collision${TAB}1:160${TAB}image/svg+xml${TAB}icons/search.svg${TAB}.ai/figma/assets/bbbb.svg${TAB}icons/search.svg"
+forward_row="$(grep '^collision' "$WORK/stdout")"
+absent "nothing written" "$D/icons/check-icon-$a.svg"
+run "$D" ITEM-1 2:3 2:2 2:1
+status_is "reversed: exits 4" 4
+if [ "$(grep '^collision' "$WORK/stdout")" = "$forward_row" ] && [ -n "$forward_row" ]; then ok "the same node collides in either order"; else bad "the same node collides in either order" "forward:  $forward_row" "reversed: $(grep '^collision' "$WORK/stdout")"; fi
+
+echo "a layer literally named like a split name, same bytes: reused"
+D="$(literal cross-same twin.svg)"
+a="$(h4 "$D/.ai/figma/assets/aaaa.svg")"
+run "$D" ITEM-1 2:1 2:2 2:3
+status_is "exits 0" 0
+has_line "reuses the split file" "reused${TAB}2:3${TAB}image/svg+xml${TAB}icons/check-icon-$a.svg${TAB}<span class=\"icon icon-check-icon-$a\"></span>"
+
+echo "the 8-wide name also held by other bytes is a collision: exit 4, nothing written"
+D="$(checks held8 aaaa.svg bbbb.svg)"
+a="$(h4 "$D/.ai/figma/assets/aaaa.svg")"; a8="$(h8 "$D/.ai/figma/assets/aaaa.svg")"; b="$(h4 "$D/.ai/figma/assets/bbbb.svg")"
+printf 'squatter\n' > "$D/icons/check-icon-$a.svg"
+printf 'squatter\n' > "$D/icons/check-icon-$a8.svg"
+run "$D" ITEM-1 2:1 2:2
+status_is "exits 4" 4
+has_line "collision row" "collision${TAB}2:1${TAB}image/svg+xml${TAB}icons/check-icon-$a8.svg${TAB}.ai/figma/assets/aaaa.svg${TAB}icons/check-icon-$a8.svg"
+absent "nothing written" "$D/icons/check-icon-$b.svg"
 
 echo "a layer with no name is named by the asset's content hash"
 D="$(project nameless)"
