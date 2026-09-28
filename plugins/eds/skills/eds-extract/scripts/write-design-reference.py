@@ -32,6 +32,16 @@
 # what it was without it. A malformed entry, a missing file or a repeated node
 # id exits 2 before anything is written.
 #
+# `screenshots` — the provider's record of each reference image's size, each
+# {node_id, width, height, original_width, original_height, downscaled} — is
+# carried through with `node_id` replaced by `image`, the run-context copy that
+# node's screenshot became: a variant's own copy, or, when there are no
+# variants, <out-image> for the referenced node itself. Entries follow the widest-first order of `viewports`.
+# An entry for a node with no image, a non-numeric size, a repeated node, or a
+# `downscaled` that contradicts the sizes (at least one pixel smaller on either
+# edge) exits 2 before anything is written. No `screenshots`, or an empty list,
+# leaves the key out.
+#
 # Exit codes: 0 on success; 2 for a usage error.
 
 import json
@@ -41,6 +51,8 @@ import shutil
 import sys
 
 VIEWPORT_KEYS = {"name", "node_id", "width", "image", "context"}
+SCREENSHOT_KEYS = {"node_id", "width", "height", "original_width", "original_height", "downscaled"}
+SIZE_KEYS = ("width", "height", "original_width", "original_height")
 NODE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:;_-]*$")
 
 
@@ -86,6 +98,39 @@ def validated_viewports(provider_json_path, viewports):
         if context is not None and (not isinstance(context, str) or not os.path.isfile(context)):
             usage_error(f"{where}: {node_id} context {context!r} not found")
     return sorted(viewports, key=lambda v: v["width"], reverse=True)
+
+
+def positive_number(value):
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and value > 0
+
+
+def validated_screenshots(provider_json_path, screenshots, node_id, viewports, out_image):
+    if screenshots is None or screenshots == []:
+        return []
+    where = f"'{provider_json_path}': screenshots"
+    if not isinstance(screenshots, list):
+        usage_error(f"{where} must be a list")
+    images = {node_suffix(v["node_id"]): per_variant(out_image, v["node_id"]) for v in viewports}
+    if not viewports and isinstance(node_id, str):
+        images[node_suffix(node_id)] = out_image
+    carried = {}
+    for entry in screenshots:
+        if not isinstance(entry, dict) or set(entry) != SCREENSHOT_KEYS:
+            usage_error(f"{where}: each entry must have exactly {', '.join(sorted(SCREENSHOT_KEYS))}")
+        node = entry["node_id"]
+        if not isinstance(node, str) or node_suffix(node) not in images:
+            usage_error(f"{where}: {node!r} is neither the referenced node nor a viewport variant")
+        if node_suffix(node) in carried:
+            usage_error(f"{where}: {node!r} appears twice")
+        if not all(positive_number(entry[k]) for k in SIZE_KEYS):
+            usage_error(f"{where}: {node} sizes must be positive numbers")
+        smaller = (entry["width"] + 1 <= entry["original_width"]
+                   or entry["height"] + 1 <= entry["original_height"])
+        if entry["downscaled"] is not smaller:
+            usage_error(f"{where}: {node} downscaled is {entry['downscaled']!r} but its sizes say {smaller!r}")
+        carried[node_suffix(node)] = dict({"image": images[node_suffix(node)]},
+                                          **{k: entry[k] for k in SIZE_KEYS}, downscaled=smaller)
+    return [carried[n] for n in images if n in carried]
 
 
 def node_suffix(node_id):
@@ -158,6 +203,8 @@ def main():
                 usage_error(f"'{provider_context['code_file']}' not found — design_context names it as the code file")
 
         viewports = validated_viewports(provider_json_path, provider.get("viewports"))
+        screenshots = validated_screenshots(
+            provider_json_path, provider.get("screenshots"), provider.get("node_id"), viewports, out_image)
 
         os.makedirs(os.path.dirname(out_image) or ".", exist_ok=True)
         shutil.copyfile(provider_image_path, out_image)
@@ -180,6 +227,8 @@ def main():
         }
         if viewports:
             record["viewports"] = [copy_viewport(v, out_image, out_context) for v in viewports]
+        if screenshots:
+            record["screenshots"] = screenshots
         write_json(out_json, record)
         print(f"wrote: {out_json}")
         sys.exit(0)

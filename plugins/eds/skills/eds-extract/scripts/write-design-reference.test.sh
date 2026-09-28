@@ -297,6 +297,17 @@ refused_shots "a screenshot entry missing a key" shotkey '[{"node_id": "1-185", 
 refused_shots "two sizes for one node" shotdup "[$(shot 1-185 138 48 138 48 false), $(shot 1-185 138 48 138 48 false)]"
 refused_shots "screenshots that is not a list" shotnotlist '{"1-185": 138}'
 
+echo "design_tool: with variants, a size for the referenced node itself is refused"
+D="$(case_dir shotparent)"
+variant "$D" 1-118 code; variant "$D" 1-274; variant "$D" 1-430 code
+provider_with_viewports "$D" "$VP3"
+jq --argjson shots "[$(shot 1-586 178 1024 2711 8996 true)]" \
+  '. + {screenshots: $shots}' "$D/.ai/figma/abc123-1-185.json" > "$D/p.json" && mv "$D/p.json" "$D/.ai/figma/abc123-1-185.json"
+run_design_tool "$D"
+status=$?
+if [ "$status" -eq 2 ]; then ok "exits 2"; else bad "exits 2" "got: $status"; fi
+if [ -e "$D/.ai/run-context/design-reference.json" ]; then bad "writes nothing" "found output"; else ok "writes nothing"; fi
+
 echo "image mode"
 D="$(case_dir image)"
 (cd "$D" && python3 "$WRITER" image design-reference.png image/png \
