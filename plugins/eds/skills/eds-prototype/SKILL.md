@@ -36,7 +36,8 @@ None. This stage reads four fixed paths: `.ai/run-context/fact-record.yaml`,
 own question, read only through the core's `read-question-answer.sh`, and the reference code
 `design-reference.json`'s `design_context.code_file` names, read only through this stage's own
 `scripts/design-context-values.py`, and each viewport variant's reference code, read only through
-this stage's own `scripts/viewport-overrides.py`. It calls no `tracker`/`scm`/`design`/
+this stage's own `scripts/viewport-overrides.py`. The asset files `design-reference.json`'s `assets`
+list names are placed only through this stage's own `scripts/place-assets.py`. It calls no `tracker`/`scm`/`design`/
 `browser` role operation — building the prototype is a content-authoring step, not a render/capture/
 measure step; `eds-verify-design` (not yet built) is the stage that renders and compares it.
 
@@ -54,9 +55,13 @@ digraph eds_prototype {
     "Reference has viewports?" [shape=diamond];
     "Read the viewport overrides" [shape=box];
     "Compose the block-table content" [shape=box];
+    "Place the assets" [shape=box];
+    "Record the icon collision" [shape=box];
     "Compose the block CSS and minimal JS" [shape=box];
     "Write the prototype files" [shape=box];
+    "Flag committed binaries" [shape=box];
     "Write the prototype report" [shape=box];
+    "Check the optimise flags" [shape=box];
     "Any degradation to report?" [shape=diamond];
     "Report fail" [shape=doublecircle];
     "Report question" [shape=doublecircle];
@@ -79,10 +84,18 @@ digraph eds_prototype {
     "Reference has viewports?" -> "Compose the block-table content" [label="no"];
     "Read the viewport overrides" -> "Compose the block-table content" [label="exit 0"];
     "Read the viewport overrides" -> "Report fail" [label="exit 2"];
-    "Compose the block-table content" -> "Compose the block CSS and minimal JS";
+    "Compose the block-table content" -> "Place the assets";
+    "Place the assets" -> "Compose the block CSS and minimal JS" [label="exit 0, or no asset used"];
+    "Place the assets" -> "Record the icon collision" [label="exit 4"];
+    "Place the assets" -> "Report fail" [label="exit 2"];
+    "Record the icon collision" -> "Report question";
     "Compose the block CSS and minimal JS" -> "Write the prototype files";
-    "Write the prototype files" -> "Write the prototype report";
-    "Write the prototype report" -> "Any degradation to report?";
+    "Write the prototype files" -> "Flag committed binaries";
+    "Flag committed binaries" -> "Write the prototype report" [label="exit 0"];
+    "Flag committed binaries" -> "Report fail" [label="exit 2"];
+    "Write the prototype report" -> "Check the optimise flags";
+    "Check the optimise flags" -> "Any degradation to report?" [label="exit 0"];
+    "Check the optimise flags" -> "Report fail" [label="exit 1 or 2"];
     "Any degradation to report?" -> "Report warn" [label="yes"];
     "Any degradation to report?" -> "Report pass" [label="no"];
 }
@@ -121,8 +134,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/read-question-answer.sh \
   The answer outranks both fact-record fields: it is the human resolving exactly the ambiguity they
   could not. Take the first `blocks/<name>/` path in it; failing that, the whole answer when it is a
   single block name (lowercase letters, digits, hyphens). One name resolved — continue to **Block
-  already exists?**. Neither — go to **Report question** again: the answer did not name a block,
-  and guessing one from free text is the guess the question existed to avoid.
+  already exists?**. Neither — the answer names no block (it may answer the icon-collision
+  question instead); do not guess one from its free text, and continue below with the fact record.
 - **Exit `3`** — no answer for this stage (none recorded, or one another stage asked). Ignore the
   file and continue below.
 - **Exit `1`** — the file exists but names no owner. Go to **Report fail**, naming the script's
@@ -265,6 +278,52 @@ difference from `eds-fixture`, which composes only placeholder content and never
 source or a spec at all. Follow the row/cell shape read above: the existing block's own shape when
 reusing, the chosen exemplar's when new.
 
+Note every node id of `design-reference.json`'s `assets` list whose element the composed content
+includes — an image or icon the design shows inside the block. An asset is found only through that
+list: never through a URL, and never through the asset paths the reference code itself names.
+
+### Place the assets
+
+No node noted above — record "no asset used" for the report and continue to **Compose the block CSS
+and minimal JS**. Otherwise run, with every noted node id:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/place-assets.py \
+  .ai/run-context/design-reference.json <item_id> <node_id>... > .ai/run-context/placed-assets.tsv
+```
+
+`<item_id>` is `fact-record.yaml`'s own, under the same `/`/`..` check as **Write the prototype
+files**. The script owns every placement decision; take its rows as given and never copy an asset
+file yourself, choose its name, or overwrite an existing icon:
+
+- An SVG goes to `icons/<name>.svg`, named from the node's layer name. The composed content uses the
+  row's reference, `<span class="icon icon-<name>"></span>`, where the design shows that icon; the
+  project's own icon decoration loads it.
+- A raster image goes next to the draft, `drafts/<item_id>-<sha16>.<ext>`, never under `blocks/` or
+  `icons/`. The composed content uses the row's reference, `./<file>`, as the `src` of an `<img>`
+  inside a `<picture>`, with alt text describing the image.
+
+Its rows, tab-separated: `placed` or `reused <node> <mime> <dest> <reference>`, and
+`collision <node> <mime> <dest> <asset file> <held by>`.
+
+- **Exit `0`** — every noted asset is placed or reused. Continue to **Compose the block CSS and
+  minimal JS**.
+- **Exit `4`** — an icon name is already held by different bytes, and nothing was written. Continue
+  to **Record the icon collision**.
+- **Exit `2`** — a noted node has no entry in the list, or an entry is unusable. Go to **Report
+  fail**, naming the script's stderr reason.
+
+### Record the icon collision
+
+Write `.ai/run-context/prototype-report.md` with the target block name and an `## Assets` section
+holding every row of `placed-assets.tsv`, verbatim, then one line per `collision` row:
+
+```
+[icon collision] <dest> — design node <node> (<asset file>) — held by <held by>
+```
+
+Nothing else is written: no block file and no draft. Continue to **Report question**.
+
 ### Compose the block CSS and minimal JS
 
 Write (new block) or update (existing block) `blocks/<name>/<name>.css`. When `design-reference.json`'s
@@ -327,6 +386,25 @@ overwrite an existing fixture at that path: a prior prototype run for the same i
 this run is meant to replace, not real authored copy `eds-fixture`'s own caution about occupied
 paths was written to protect.
 
+### Flag committed binaries
+
+No asset used — skip the script: continue to **Write the prototype report** with nothing to flag.
+Otherwise run, with every `<dest>` of `placed-assets.tsv`:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/flag-committed-assets.py \
+  scan <dest>... > .ai/run-context/committed-assets.tsv
+```
+
+The script decides, from the bytes and the checkout's own ignore rules, which placed file will be
+committed and which needs an optimisation flag: a committed file is never optimised automatically,
+so every committed raster image is flagged, whatever its size. Its rows: `ignored <path> <bytes>
+<mime>` (never committed), `committed <path> <bytes> <mime>` (committed SVG, not flagged), `flag
+<path> <bytes> <mime> <line>` (committed raster). Take them as given.
+
+- **Exit `0`** — continue to **Write the prototype report**.
+- **Exit `2`** — go to **Report fail**, naming the script's stderr reason.
+
 ### Write the prototype report
 
 Write `.ai/run-context/prototype-report.md`: the target block name; whether it was new or existing
@@ -356,6 +434,32 @@ every finding line of `viewport-overrides.tsv` (`same-interval` with its `differ
 state that the variant was not implemented and that `<threshold>` is a proposed breakpoint, adopted
 only by adding it to `styles/styles.css` first.
 
+Add an `## Assets` section: "no asset used", or every row of `placed-assets.tsv` and every row of
+`committed-assets.tsv`, verbatim. Then, under `## Committed binaries`, one line per `flag` row —
+its fifth column, exactly, as a list item:
+
+```
+- [optimise] <path> — <bytes> bytes — <mime>
+```
+
+With no `flag` row, write "none" under that heading.
+
+### Check the optimise flags
+
+No asset used — continue to **Any degradation to report?**. Otherwise run, with the same paths
+**Flag committed binaries** scanned:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/flag-committed-assets.py \
+  check .ai/run-context/prototype-report.md <dest>...
+```
+
+- **Exit `0`** — every committed raster image has its flag line. Continue to **Any degradation to
+  report?**.
+- **Exit `1`** — a committed raster image has no flag line in the report. Go to **Report fail**,
+  naming the path from stderr: a committed binary without its flag is never handed on.
+- **Exit `2`** — go to **Report fail**, naming the script's stderr reason.
+
 ### Any degradation to report?
 
 Any of the following — go to **Report warn**:
@@ -373,6 +477,7 @@ Any of the following — go to **Report warn**:
   disk check.
 - `viewport-overrides.tsv` holds any `same-interval`, `not-overridden`, `unmatched`, `missing` or
   `no-context` line, so part of a viewport variant was not written.
+- `committed-assets.tsv` holds any `flag` row, so an unoptimised raster image will be committed.
 
 None of these — go to **Report pass**.
 
@@ -392,7 +497,9 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming which required input was missing — `design-reference.json` or
   `design-conventions.md` — verbatim, never reworded into something more general; or, from
   **Target block identified?**, the reason `read-question-answer.sh` gave for refusing the answer
-  file; or, from **Read the design-context values**, the reason `design-context-values.py` gave.
+  file; or, from **Read the design-context values**, the reason `design-context-values.py` gave;
+  or, from **Place the assets**, **Flag committed binaries** or **Check the optimise flags**, the
+  reason that script gave.
 - `artifacts: []`
 - `next_action: none`
 
@@ -408,6 +515,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
 
 See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
+From **Target block identified?**:
+
 - `verdict: question`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and that no block or component name could be resolved
   from the fact record.
@@ -416,6 +525,19 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 - `question`: "Which existing block, or what name for a new one, should this design change target?"
 - `blocker`: "the fact record names no component and no `files_named` path matches
   `blocks/<name>/…`, so this stage has nothing to prototype."
+
+From **Record the icon collision** (the first `collision` row names the files):
+
+- `verdict: question`
+- `summary`: one sentence, 200 characters or fewer, naming the item id and the icon path already
+  held by different bytes.
+- `artifacts`: `.ai/run-context/prototype-report.md`, `.ai/run-context/placed-assets.tsv`
+- `next_action: none`
+- `question`: "`<dest>` is wanted for design node `<node>` (`<asset file>`), but `<held by>` already
+  holds different bytes under that name. Rename or remove one of them, or rename the design layer,
+  and re-run."
+- `blocker`: "an icon file is never overwritten, and choosing which of two different icons keeps
+  the name is not this stage's decision."
 
 ### Report warn
 
@@ -439,6 +561,8 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   - `.ai/run-context/prototype-report.md`
   - `.ai/run-context/design-context-values.tsv`
   - `.ai/run-context/viewport-overrides.tsv`, only when **Read the viewport overrides** ran
+  - `.ai/run-context/placed-assets.tsv` and `.ai/run-context/committed-assets.tsv`, and every
+    `<dest>` path in `placed-assets.tsv`, only when **Place the assets** ran
 - `next_action: none`
 
 ### Report pass
