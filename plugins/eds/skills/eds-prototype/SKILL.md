@@ -298,18 +298,23 @@ file yourself, choose its name, or overwrite an existing icon:
 
 - An SVG goes to `icons/<name>.svg`, named from the node's layer name. The composed content uses the
   row's reference, `<span class="icon icon-<name>"></span>`, where the design shows that icon; the
-  project's own icon decoration loads it.
+  project's own icon decoration loads it. A layer name shared by different designs, or already held
+  under `icons/` by different bytes, is split (D525): every design under it gets `<name>-<hash4>`
+  from its own bytes, so two nodes named alike can carry different references. Use each node's own
+  row, never the base name.
 - A raster image goes next to the draft, `drafts/<item_id>-<sha16>.<ext>`, never under `blocks/` or
   `icons/`. The composed content uses the row's reference, `./<file>`, as the `src` of an `<img>`
   inside a `<picture>`, with alt text describing the image.
 
-Its rows, tab-separated: `placed` or `reused <node> <mime> <dest> <reference>`, and
-`collision <node> <mime> <dest> <asset file> <held by>`.
+Its rows, tab-separated: `placed` or `reused <node> <mime> <dest> <reference>`,
+`collision <node> <mime> <dest> <asset file> <held by>`, and `split <base dest> <dest>...` — one per
+split name, listing what it became. A `split` row is recorded in the report, not a finding: a shared
+name alone never makes this stage ask or fail.
 
-- **Exit `0`** — every noted asset is placed or reused. Continue to **Compose the block CSS and
-  minimal JS**.
-- **Exit `4`** — an icon name is already held by different bytes, and nothing was written. Continue
-  to **Record the icon collision**.
+- **Exit `0`** — every noted asset is placed or reused, split or not. Continue to **Compose the block
+  CSS and minimal JS**.
+- **Exit `4`** — a split name, widened to 8 hex, is still held by different bytes, and nothing was
+  written. Continue to **Record the icon collision**.
 - **Exit `2`** — a noted node has no entry in the list, or an entry is unusable. Go to **Report
   fail**, naming the script's stderr reason.
 
@@ -389,7 +394,7 @@ paths was written to protect.
 ### Flag committed binaries
 
 No asset used — skip the script: continue to **Write the prototype report** with nothing to flag.
-Otherwise run, with every `<dest>` of `placed-assets.tsv`:
+Otherwise run, with the `<dest>` of every `placed` and `reused` row of `placed-assets.tsv`:
 
 ```
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/flag-committed-assets.py \
@@ -534,10 +539,9 @@ From **Record the icon collision** (the first `collision` row names the files):
 - `artifacts`: `.ai/run-context/prototype-report.md`, `.ai/run-context/placed-assets.tsv`
 - `next_action: none`
 - `question`: "`<dest>` is wanted for design node `<node>` (`<asset file>`), but `<held by>` already
-  holds different bytes under that name. Rename or remove one of them, or rename the design layer,
-  and re-run."
-- `blocker`: "an icon file is never overwritten, and choosing which of two different icons keeps
-  the name is not this stage's decision."
+  holds different bytes under that content-hash name. Rename or remove `<held by>`, and re-run."
+- `blocker`: "an icon file is never overwritten, and a content-hash name held by other bytes is
+  not a naming choice this stage can make."
 
 ### Report warn
 
