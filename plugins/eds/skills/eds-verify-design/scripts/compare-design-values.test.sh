@@ -120,9 +120,9 @@ EOF
 }
 
 echo "a padding mismatch is named numerically"
-TSV="1:185${TAB}padding-inline${TAB}22px
-1:185${TAB}padding-block${TAB}14px
-1:185${TAB}border-radius${TAB}1000px
+TSV="1:185${TAB}padding-inline${TAB}22px${TAB}false
+1:185${TAB}padding-block${TAB}14px${TAB}false
+1:185${TAB}border-radius${TAB}1000px${TAB}false
 "
 D="$(case_dir padmismatch "$TSV" "$REPORT" "$(measure_json 20px 1000px normal)")"
 run_compare "$D"
@@ -146,8 +146,8 @@ exit_is "exits 0 when nothing mismatches" 0
 no_line_matching "no mismatch line" "$D" "^mismatch"
 
 echo "radius and gap"
-TSV="1:185${TAB}border-radius${TAB}8px
-1:185${TAB}gap${TAB}8.0px
+TSV="1:185${TAB}border-radius${TAB}8px${TAB}false
+1:185${TAB}gap${TAB}8.0px${TAB}false
 "
 # the report's radius line carries the table's value, so the line is unsplit
 D="$(case_dir radius "$TSV" "${REPORT//1000px/8px}" "$(measure_json 22px 1000px 8px)")"
@@ -159,7 +159,7 @@ has_line "gap 8.0px equals measured 8px after normalising" "$D" \
   "match${TAB}1:185${TAB}.zoki${TAB}gap${TAB}8px"
 
 echo "unequal corners are compared as the browser's string"
-TSV="1:185${TAB}border-radius${TAB}4px 8px
+TSV="1:185${TAB}border-radius${TAB}4px 8px${TAB}false
 "
 D="$(case_dir corners "$TSV" "${REPORT//1000px/4px 8px}" "$(measure_json 22px '4px 8px' normal)")"
 run_compare "$D"
@@ -168,7 +168,7 @@ has_line "two-value radius string matches" "$D" \
   "match${TAB}1:185${TAB}.zoki${TAB}border-radius${TAB}4px 8px"
 
 echo "padding shorthand, one to four values"
-TSV="1:185${TAB}padding${TAB}14px 22px 10px
+TSV="1:185${TAB}padding${TAB}14px 22px 10px${TAB}false
 "
 D="$(case_dir padding3 "$TSV" "$REPORT" "$(measure_json 22px 1000px normal)")"
 run_compare "$D"
@@ -179,10 +179,10 @@ has_line "three-value padding: bottom mismatches" "$D" \
 has_line "three-value padding: left is the right value" "$D" "match${TAB}1:185${TAB}.zoki${TAB}padding-left${TAB}22px"
 
 echo "the older properties, by form"
-TSV="1:185${TAB}background-color${TAB}#DFECC6
-I1:185;1:543${TAB}font-size${TAB}14px
-I1:185;1:543${TAB}line-height${TAB}1.4
-I1:185;1:543${TAB}color${TAB}#1a1a1a
+TSV="1:185${TAB}background-color${TAB}#DFECC6${TAB}false
+I1:185;1:543${TAB}font-size${TAB}14px${TAB}false
+I1:185;1:543${TAB}line-height${TAB}1.4${TAB}false
+I1:185;1:543${TAB}color${TAB}#1a1a1a${TAB}false
 "
 D="$(case_dir older "$TSV" "$REPORT" "$(measure_json 22px 1000px normal)")"
 run_compare "$D"
@@ -197,11 +197,11 @@ has_line "a colour on the nested node" "$D" \
   "match${TAB}I1:185;1:543${TAB}.zoki a${TAB}color${TAB}#1a1a1a"
 
 echo "a property outside the measured set is never compared"
-TSV="1:185${TAB}margin-top${TAB}8px
-1:185${TAB}column-gap${TAB}12px
-1:185${TAB}letter-spacing${TAB}-0.35px
-1:185${TAB}border-top-left-radius${TAB}4px
-1:185${TAB}width${TAB}120px
+TSV="1:185${TAB}margin-top${TAB}8px${TAB}false
+1:185${TAB}column-gap${TAB}12px${TAB}false
+1:185${TAB}letter-spacing${TAB}-0.35px${TAB}false
+1:185${TAB}border-top-left-radius${TAB}4px${TAB}false
+1:185${TAB}width${TAB}120px${TAB}false
 "
 D="$(case_dir outside "$TSV" "$REPORT" "$(measure_json 22px 1000px normal)")"
 run_compare "$D"
@@ -215,7 +215,7 @@ has_line "a per-corner radius is unmeasured, never inferred" "$D" \
 no_line_matching "no match or mismatch line at all" "$D" "^(match|mismatch)${TAB}"
 
 echo "a node the report names no selector for"
-TSV="7:7${TAB}padding${TAB}8px
+TSV="7:7${TAB}padding${TAB}8px${TAB}false
 "
 D="$(case_dir nosel "$TSV" "$REPORT" "$(measure_json 22px 1000px normal)")"
 run_compare "$D"
@@ -228,7 +228,7 @@ REPORT_NF='## Design values
 
 .missing — padding — 8px — source: design_context — token: none — node: 5:5
 '
-TSV="5:5${TAB}padding-top${TAB}8px
+TSV="5:5${TAB}padding-top${TAB}8px${TAB}false
 "
 D="$(case_dir notfound "$TSV" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":false}}}')"
 run_compare "$D"
@@ -241,8 +241,8 @@ has_line "a measurement without the property is unmeasured" "$D" \
   "unmeasured${TAB}5:5${TAB}.missing${TAB}padding-top${TAB}8px: not in the measurement"
 
 echo "values the table form cannot decide"
-TSV="1:185${TAB}padding${TAB}1rem
-1:185${TAB}gap${TAB}var(--space)
+TSV="1:185${TAB}padding${TAB}1rem${TAB}false
+1:185${TAB}gap${TAB}var(--space)${TAB}false
 "
 D="$(case_dir nondecidable "$TSV" "$REPORT" "$(measure_json 22px 1000px normal)")"
 run_compare "$D"
@@ -272,7 +272,7 @@ split_json() {
 }
 EOF
 }
-TSV="1:196${TAB}border-radius${TAB}20px
+TSV="1:196${TAB}border-radius${TAB}20px${TAB}false
 "
 D="$(case_dir split "$TSV" "$REPORT_SPLIT" "$(split_json '20px 20px 0px 0px' '0px 0px 20px 20px')")"
 run_compare "$D"
@@ -341,6 +341,74 @@ exit_is "exits 0" 0
 has_line "compared as the node's value" "$D" \
   "match${TAB}1:196${TAB}.t th:first-child${TAB}border-radius${TAB}20px"
 
+echo "a width that is not approx stays unmeasured"
+TSV="1:185${TAB}width${TAB}120px${TAB}false
+"
+D="$(case_dir structwidth "$TSV" "$REPORT" "$(measure_json 22px 1000px normal)")"
+run_compare "$D"
+exit_is "exits 0" 0
+has_line "a structural width is unmeasured, never listed as approx" "$D" \
+  "unmeasured${TAB}1:185${TAB}-${TAB}width${TAB}120px: not in measure's property set"
+no_line_matching "no approx line" "$D" "^approx"
+
+echo "an approx value is listed, not graded"
+TSV="I1:185;1:543${TAB}width${TAB}94px${TAB}true
+1:185${TAB}padding-inline${TAB}22px${TAB}false
+I1:185;1:543${TAB}height${TAB}20px${TAB}true
+"
+D="$(case_dir approx "$TSV" "$REPORT" "$(measure_json 22px 1000px normal)")"
+run_compare "$D"
+exit_is "an approx mismatch alone exits 0" 0
+has_line "the text width is listed with both values" "$D" \
+  "approx${TAB}I1:185;1:543${TAB}.zoki a${TAB}width${TAB}expected 94px, measured box 76x20px"
+has_line "an approx value equal to the box is listed too" "$D" \
+  "approx${TAB}I1:185;1:543${TAB}.zoki a${TAB}height${TAB}expected 20px, measured box 76x20px"
+no_line_matching "an approx value is never a mismatch" "$D" "^mismatch${TAB}I1:185;1:543${TAB}"
+no_line_matching "an approx value is never unmeasured" "$D" "^unmeasured${TAB}I1:185;1:543${TAB}"
+got="$(cut -f1 "$D/stdout" | tr '\n' ' ')"
+if [ "$got" = "match match approx approx " ]; then ok "approx lines follow every graded line, in their own block"; else bad "approx lines follow every graded line, in their own block" "got: $got"; fi
+
+echo "an approx value next to a graded mismatch"
+D="$(case_dir approxmix "$TSV" "$REPORT" "$(measure_json 20px 1000px normal)")"
+run_compare "$D"
+exit_is "the graded mismatch alone decides exit 1" 1
+has_line "the padding mismatch is graded" "$D" \
+  "mismatch${TAB}1:185${TAB}.zoki${TAB}padding-left${TAB}expected 22px, measured 20px (table: padding-inline 22px)"
+has_line "the width is still listed as approx" "$D" \
+  "approx${TAB}I1:185;1:543${TAB}.zoki a${TAB}width${TAB}expected 94px, measured box 76x20px"
+
+echo "approx aspect ratio and min-height of an image fill"
+REPORT_IMG='## Design values
+
+.card img — aspect-ratio — 16/9 — source: design_context — token: none — node: 8:2
+'
+TSV="8:2${TAB}aspect-ratio${TAB}16/9${TAB}true
+8:2${TAB}min-height${TAB}180px${TAB}true
+"
+D="$(case_dir approximg "$TSV" "$REPORT_IMG" '{"target":"x","results":{".card img":{"found":true,"geometry":{"x":0,"y":0,"width":320.5,"height":200.25},"computed":{}}}}')"
+run_compare "$D"
+exit_is "exits 0" 0
+has_line "aspect-ratio listed against the box" "$D" \
+  "approx${TAB}8:2${TAB}.card img${TAB}aspect-ratio${TAB}expected 16/9, measured box 320.5x200.25px"
+has_line "min-height listed against the box" "$D" \
+  "approx${TAB}8:2${TAB}.card img${TAB}min-height${TAB}expected 180px, measured box 320.5x200.25px"
+
+echo "an approx value that cannot be located is still listed"
+TSV="7:7${TAB}width${TAB}50px${TAB}true
+5:5${TAB}height${TAB}10px${TAB}true
+"
+D="$(case_dir approxnowhere "$TSV" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":false}}}')"
+run_compare "$D"
+exit_is "exits 0" 0
+has_line "no selector for the node" "$D" \
+  "approx${TAB}7:7${TAB}-${TAB}width${TAB}50px: no selector recorded for this node"
+has_line "selector not on the page" "$D" \
+  "approx${TAB}5:5${TAB}.missing${TAB}height${TAB}10px: selector not found on the page"
+D="$(case_dir approxnobox "$TSV" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":true,"geometry":{},"computed":{}}}}')"
+run_compare "$D"
+has_line "a measurement without a box" "$D" \
+  "approx${TAB}5:5${TAB}.missing${TAB}height${TAB}10px: no box in the measurement"
+
 echo "selectors mode"
 D="$(case_dir selectors "" "$REPORT" "{}")"
 python3 "$CMP" selectors "$D/report.md" >"$D/stdout" 2>"$D/stderr"
@@ -362,6 +430,17 @@ printf 'only-two%scolumns\n' "$TAB" > "$D/values.tsv"
 printf '{"target":"x","results":{}}' > "$D/measure.json"
 run_compare "$D"
 exit_is "a malformed table row exits 2" 2
+printf '1:185%spadding%s8px\n' "$TAB" "$TAB" > "$D/values.tsv"
+run_compare "$D"
+exit_is "a row without the approx column exits 2" 2
+printf '1:185%spadding%s8px%syes\n' "$TAB" "$TAB" "$TAB" > "$D/values.tsv"
+run_compare "$D"
+exit_is "an approx column other than true or false exits 2" 2
+for prop in padding-inline gap margin-top border-radius; do
+  printf '1:185%s%s%s8px%strue\n' "$TAB" "$prop" "$TAB" "$TAB" > "$D/values.tsv"
+  run_compare "$D"
+  exit_is "approx true on $prop is refused (exit 2)" 2
+done
 
 echo
 echo "passed: $PASS, failed: $FAIL"

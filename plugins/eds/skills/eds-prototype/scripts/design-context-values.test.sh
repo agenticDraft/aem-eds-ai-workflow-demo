@@ -43,9 +43,9 @@ run_table() {
   STATUS=$?
 }
 
-# has_row <desc> <case-dir> <node> <property> <value>
+# has_row <desc> <case-dir> <node> <property> <value> [approx, default false]
 has_row() {
-  local want="$3$TAB$4$TAB$5"
+  local want="$3$TAB$4$TAB$5$TAB${6:-false}"
   if grep -qxF -- "$want" "$2/stdout"; then ok "$1"; else bad "$1" "want: $want" "got: $(cat "$2/stdout")"; fi
 }
 
@@ -137,7 +137,97 @@ has_row "font size keyed by the nested instance node" "$D" "I1:185;1:543" "font-
 if grep -q "9px" "$D/stdout"; then bad "an element with no data-node-id gives no row" "$(cat "$D/stdout")"; else ok "an element with no data-node-id gives no row"; fi
 row_count "rows in document order, nothing extra" "$D" 6
 first="$(head -1 "$D/stdout")"
-if [ "$first" = "1:185${TAB}background-color${TAB}#dfecc6" ]; then ok "first row is the first class of the first element"; else bad "first row is the first class of the first element" "got: $first"; fi
+if [ "$first" = "1:185${TAB}background-color${TAB}#dfecc6${TAB}false" ]; then ok "first row is the first class of the first element"; else bad "first row is the first class of the first element" "got: $first"; fi
+
+# with_assets <case-dir> <json array> — sets the reference's assets list
+with_assets() {
+  jq --argjson a "$2" '.assets = $a' "$1/.ai/run-context/design-reference.json" > "$1/ref.json" \
+    && mv "$1/ref.json" "$1/.ai/run-context/design-reference.json"
+}
+
+echo "approx: a text node's width is content-dependent"
+D="$(case_dir approxtext '<p className="w-[94px] h-[20px] min-h-[20px] px-[4px] gap-[2px] mt-[3px] text-[14px]" data-node-id="I1:185;1:543">Learn More</p>')"
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+has_row "width on a text node is approx" "$D" "I1:185;1:543" "width" "94px" true
+has_row "height on a text node is approx" "$D" "I1:185;1:543" "height" "20px" true
+has_row "min-height on a text node is approx" "$D" "I1:185;1:543" "min-height" "20px" true
+has_row "padding on a text node is never approx" "$D" "I1:185;1:543" "padding-inline" "4px" false
+has_row "gap on a text node is never approx" "$D" "I1:185;1:543" "gap" "2px" false
+has_row "margin on a text node is never approx" "$D" "I1:185;1:543" "margin-top" "3px" false
+has_row "font-size on a text node is not approx" "$D" "I1:185;1:543" "font-size" "14px" false
+
+echo "approx: a frame that contains a text node"
+D="$(case_dir approxcontains 'export default function Cell() {
+  const label = "not rendered";
+  return (
+    <div className="h-[96px] w-[400px] px-[30px] py-[40px] rounded-[20px]" data-node-id="1:197" data-name="table item">
+      <div className="w-[51px] max-w-[60px]" data-node-id="1:198">
+        <p className="leading-[1.2]">Area</p>
+      </div>
+    </div>
+  );
+}')"
+run_table "$D"
+has_row "a frame's height is approx when a descendant holds text" "$D" "1:197" "height" "96px" true
+has_row "a frame's width is approx when a descendant holds text" "$D" "1:197" "width" "400px" true
+has_row "the frame's padding is never approx" "$D" "1:197" "padding-inline" "30px" false
+has_row "the frame's radius is not approx" "$D" "1:197" "border-radius" "20px" false
+has_row "a text node whose copy sits in a child without a node id" "$D" "1:198" "width" "51px" true
+has_row "max-width is never approx" "$D" "1:198" "max-width" "60px" false
+
+echo "approx: a frame with no text and no image"
+D="$(case_dir approxstruct '<>
+  <div className="w-[320px] h-[200px] min-h-[100px] p-[16px]" data-node-id="6:1">
+    <div className="w-[10px] h-[10px]" data-node-id="6:2" />
+    <div className="h-[4px]" data-node-id="6:3">{/* a comment is not copy */}</div>
+    <span className="w-[2px]" data-node-id="6:4">   </span>
+  </div>
+  <p data-node-id="6:5">copy after the frame closes</p>
+</>')"
+run_table "$D"
+has_row "a box with no copy keeps an exact width" "$D" "6:1" "width" "320px" false
+has_row "a box with no copy keeps an exact height" "$D" "6:1" "height" "200px" false
+has_row "a box with no copy keeps an exact min-height" "$D" "6:1" "min-height" "100px" false
+has_row "a self-closing child is not text" "$D" "6:2" "width" "10px" false
+has_row "a JSX comment is not text" "$D" "6:3" "height" "4px" false
+has_row "whitespace is not text" "$D" "6:4" "width" "2px" false
+
+echo "approx: a string expression is copy"
+D="$(case_dir approxexpr '<p className="w-[40px]" data-node-id="7:1">'"$OB"'"Dr. Jekyll"}</p><p className="w-[41px]" data-node-id="7:2">'"$OB"'label}</p>')"
+run_table "$D"
+has_row "a string literal in braces is text" "$D" "7:1" "width" "40px" true
+has_row "a bare identifier in braces decides nothing" "$D" "7:2" "width" "41px" false
+
+echo "approx: an image fill"
+D="$(case_dir approximage 'const imgHero = ".ai/figma/assets/aa.png";
+const imgIcon = ".ai/figma/assets/bb.svg";
+export default function Card() {
+  return (
+    <div className="p-[24px]" data-node-id="8:1">
+      <div className="aspect-[16/9] w-[320px] rounded-[8px] gap-[4px]" data-node-id="8:2" data-name="Hero">
+        <img alt="" className="absolute inset-0 size-full" src='"$OB"'imgHero} />
+      </div>
+      <div className="w-[14px] h-[14px]" data-node-id="I8:3;1:563" data-name="Check icon">
+        <img alt="" src='"$OB"'imgIcon} />
+      </div>
+      <div className="h-[48px]" data-node-id="8:4">
+        <img alt="" src='"$OB"'imgHero} />
+      </div>
+    </div>
+  );
+}')"
+with_assets "$D" '[{"node_id":"8:2","file":".ai/figma/assets/aa.png","mime":"image/png"},
+  {"node_id":"I8:3;1:563","file":".ai/figma/assets/bb.svg","mime":"image/svg+xml"}]'
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+has_row "aspect-[16/9] is aspect-ratio" "$D" "8:2" "aspect-ratio" "16/9" true
+has_row "an image fill's width is approx" "$D" "8:2" "width" "320px" true
+has_row "an image fill's radius is not approx" "$D" "8:2" "border-radius" "8px" false
+has_row "an image fill's gap is never approx" "$D" "8:2" "gap" "4px" false
+has_row "a vector asset is not an image fill" "$D" "I8:3;1:563" "width" "14px" false
+has_row "an image the assets list does not name decides nothing" "$D" "8:4" "height" "48px" false
+has_row "the parent of an image fill is not approx by it" "$D" "8:1" "padding" "24px" false
 
 echo "design_context: null, with a stale reference-code file present"
 D="$(case_dir null '<a className="px-[99px]" data-node-id="9:9">stale</a>')"
