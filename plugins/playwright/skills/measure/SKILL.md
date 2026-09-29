@@ -15,6 +15,18 @@ and `border-radius`, each as the browser's computed string. Padding is reported 
 longhands only, never a shorthand; `border-radius` is one string, a single length when all four
 corners are equal.
 
+The read is taken only once the page has settled:
+
+- every named selector that matches an element matches a visible one (a non-empty box, not
+  `visibility: hidden`);
+- the document's fonts have finished loading;
+- two consecutive snapshots of every selector, taken 250 ms apart, are identical.
+
+The wait is bounded at 10 s. A page that does not settle within it fails, with the reason in the
+envelope's `summary`, and no file is written; an unsettled read is never returned. A selector that
+matches nothing is not waited for, and is reported as not found (`found: false`) once the page has
+settled.
+
 ## Input
 
 One line naming the target, then one or more selector lines:
@@ -35,5 +47,5 @@ selector: <a CSS selector>
    this operation must return (see the `agentic-core` plugin's `shared/result-envelope.md`, which
    this pack depends on, for the exact shape).
 
-The script alone decides `pass` versus `fail` from the live navigation outcome; nothing here makes
+The script alone decides `pass` versus `fail` from the live navigation and settle outcome; nothing here makes
 that decision, so there is no branch in this skill's own control flow.
