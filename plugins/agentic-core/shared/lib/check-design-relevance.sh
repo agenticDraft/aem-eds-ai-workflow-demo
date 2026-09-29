@@ -46,17 +46,22 @@
 #   design keywords: <sorted, comma-separated>
 #   matching names: <sorted, semicolon-separated> | none
 #
-#   relevance: not run (<reason>)
+#   relevance: not run (<what was missing>)
 #     when the fact record's design_source and design_mentioned are both
 #     false, when no design reference file exists, or when its
-#     design_context is null.
+#     design_context is null; otherwise naming, separated by '; ', each of
+#     a missing node_name, a missing design_context.code_file, a code file
+#     that does not exist, and a code file with no data-name values.
 #
 # Exit codes:
 #   0 — a decision was printed: match, low or not run. A low score is a
-#       finding for the caller to record, never a failure.
-#   2 — usage error: missing argument, spec or fact record not found, spec
-#       with no summary heading, design reference not valid JSON, or a
-#       design context naming a code file that does not exist.
+#       finding for the caller to record, never a failure; not run is no
+#       finding.
+#   2 — usage error, no decision printed: missing argument, spec or fact
+#       record not found, spec with no summary heading, design reference not
+#       a JSON object, design_context neither null nor an object, or a
+#       node_name or code_file present but not a string. The caller treats
+#       it as a check that could not run (gate-contract.md).
 #
 # Requires: jq.
 
@@ -143,21 +148,42 @@ fi
 jq -e 'type == "object"' "$REFERENCE" > /dev/null 2>&1 || usage "design reference is not a JSON object: $REFERENCE"
 
 CONTEXT_KIND=$(jq -r 'if .design_context == null then "null"
-  elif (.design_context | type) == "object" and (.design_context.code_file | type) == "string" then "file"
+  elif (.design_context | type) != "object" then "malformed"
+  elif .design_context.code_file == null then "absent"
+  elif (.design_context.code_file | type) == "string" then "file"
+  else "malformed" end' "$REFERENCE")
+NODE_KIND=$(jq -r 'if (.node_name == null or .node_name == "") then "absent"
+  elif (.node_name | type) == "string" then "name"
   else "malformed" end' "$REFERENCE")
 
-case "$CONTEXT_KIND" in
-  null)
-    echo "relevance: not run (the design reference has no design context)"
-    exit 0
-    ;;
-  malformed)
-    usage "design_context must be null or an object with a code_file path: $REFERENCE"
-    ;;
-esac
+[ "$CONTEXT_KIND" != malformed ] \
+  || usage "design_context must be null or an object whose code_file is a path: $REFERENCE"
+[ "$NODE_KIND" != malformed ] || usage "node_name must be a string: $REFERENCE"
 
-CODE_FILE=$(resolve "$(jq -r '.design_context.code_file' "$REFERENCE")")
-[ -f "$CODE_FILE" ] || usage "design context code file not found: $CODE_FILE"
+if [ "$CONTEXT_KIND" = null ]; then
+  echo "relevance: not run (the design reference has no design context)"
+  exit 0
+fi
+
+MISSING=()
+[ "$NODE_KIND" = name ] || MISSING+=("no node_name")
+CODE_FILE=""
+if [ "$CONTEXT_KIND" = absent ]; then
+  MISSING+=("no design_context.code_file")
+else
+  CODE_FILE=$(resolve "$(jq -r '.design_context.code_file' "$REFERENCE")")
+  if [ ! -f "$CODE_FILE" ]; then
+    MISSING+=("no design-context file at $CODE_FILE")
+  elif ! grep -qE "data-name=(\"[^\"]*\"|'[^']*')" "$CODE_FILE"; then
+    MISSING+=("no data-name values in $CODE_FILE")
+  fi
+fi
+
+if [ "${#MISSING[@]}" -gt 0 ]; then
+  REASON=$(printf '%s\n' "${MISSING[@]}" | paste -sd';' - | sed 's/;/; /g')
+  echo "relevance: not run ($REASON)"
+  exit 0
+fi
 
 SUMMARY=$(sed -n 's/^# //p' "$SPEC" | head -1)
 [ -n "${SUMMARY//[[:space:]]/}" ] || usage "spec has no summary heading (a first '# ' line): $SPEC"

@@ -60,8 +60,8 @@ regardless of what requirements exist — and are out of scope for this shape: t
 ## Design relevance — a finding, never a criterion
 
 When the item carries a design reference, the plan gate's deterministic half also asks whether the
-design is about the same thing as the item. It is not a fifth criterion: it cannot fail the gate
-and never asks a question. It only adds a finding.
+design is about the same thing as the item. It is not a fifth criterion: its decision cannot fail
+the gate and never asks a question. At most it adds a finding.
 
 - **Item keywords** — the tokens of the sanitized spec's summary (its first `# ` heading) and of
   each entry of the fact record's `components`.
@@ -79,13 +79,15 @@ and never asks a question. It only adds a finding.
 |---|---|---|
 | `match` | 2 or more matching names | records the line in its report; no finding |
 | `low` | fewer than 2 | records a finding naming both keyword lists; at most `warn` |
-| `not run` | the item has no design reference, or the reference's `design_context` is null | records the line in its report; no finding |
+| `not run` | the item has no design reference, its `design_context` is null, or it lacks `node_name`, the code file or any `data-name` value | records the line in its report; no finding, no `warn` |
 
-A checker that cannot run to a decision (exit `2`) is recorded as a finding naming its error — it
-still never fails the gate.
+A `not run` line names what was missing. A checker that exits `2` — a usage error or a malformed
+design reference — has not run to a decision: a contract violation, as `gate-contract.md` states
+for every deterministic check, and the gate fails.
 
 Checker: `lib/check-design-relevance.sh <root> <spec> <fact record> <design reference>` — exit `0`
-on every decision, first stdout line `relevance: match | low | not run (…)`; `2` for a usage error.
+on every decision, first stdout line `relevance: match | low | not run (…)`; `2` for a usage error
+or malformed input, with no decision line.
 Fixtures: `fixtures/design-relevance/`.
 
 ```bash
@@ -98,7 +100,8 @@ bash plugins/agentic-core/shared/lib/check-design-relevance.test.sh
   some requirement should name it; if no requirement does, criterion 2 is doing its job.
 - A criterion phrased so its answer could be "sort of" or "mostly" — see `gate-contract.md`'s
   reject condition.
-- Answering a `low` relevance score with `fail`, or reading a design's rendered copy as its names.
+- Answering a `low` relevance score with `fail`, a `not run` with a finding, or a checker exit `2`
+  with anything but a contract violation; or reading a design's rendered copy as its names.
 - Treating criteria 3 and 4 as skippable because 1 and 2 passed. Passing the deterministic half is
   what earns criteria 3 and 4 a model's attention, not a reason to skip them.
 
