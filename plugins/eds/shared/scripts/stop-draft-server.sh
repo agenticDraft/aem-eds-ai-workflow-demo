@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# stop-draft-server.sh — Stops this stage's own draft server, if this run
-# started one. No model involved.
+# stop-draft-server.sh — Stops the draft server by its pid file. No model
+# involved. Called only by clean-drafts.sh, once no recorded change is still
+# open.
 #
-# Safe to call unconditionally on every exit path: start-draft-server.sh
-# writes the pid file only when it actually launched a process itself, never
-# when it found one already answering, so calling this when nothing was
-# started here is a no-op rather than something the caller must check for
-# first.
+# A missing pid file is a no-op: start-draft-server.sh writes it only when it
+# launched the process itself, never when it found one already answering.
 #
 # Usage:
 #   stop-draft-server.sh <pid-path>

@@ -110,17 +110,11 @@ digraph eds_verify_design {
 }
 ```
 
-## Teardown
+## The draft server outlives this stage
 
-Every path through this graph ends in one of the four `Report` nodes, and every one of them, before
-emitting its `## Result` block, runs:
-
-```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/stop-draft-server.sh \
-  .ai/run-context/draft-server.pid
-```
-
-See `../shared/draft-server.md` for why this is safe to call unconditionally on every exit path.
+This stage never stops the draft server. `eds-verify` renders through the same server later in the
+route, and the target reported here must still answer when a reviewer opens it; only `eds-serve`'s
+cleanup stops it (`../../shared/draft-server.md`).
 
 ## Node Details
 
@@ -186,9 +180,11 @@ server.md`):
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
   <paths.preview value> \
-  .ai/run-context/draft-server.log \
-  .ai/run-context/draft-server.pid
+  .ai/logs/draft-server.log \
+  .ai/logs/draft-server.pid
 ```
+
+It reuses a draft server already answering (`started=no`) and starts one only when nothing answers.
 
 Record its exit code and its `ready:`/`no-answer:`/`start-failed:` line — the `origin=` and `port=`
 fields on success give the base this stage's render target is built from below.
@@ -433,8 +429,8 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   render operation's own failure summary, or the remaining mismatch count after the last check. Never
   reworded into something more general.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every screenshot, measurement file, and edited block file any check or edit produced,
-  plus `.ai/run-context/verify-design-report.md` when written, plus `.ai/run-context/draft-
-  server.log` when the draft server was the cause; `[]` when nothing ran.
+  plus `.ai/run-context/verify-design-report.md` when written, plus `.ai/logs/draft-server.log`
+  when the draft server was the cause; `[]` when nothing ran.
 - `next_action: none`
 
 ### Report warn

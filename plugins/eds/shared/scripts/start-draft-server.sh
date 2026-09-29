@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# start-draft-server.sh — Deterministic, self-owned lifecycle for this
-# stage's own draft-rendering server. No model involved.
+# start-draft-server.sh — Deterministic start of the draft server. No model
+# involved.
 #
 # eds-serve's own server never mounts drafts/ (only --html-folder does that,
-# and the project's configured serve command does not pass it), so nothing
-# eds-serve started can ever render drafts/<item_id>.plain.html. This stage
-# does not share that server: it starts its own, on the next port after the
-# configured preview's, mounted at /drafts. stop-draft-server.sh (this same
-# skill's own scripts/) stops it again before this stage returns.
+# and the project's configured serve command does not pass it). The draft
+# server runs on the next port after the configured preview's, mounted at
+# /drafts, and serves every item's draft. It is long-lived: no stage that
+# renders a draft stops it. Only clean-drafts.sh, run by eds-serve, stops it,
+# by the pid file this script writes.
 #
-# Polls before starting, for the same reason eds-serve's own start-serve.sh
-# does: a previous run of this same stage that crashed before its own
-# teardown ran can leave one still answering.
+# Polls before starting: the server an earlier stage or run started is
+# normally still answering, and is reused. The pid file is written only when
+# this call launched the process itself.
 #
 # Usage:
 #   start-draft-server.sh <preview-url> <log-path> <pid-path>

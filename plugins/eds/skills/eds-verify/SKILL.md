@@ -101,19 +101,11 @@ digraph eds_verify {
 }
 ```
 
-## Teardown
+## The draft server outlives this stage
 
-Every path through this graph ends in one of the four `Report` nodes, and every one of them, before
-emitting its `## Result` block, runs:
-
-```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/stop-draft-server.sh \
-  .ai/run-context/draft-server.pid
-```
-
-See `../shared/draft-server.md` for why this is safe to call unconditionally on every exit path,
-including every path through this graph that never started a draft server at all (most of them —
-this stage only starts one when **Located path a drafts/ fixture?** says yes).
+This stage never stops the draft server. It is long-lived so the target this stage reports still
+answers when a reviewer opens it; only `eds-serve`'s cleanup stops it
+(`../../shared/draft-server.md`).
 
 ## Node Details
 
@@ -239,15 +231,14 @@ server.md`):
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
   <paths.preview value> \
-  .ai/run-context/draft-server.log \
-  .ai/run-context/draft-server.pid
+  .ai/logs/draft-server.log \
+  .ai/logs/draft-server.pid
 ```
 
 Record its exit code and its `ready:`/`no-answer:`/`start-failed:` line — the `origin=` field on
-success gives the base **Render the target page** builds its target URL from below. A dedicated
-draft server started earlier in this same route (by `eds-verify-design`, if that stage also ran) is
-already stopped by the time this stage runs — each stage's own server is self-owned and torn down
-before that stage returns, so this stage polls first the same way, and starts its own if nothing
+success gives the base **Render the target page** builds its target URL from below. The draft
+server is normally already answering — started by `eds-verify-design` earlier in this route, or by
+an earlier run — and is then reused (`started=no`); the script starts one only when nothing
 answers.
 
 ### Draft server answering?
