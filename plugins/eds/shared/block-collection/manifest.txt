@@ -1,0 +1,20 @@
+# Upstream block collection, pinned (D528). Written by
+# refresh-block-collection.sh — never edit by hand; refresh through a PR.
+repo=https://github.com/adobe/aem-block-collection.git
+commit=69d7d50839009376687f105cf1e323e05f4ecad2
+block=accordion
+block=cards
+block=carousel
+block=columns
+block=embed
+block=footer
+block=form
+block=fragment
+block=header
+block=hero
+block=modal
+block=quote
+block=search
+block=table
+block=tabs
+block=video
