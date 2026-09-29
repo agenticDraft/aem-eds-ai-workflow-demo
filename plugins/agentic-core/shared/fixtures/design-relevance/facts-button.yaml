@@ -1,0 +1,13 @@
+item_id: "DEMO-2"
+item_type: Story
+labels: []
+components: ["button", cta]
+files_named: []
+
+design_source: true
+design_mentioned: true
+
+has_description: true
+has_acceptance_criteria: true
+has_reproduction_url: false
+has_reproduction_steps: false

@@ -1,0 +1,12 @@
+{
+  "source_kind": "image",
+  "reference": "mockup.png (image attachment)",
+  "node_name": null,
+  "has_values": false,
+  "variables": null,
+  "geometry": null,
+  "design_context": null,
+  "reference_image": "mockup.png",
+  "mime": "image/png",
+  "assets": []
+}

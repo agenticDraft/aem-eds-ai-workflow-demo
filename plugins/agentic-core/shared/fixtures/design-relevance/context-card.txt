@@ -1,0 +1,7 @@
+export default function Grid() {
+  return (
+    <div data-name="Mobile/Card" data-node-id="2:1">
+      <div data-name="Image wrapper" data-node-id="2:2" />
+    </div>
+  );
+}
