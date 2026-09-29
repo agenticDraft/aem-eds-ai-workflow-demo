@@ -7,8 +7,10 @@
 # plurals, hyphens); a matching pair; a mismatching pair, including copy
 # inside the design context that shares the item's words and is never
 # counted; the threshold at exactly 1 and exactly 2; the three name
-# prefixes stripped; image mode and an item with no design reported as not
-# run; every outcome exiting 0; and the usage errors.
+# prefixes stripped; image mode, an item with no design, a missing node_name,
+# a missing code file and no data-name values reported as not run, as one
+# line naming what was missing; every outcome exiting 0; a field of the wrong
+# type and the usage errors exiting 2 with no decision line.
 
 set -uo pipefail
 
@@ -123,6 +125,68 @@ OUT=$(bash "$CHECK" "$FIX" spec-table.md facts-table.yaml absent-reference.json 
 assert_eq "exit 0" 0 "$ST"
 assert_contains "reported as not run, naming the path" "relevance: not run (no design reference at " "$OUT"
 
+# ref <file> <jq filter>: writes reference-table.json, transformed by the filter, into $WORK.
+ref() { jq "$2" "$FIX/reference-table.json" > "$WORK/$1"; }
+cp "$FIX/spec-table.md" "$FIX/facts-table.yaml" "$FIX/context-table.txt" "$WORK/"
+printf '<div className="flex">\n  <p>Table copy only</p>\n</div>\n' > "$WORK/context-bare.txt"
+
+# not_run <desc> <reference> <want first line>: exit 0, exactly one line, no keyword lists.
+not_run() {
+  local out st
+  out=$(bash "$CHECK" "$WORK" spec-table.md facts-table.yaml "$2" 2>&1); st=$?
+  assert_eq "$1: exit 0" 0 "$st"
+  assert_eq "$1: one line, nothing to record as a finding" "$3" "$out"
+}
+
+echo "[not run] a missing node_name"
+ref ref-no-node.json 'del(.node_name)'
+not_run "node_name absent" ref-no-node.json "relevance: not run (no node_name)"
+ref ref-null-node.json '.node_name = null'
+not_run "node_name null" ref-null-node.json "relevance: not run (no node_name)"
+ref ref-empty-node.json '.node_name = ""'
+not_run "node_name empty" ref-empty-node.json "relevance: not run (no node_name)"
+
+echo "[not run] a missing design-context code file"
+not_run "code file named but absent" "$FIX/reference-missing-code.json" \
+  "relevance: not run (no design-context file at $WORK/absent-context.txt)"
+ref ref-no-code-key.json '.design_context = {styles: ""}'
+not_run "design_context without code_file" ref-no-code-key.json "relevance: not run (no design_context.code_file)"
+ref ref-null-code.json '.design_context.code_file = null'
+not_run "code_file null" ref-null-code.json "relevance: not run (no design_context.code_file)"
+
+echo "[not run] no element names in the design context"
+ref ref-bare.json '.design_context.code_file = "context-bare.txt"'
+not_run "no data-name values" ref-bare.json "relevance: not run (no data-name values in $WORK/context-bare.txt)"
+
+echo "[not run] every missing field is named"
+ref ref-two-missing.json 'del(.node_name) | .design_context.code_file = "context-bare.txt"'
+not_run "node_name and data-name values both missing" ref-two-missing.json \
+  "relevance: not run (no node_name; no data-name values in $WORK/context-bare.txt)"
+
+echo "[malformed] a field of the wrong type is a usage error, never not run"
+ref ref-node-number.json '.node_name = 7'
+OUT=$(bash "$CHECK" "$WORK" spec-table.md facts-table.yaml ref-node-number.json 2>&1); ST=$?
+assert_eq "node_name not a string: exit 2" 2 "$ST"
+assert_not_contains "no decision line" "relevance:" "$OUT"
+ref ref-code-number.json '.design_context.code_file = 7'
+OUT=$(bash "$CHECK" "$WORK" spec-table.md facts-table.yaml ref-code-number.json 2>&1); ST=$?
+assert_eq "code_file not a string: exit 2" 2 "$ST"
+assert_not_contains "no decision line" "relevance:" "$OUT"
+ref ref-context-string.json '.design_context = "context-table.txt"'
+OUT=$(bash "$CHECK" "$WORK" spec-table.md facts-table.yaml ref-context-string.json 2>&1); ST=$?
+assert_eq "design_context neither null nor an object: exit 2" 2 "$ST"
+assert_not_contains "no decision line" "relevance:" "$OUT"
+printf '[1, 2]' > "$WORK/ref-array.json"
+OUT=$(bash "$CHECK" "$WORK" spec-table.md facts-table.yaml ref-array.json 2>&1); ST=$?
+assert_eq "reference not a JSON object: exit 2" 2 "$ST"
+
+echo "[low] still a decision with its keyword lists, exit 0"
+ref ref-low.json '.'
+OUT=$(bash "$CHECK" "$WORK" "$FIX/spec-button.md" "$FIX/facts-button.yaml" ref-low.json 2>&1); ST=$?
+assert_eq "exit 0" 0 "$ST"
+assert_eq "first line is low" "relevance: low (0 of 4 design names share an item keyword; threshold 2)" "$(head -1 <<< "$OUT")"
+assert_contains "keyword lists printed" "item keywords: button, cta, hover, primary, state" "$OUT"
+
 echo "[usage]"
 OUT=$(bash "$CHECK" 2>&1); ST=$?
 assert_eq "no arguments: exit 2" 2 "$ST"
@@ -134,9 +198,6 @@ assert_eq "missing fact record: exit 2" 2 "$ST"
 OUT=$(bash "$CHECK" "$FIX" spec-no-summary.md facts-table.yaml reference-table.json 2>&1); ST=$?
 assert_eq "spec with no summary heading: exit 2" 2 "$ST"
 assert_contains "names the missing summary" "summary" "$OUT"
-OUT=$(bash "$CHECK" "$FIX" spec-table.md facts-table.yaml reference-missing-code.json 2>&1); ST=$?
-assert_eq "design context names a missing file: exit 2" 2 "$ST"
-assert_contains "names the missing file" "absent-context.txt" "$OUT"
 printf 'not json' > "$WORK/broken.json"
 OUT=$(bash "$CHECK" "$WORK" "$FIX/spec-table.md" "$FIX/facts-table.yaml" broken.json 2>&1); ST=$?
 assert_eq "reference that is not JSON: exit 2" 2 "$ST"
