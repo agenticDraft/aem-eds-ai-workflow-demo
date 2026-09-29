@@ -44,7 +44,9 @@ own question, read only through this stage's own `scripts/resolve-target.py` (wh
 `scripts/design-context-values.py`, and each viewport variant's reference code, read only through
 this stage's own `scripts/viewport-overrides.py`. The asset files `design-reference.json`'s `assets`
 list names are placed only through this stage's own `scripts/place-assets.py`. The pack's pinned
-upstream block collection (D528) is read only through `../../shared/scripts/copy-upstream-blocks.sh`. It calls no `tracker`/`scm`/`design`/
+upstream block collection (D528) is read only through `../../shared/scripts/copy-upstream-blocks.sh`.
+Whether a fixed width or height in the block CSS comes from its node is decided only by
+`../../shared/scripts/check-size-origin.py` (D541). It calls no `tracker`/`scm`/`design`/
 `browser` role operation — building the prototype is a content-authoring step, not a render/capture/
 measure step; `eds-verify-design` (not yet built) is the stage that renders and compares it.
 
@@ -69,6 +71,7 @@ digraph eds_prototype {
     "Write the prototype files" [shape=box];
     "Flag committed binaries" [shape=box];
     "Write the prototype report" [shape=box];
+    "Check the size origin" [shape=box];
     "Check the optimise flags" [shape=box];
     "Any degradation to report?" [shape=diamond];
     "Report fail" [shape=doublecircle];
@@ -103,7 +106,9 @@ digraph eds_prototype {
     "Write the prototype files" -> "Flag committed binaries";
     "Flag committed binaries" -> "Write the prototype report" [label="exit 0"];
     "Flag committed binaries" -> "Report fail" [label="exit 2"];
-    "Write the prototype report" -> "Check the optimise flags";
+    "Write the prototype report" -> "Check the size origin";
+    "Check the size origin" -> "Check the optimise flags" [label="exit 0"];
+    "Check the size origin" -> "Report fail" [label="exit 1 or 2"];
     "Check the optimise flags" -> "Any degradation to report?" [label="exit 0"];
     "Check the optimise flags" -> "Report fail" [label="exit 1 or 2"];
     "Any degradation to report?" -> "Report warn" [label="yes"];
@@ -392,6 +397,14 @@ first source that supplies it, in this order, and record which one it came from:
 Write every table row the composed markup has an element for, as its property and value, in the
 CSS rule for that element.
 
+Write a fixed `width` or `height` (a length, not `min-*`, `max-*`, `auto` or a percentage) only as a
+`design_context` row on that element's own node, with that row's exact value. Never write one from
+`geometry`, and never derive one from other values (a frame's height minus its padding is not the
+design's value). Text that needs more room than a fixed box overflows it while the box itself looks
+right, so a size the design does not put on the node is refused by **Check the size origin**. This
+stage renders nothing, so that check cannot tell an element holding text from one holding an icon,
+and refuses an untied fixed size on either.
+
 With viewports, `viewport-overrides.tsv` replaces `design-context-values.tsv` as the
 `design_context` source, and the CSS is mobile-first:
 
@@ -447,7 +460,9 @@ so every committed raster image is flagged, whatever its size. Its rows: `ignore
 
 ### Write the prototype report
 
-Write `.ai/run-context/prototype-report.md`: the target block name; whether it was new or existing
+Write the report to `.ai/run-context/prototype-report.draft.md`; **Check the size origin** moves it
+to `.ai/run-context/prototype-report.md` once the check passes, so a report is never handed on for
+CSS that check refuses. The report holds: the target block name; whether it was new or existing
 (and any disagreement with `design-conventions.md`'s own reuse line, per **Block already
 exists?**); every `copied=` file from **Copy an upstream block** with the collection's pinned commit
 (the `upstream_manifest=` line), or `upstream_unknown`; every file written or updated
@@ -497,6 +512,25 @@ its fifth column, exactly, as a list item:
 ```
 
 With no `flag` row, write "none" under that heading.
+
+### Check the size origin
+
+Run, without a measurement, since this stage renders nothing:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-size-origin.py \
+  check blocks/<name>/<name>.css .ai/run-context/prototype-report.draft.md \
+  <.ai/run-context/design-context-values.tsv, or - when the design-context script exited 3>
+```
+
+It reports every fixed width or height in the block CSS that no `## Design values` line ties to a
+node whose table row has that property and value, one `hit` line each. Take them as given.
+
+- **Exit `0`** — move `.ai/run-context/prototype-report.draft.md` to
+  `.ai/run-context/prototype-report.md`, then continue to **Check the optimise flags**.
+- **Exit `1`** — go to **Report fail**, naming the first `hit` line's selector, property and value.
+  Do not write `prototype-report.md`: `verify-design` would compare CSS this check refused.
+- **Exit `2`** — go to **Report fail**, naming the script's stderr reason.
 
 ### Check the optimise flags
 
@@ -554,8 +588,8 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   `design-conventions.md` — verbatim, never reworded into something more general; or, from
   **Target block identified?**, the reason `resolve-target.py` gave for refusing the answer file or
   the fact record; or, from **Read the design-context values**, the reason `design-context-values.py` gave;
-  or, from **Copy an upstream block**, **Place the assets**, **Flag committed binaries** or **Check
-  the optimise flags**, the reason that script gave.
+  or, from **Copy an upstream block**, **Place the assets**, **Flag committed binaries**, **Check
+  the size origin** or **Check the optimise flags**, the reason that script gave.
 - `artifacts: []`
 - `next_action: none`
 
@@ -663,3 +697,6 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   currently opens exemplar files named in `plan.yaml`'s `# Conventions:` comment; whether it should
   also treat this stage's own draft as a starting point, or overwrite it unconditionally, is
   `eds-implement`'s and `eds-plan`'s design question, not this stage's.
+- **The size-origin check here is strict, because this stage renders nothing.** It cannot tell an
+  element holding text from one holding an icon, so an untied fixed size on either fails the stage.
+  `eds-verify-design` runs the same check with a measurement, where only a size on text is reported.

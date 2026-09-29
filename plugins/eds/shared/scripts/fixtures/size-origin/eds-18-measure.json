@@ -1,0 +1,101 @@
+{
+  "target": "http://localhost:3001/drafts/EDS-18",
+  "results": {
+    ".table": {
+      "found": true,
+      "geometry": {
+        "x": 40,
+        "y": 64,
+        "width": 1200,
+        "height": 588.78125
+      },
+      "computed": {
+        "color": "rgb(19, 19, 19)",
+        "background-color": "rgba(0, 0, 0, 0)",
+        "font-family": "roboto, roboto-fallback, sans-serif",
+        "font-size": "18px",
+        "font-weight": "400",
+        "line-height": "28.8px",
+        "padding-top": "0px",
+        "padding-right": "0px",
+        "padding-bottom": "0px",
+        "padding-left": "0px",
+        "gap": "normal",
+        "border-radius": "20px"
+      },
+      "holds_text": true
+    },
+    ".table.comparison table th": {
+      "found": true,
+      "geometry": {
+        "x": 40,
+        "y": 64,
+        "width": 402.03125,
+        "height": 98
+      },
+      "computed": {
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "font-family": "\"DM Sans\", roboto, roboto-fallback, sans-serif",
+        "font-size": "25.714px",
+        "font-weight": "500",
+        "line-height": "0px",
+        "padding-top": "40px",
+        "padding-right": "30px",
+        "padding-bottom": "40px",
+        "padding-left": "30px",
+        "gap": "normal",
+        "border-radius": "20px 20px 0px 0px"
+      },
+      "holds_text": true
+    },
+    ".table.comparison table th p": {
+      "found": true,
+      "geometry": {
+        "x": 71,
+        "y": 105,
+        "width": 340.03125,
+        "height": 16
+      },
+      "computed": {
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgba(0, 0, 0, 0)",
+        "font-family": "\"DM Sans\", roboto, roboto-fallback, sans-serif",
+        "font-size": "25.714px",
+        "font-weight": "500",
+        "line-height": "30.8568px",
+        "padding-top": "0px",
+        "padding-right": "0px",
+        "padding-bottom": "0px",
+        "padding-left": "0px",
+        "gap": "normal",
+        "border-radius": "0px"
+      },
+      "holds_text": true
+    },
+    ".table.comparison table td .icon": {
+      "found": true,
+      "geometry": {
+        "x": 71,
+        "y": 195.390625,
+        "width": 14,
+        "height": 14
+      },
+      "computed": {
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgba(0, 0, 0, 0)",
+        "font-family": "\"Roboto Mono\", monospace",
+        "font-size": "12px",
+        "font-weight": "400",
+        "line-height": "16.8px",
+        "padding-top": "0px",
+        "padding-right": "0px",
+        "padding-bottom": "0px",
+        "padding-left": "0px",
+        "gap": "normal",
+        "border-radius": "0px"
+      },
+      "holds_text": false
+    }
+  }
+}

@@ -46,7 +46,8 @@ them as data at fixed paths, and it needs a clear answer when the browser is not
    operation writes so a re-run never overwrites an earlier capture.
 6. **`measure` returns a fixed set of values.** Geometry plus `color`, `background-color`,
    `font-family`, `font-size`, `font-weight`, `line-height`, the four `padding-*` values, `gap`
-   and `border-radius`, per selector.
+   and `border-radius`, per selector, plus `holds_text`: whether any element the selector matches
+   has a non-whitespace text node inside it.
 7. **`interact` snapshots before and after.** Every `read:` selector is captured once before the
    first action and once after the last, with geometry, the same style set, every `aria-*`
    attribute and `class`.
@@ -64,7 +65,7 @@ skills/<operation>/scripts/<operation>.cjs
   └── read or act
         render   → final URL, HTTP status, title, console errors
         capture  → full-page PNG at <width>, path from next-artifact-path.cjs
-        measure  → per-selector geometry and computed styles
+        measure  → per-selector geometry, computed styles and holds_text
         interact → per-selector state before and after the actions
   ↓
 ## Result on stdout, exit 0; the skill returns stdout unchanged
