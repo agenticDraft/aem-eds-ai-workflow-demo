@@ -220,7 +220,19 @@ Build the pull request title and body from what was read above:
 - **Body** — `Item: <item_id> (<item_type>)`, then a `## Requirements` section listing every
   `plan.yaml` requirement id with its own `# req-N:` restatement; when `plan.yaml` is missing, one
   line stating that no plan was found and the change was implemented directly against the sanitized
-  specification instead.
+  specification instead. Then, last, the **Verified locally** block (D535), exactly as this prints
+  it:
+
+  ```
+  python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py block --branch <the branch>
+  ```
+
+  The script reads `.ai/run-context/evidence-manifest.json`, `.ai/project-config.yaml` and
+  `package.json` itself, and prints the target, a line saying the link answers only while the draft
+  server runs and this branch is checked out, and the command that restarts it — or one line saying
+  no verification target is on record. Paste its output unchanged: the tracker note carries the
+  same block from the same script, and a reviewer must see the same target text in both places.
+  Exit `2` is a usage error in this stage's own call; fix the call, never write the block by hand.
 
 Keep both in memory for **Publish the change** and **Report back to the tracker** below.
 
@@ -293,9 +305,16 @@ Capture its entire output. Read the captured envelope's `verdict` and, when pres
 1. Write `.ai/run-context/delivery-report.md`: the item id, the branch, the pull request URL and
    state (from `publish_change`'s own artifact JSON), the check summary and metrics line (from
    `check_status`, or "checks could not be read: <its summary verbatim>" when that operation did
-   not validate), the `## Requirements` section composed in **Compose the change summary**, and,
-   when **Read the evidence manifest** below found one, its own `target`, `target_reachable` and
-   `coverage_gaps` verbatim.
+   not validate), the `## Requirements` section composed in **Compose the change summary**, and the
+   output of
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py report
+   ```
+
+   unchanged: the manifest's `target`, `target_reachable` and every `coverage_gaps` entry verbatim,
+   one line each, or one line saying no manifest is on record. This report is where the full gap
+   list lives (G535); the note below carries only what a person must act on, and points here.
 
 2. **Read the evidence manifest.** `.ai/run-context/evidence-manifest.json`, per
    `../../../agentic-core/shared/evidence-manifest.md`'s shape — written by `verify` and, on a
@@ -333,38 +352,26 @@ Capture its entire output. Read the captured envelope's `verdict` and, when pres
    before this task — it is this stage's own report, not one of the manifest's `attachments:`, so it
    attaches after them, last.
 
-4. **Compose the note** — one paragraph, plain prose, each of the following on its own line:
-   - The change's location: the pull request URL (from **Publish the change**).
-   - The target that was verified: the manifest's own `target`, when a manifest was found; when
-     none was found, state plainly that no verification target is on record for this run.
-   - Whether a person can open it, stated plainly either way: `target_reachable: true` — state the
-     target is open for review at that location; `target_reachable: false` — state plainly that it
-     could not be confirmed open, quoting `target_reachable_reason` verbatim.
+4. **Compose the note** with the script, never by hand (G535):
 
-     **When it is also `false`, check the manifest's own `coverage_gaps` for an entry matching**
-     `"the rendered target was a generated placeholder fixture (<file>), not authored content"` —
-     the exact string `eds-verify/SKILL.md`'s own **Report warn** node writes when this run never
-     located any existing content for the target block. This is the one case this stage can name a
-     remedy for without guessing: the manifest itself already recorded that nothing real stands
-     behind the target, and named the file. **Present** — add one further line, in this
-     project's own terms, never a generic instruction: name the target block(s) — `fact-record.yaml`'s
-     `components` when non-empty, otherwise the `<name>` in `files_named` matching `blocks/<name>/…`,
-     the same resolution **Read the fact record and plan** already has on hand — and the fixture path
-     `<file>` the coverage-gap entry named, phrased as what a person would need to author, for
-     example: "To make this openable, author and publish real `<block>` content — the only content
-     behind this target right now is the generated placeholder fixture at `<file>`." **Absent** — add
-     nothing further; real content already stands behind this target, so there is nothing to author,
-     and inventing a remedy anyway would be exactly the generic-boilerplate line this task's own
-     "Reject if" forbids. Either way, **this stage never authors, generates or publishes anything to
-     make the note read better** (D87) — it only names what the manifest already proved is missing.
-     A location that cannot be proven open, with no remedy line added, is stated as unconfirmed and
-     left there, the same as before this addition.
-   - Any coverage gap the manifest recorded, **in the words it recorded them** — one line per
-     `coverage_gaps` entry, verbatim, never paraphrased or summarized into one sentence. `[]` (or no
-     manifest at all) — omit this part of the note rather than stating "no gaps", since an absent
-     manifest is not the same claim as a manifest that checked and found nothing missing.
-   - The check summary and metrics line already composed in **Check automated status**, kept from
-     today's note — this task adds to what the note carries, it does not remove what already worked.
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py note \
+     --branch <the branch> --item-id <item_id> --pr-url <the pull request URL> \
+     --checks <check_status's written JSON, from its envelope's artifacts; `none` when it wrote none> \
+     [--block-name <the target block>]
+   ```
+
+   `--block-name` is `fact-record.yaml`'s first `components` entry when non-empty, otherwise the
+   `<name>` in `files_named` matching `blocks/<name>/…`; omit it when neither names one. The script
+   prints a short note: the pull request, the same **Verified locally** block the pull request body
+   carries, an **Action needed** list, and a pointer to `delivery-report.md`. It decides what needs a
+   person by the gap's own prefix, not by judgement: a `content-asset gap` entry, the
+   placeholder-fixture gap (turned into a remedy line naming the block and the fixture file), a
+   failing or cancelled check, checks that could not be read, or a manifest that could not be read.
+   None of these → "Nothing to do before merge". "Judged visually only" lines, skipped comparisons
+   and the like stay out of the note; every one of them is already verbatim in
+   `delivery-report.md`, which is attached. Use the output unchanged. This stage never authors,
+   generates or publishes anything to make the note read better (D87).
 
 5. Invoke `Skill(<packs.tracker>:<post_note skill name>)` with:
    ```

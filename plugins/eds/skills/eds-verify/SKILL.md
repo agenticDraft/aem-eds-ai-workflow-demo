@@ -468,7 +468,9 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `blocker`: the script's own `no-answer:`/`start-failed:` line verbatim, followed by the literal
   command a human can run to check or start it themselves (`npm run up:draft`, or this project's
   own configured serve command with `--html-folder drafts` appended) — D89's own requirement that
-  an escalation names something to do, not only something that failed.
+  an escalation names something to do, not only something that failed. When the line is
+  `start-failed: branch name too long`, name renaming the branch to 23 characters or fewer
+  instead (D539): a restart on the same branch fails the same way.
 - `artifacts: []`
 - `next_action: none`
 
