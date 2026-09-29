@@ -88,6 +88,9 @@ jobs:
 
       # Gate 3 — duplicate. Best-effort by design: any API failure logs and
       # proceeds, because the guarantee belongs to the runner's idempotency.
+      # Only OLDER runs count: run ids only increase, so of two racing runs
+      # the older one proceeds. Excluding just this run lets each see the
+      # other and both stop, which starts no run at all.
       - name: Duplicate check
         id: dedup
         if: steps.identity.outputs.verdict == 'allowed'
@@ -98,7 +101,7 @@ jobs:
           THIS_TITLE="route ${ITEM_ID} c${COMMENT_ID}"
           if ! RUNS=$(gh api \
                 "/repos/${GITHUB_REPOSITORY}/actions/workflows/route-trigger.yaml/runs?per_page=20" \
-                --jq ".workflow_runs[] | select(.id != ${GITHUB_RUN_ID}) | .display_title" 2>/dev/null); then
+                --jq ".workflow_runs[] | select(.id < ${GITHUB_RUN_ID}) | .display_title" 2>/dev/null); then
             echo "runs lookup failed; proceeding without a duplicate check"
             echo "verdict=proceed" >> "$GITHUB_OUTPUT"
             exit 0
