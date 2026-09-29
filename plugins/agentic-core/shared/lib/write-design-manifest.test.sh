@@ -53,7 +53,8 @@ assert_not_contains() {
   fi
 }
 
-TMPDIR_ROOT=$(mktemp -d)
+TMPDIR_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/write-design-manifest.XXXXXX") || { echo "cannot create a temp dir" >&2; exit 2; }
+[ -n "$TMPDIR_ROOT" ] && [ -d "$TMPDIR_ROOT" ] || { echo "cannot create a temp dir" >&2; exit 2; }
 trap 'rm -rf "$TMPDIR_ROOT"' EXIT
 
 echo "=== write-design-manifest.sh tests ==="

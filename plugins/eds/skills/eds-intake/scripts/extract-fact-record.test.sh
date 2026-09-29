@@ -39,7 +39,8 @@ run_case() {
   local label="$1" description_text="$2"
   echo "[$label]"
   local tmp fact_record spec item_json
-  tmp="$(mktemp -d)"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/extract-fact-record.XXXXXX")" || { echo "cannot create a temp dir" >&2; exit 2; }
+  [ -n "$tmp" ] && [ -d "$tmp" ] || { echo "cannot create a temp dir" >&2; exit 2; }
   fact_record="$tmp/fact-record.yaml"
   spec="$tmp/sanitized-spec.md"
   item_json="$tmp/item.json"
