@@ -169,6 +169,13 @@ For other environments get owner/repo (`gh repo view --json nameWithOwner`) and 
 4. `gh pr checks` to verify code sync, lint and performance.
 5. A human reviews, inspects the URL, and merges. AEM Code Sync updates production.
 
+**`aem-psi-check` by PR type (G31).** A PR that changes a served path (`blocks/`, `styles/`,
+`scripts/`, `fonts/`, `icons/`, `tools/`, `head.html`, `404.html`, `favicon.ico`; not `*.md`)
+carries its feature preview URL, on a branch of at most 23 characters, so the check measures it.
+An automation-only PR (`plugins/`, `.claude/`, `.github/`, `docs/`, Markdown) carries no preview
+URL and **is expected to fail `aem-psi-check`**. The check is not a required check; do not make it
+one. `plugins/eds/shared/scripts/preview-url.sh` decides the type.
+
 ## Security
 
 - Everything here is client-side code on the public web. There is no server-side half to hide
