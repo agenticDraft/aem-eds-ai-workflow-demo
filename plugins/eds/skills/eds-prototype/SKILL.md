@@ -457,7 +457,19 @@ Add a `## Design values` section with one line per value written to the block CS
 ```
 
 `node:` is required when the source is `design_context`. `token: none` may add `(nearest: --name)`.
-Every value in the CSS has a line, and every `design_context` value names its node. After the lines,
+Every value in the CSS has a line, and every `design_context` value names its node.
+
+A node's value spread over several elements (a column frame's corner radius on its first and last
+cells) gets one line per selector, each carrying the CSS value applied there, still naming the node
+and the plain property — never a qualifier such as `(top)`:
+
+```
+.t th:first-child — border-radius — 20px 20px 0 0 — source: design_context — token: none — node: 1:196
+.t tr:last-child td:first-child — border-radius — 0 0 20px 20px — source: design_context — token: none — node: 1:196
+```
+
+Every component of a split value is `0` or the node's own value in that position; `verify-design`
+refuses any other. After the lines,
 state the row count of `design-context-values.tsv`, or "design_context: null — no design-context
 values" when the script exited `3`, and name any table row not applied, with the reason (no
 composed element for that node).
