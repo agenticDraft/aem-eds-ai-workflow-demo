@@ -149,7 +149,8 @@ echo "radius and gap"
 TSV="1:185${TAB}border-radius${TAB}8px
 1:185${TAB}gap${TAB}8.0px
 "
-D="$(case_dir radius "$TSV" "$REPORT" "$(measure_json 22px 1000px 8px)")"
+# the report's radius line carries the table's value, so the line is unsplit
+D="$(case_dir radius "$TSV" "${REPORT//1000px/8px}" "$(measure_json 22px 1000px 8px)")"
 run_compare "$D"
 exit_is "exits 1" 1
 has_line "a radius mismatch names both values" "$D" \
@@ -160,7 +161,7 @@ has_line "gap 8.0px equals measured 8px after normalising" "$D" \
 echo "unequal corners are compared as the browser's string"
 TSV="1:185${TAB}border-radius${TAB}4px 8px
 "
-D="$(case_dir corners "$TSV" "$REPORT" "$(measure_json 22px '4px 8px' normal)")"
+D="$(case_dir corners "$TSV" "${REPORT//1000px/4px 8px}" "$(measure_json 22px '4px 8px' normal)")"
 run_compare "$D"
 exit_is "exits 0" 0
 has_line "two-value radius string matches" "$D" \
@@ -250,6 +251,95 @@ has_line "rem is not converted" "$D" \
   "unmeasured${TAB}1:185${TAB}.zoki${TAB}padding-top${TAB}1rem: not comparable to the computed value"
 has_line "a var() is not resolved" "$D" \
   "unmeasured${TAB}1:185${TAB}.zoki${TAB}gap${TAB}var(--space): not comparable to the computed value"
+
+echo "a node's radius split over two selectors, as applied (EDS-18 node 1:196)"
+REPORT_SPLIT='## Design values
+
+.t th:first-child, .t td:first-child — border-inline (colour) — var(--divider) — source: design_context — token: --divider — node: 1:196
+.t th:first-child — border-radius — 20px 20px 0 0 — source: design_context — token: none — node: 1:196
+.t tr:last-child td:first-child — border-radius — 0 0 20px 20px — source: design_context — token: none — node: 1:196
+'
+# split_json <th radius> <last td radius>
+split_json() {
+  cat <<EOF
+{
+  "target": "http://localhost:3001/drafts/EDS-18",
+  "results": {
+    ".t th:first-child, .t td:first-child": { "found": true, "geometry": {}, "computed": { "border-radius": "$1" } },
+    ".t th:first-child": { "found": true, "geometry": {}, "computed": { "border-radius": "$1" } },
+    ".t tr:last-child td:first-child": { "found": true, "geometry": {}, "computed": { "border-radius": "$2" } }
+  }
+}
+EOF
+}
+TSV="1:196${TAB}border-radius${TAB}20px
+"
+D="$(case_dir split "$TSV" "$REPORT_SPLIT" "$(split_json '20px 20px 0px 0px' '0px 0px 20px 20px')")"
+run_compare "$D"
+exit_is "a correct split render exits 0" 0
+has_line "top corners match the line's own value" "$D" \
+  "match${TAB}1:196${TAB}.t th:first-child${TAB}border-radius${TAB}20px 20px 0px 0px"
+has_line "bottom corners match the line's own value" "$D" \
+  "match${TAB}1:196${TAB}.t tr:last-child td:first-child${TAB}border-radius${TAB}0px 0px 20px 20px"
+no_line_matching "a selector whose line carries another property is not compared on radius" "$D" \
+  "^[a-z]+${TAB}1:196${TAB}\.t th:first-child, \.t td:first-child${TAB}border-radius${TAB}"
+
+D="$(case_dir splitwrong "$TSV" "$REPORT_SPLIT" "$(split_json '20px 20px 0px 0px' '0px 0px 8px 8px')")"
+run_compare "$D"
+exit_is "a wrong render of a split line exits 1" 1
+has_line "the wrong split is a mismatch against the line's own value" "$D" \
+  "mismatch${TAB}1:196${TAB}.t tr:last-child td:first-child${TAB}border-radius${TAB}expected 0px 0px 20px 20px, measured 0px 0px 8px 8px (split of 20px)"
+has_line "the correct half still matches" "$D" \
+  "match${TAB}1:196${TAB}.t th:first-child${TAB}border-radius${TAB}20px 20px 0px 0px"
+
+echo "a split line whose non-zero component is not the node's value"
+REPORT_OVER='## Design values
+
+.t th:first-child — border-radius — 24px 24px 0 0 — source: design_context — token: none — node: 1:196
+'
+D="$(case_dir splitover "$TSV" "$REPORT_OVER" "$(split_json '24px 24px 0px 0px' '0px')")"
+run_compare "$D"
+exit_is "exits 1 even though the render matches the line" 1
+has_line "the line is refused, naming the node's value" "$D" \
+  "mismatch${TAB}1:196${TAB}.t th:first-child${TAB}border-radius${TAB}expected 20px, measured 24px 24px 0px 0px (line: 24px 24px 0 0 is not a split of 20px)"
+
+echo "an unsplit line keeps today's rule"
+REPORT_WHOLE='## Design values
+
+.t th:first-child — border-radius — 20px — source: design_context — token: none — node: 1:196
+'
+D="$(case_dir unsplit "$TSV" "$REPORT_WHOLE" "$(split_json '20px 20px 0px 0px' '0px')")"
+run_compare "$D"
+exit_is "exits 1" 1
+has_line "compared against the node's value" "$D" \
+  "mismatch${TAB}1:196${TAB}.t th:first-child${TAB}border-radius${TAB}expected 20px, measured 20px 20px 0px 0px"
+D="$(case_dir unsplitok "$TSV" "$REPORT_WHOLE" "$(split_json '20px' '0px')")"
+run_compare "$D"
+exit_is "a correct unsplit render exits 0" 0
+has_line "matches the node's value" "$D" \
+  "match${TAB}1:196${TAB}.t th:first-child${TAB}border-radius${TAB}20px"
+
+echo "a line still in the old qualifier shape is compared, never dropped"
+REPORT_QUAL='## Design values
+
+.t th:first-child — border-radius (top) — 20px — source: design_context — token: none — node: 1:196
+'
+D="$(case_dir qualifier "$TSV" "$REPORT_QUAL" "$(split_json '20px 20px 0px 0px' '0px')")"
+run_compare "$D"
+exit_is "exits 1" 1
+has_line "the qualifier is ignored and the node's value expected" "$D" \
+  "mismatch${TAB}1:196${TAB}.t th:first-child${TAB}border-radius${TAB}expected 20px, measured 20px 20px 0px 0px"
+
+echo "a line value the comparer cannot decide falls back to the node's value"
+REPORT_VAR='## Design values
+
+.t th:first-child — border-radius — var(--radius-l) — source: design_context — token: --radius-l — node: 1:196
+'
+D="$(case_dir splitvar "$TSV" "$REPORT_VAR" "$(split_json '20px' '0px')")"
+run_compare "$D"
+exit_is "exits 0" 0
+has_line "compared as the node's value" "$D" \
+  "match${TAB}1:196${TAB}.t th:first-child${TAB}border-radius${TAB}20px"
 
 echo "selectors mode"
 D="$(case_dir selectors "" "$REPORT" "{}")"
