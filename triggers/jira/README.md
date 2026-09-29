@@ -8,6 +8,11 @@ and `plugins/agentic-core/shared/lib/check-trigger-config.sh` fails CI if the tw
 The export exists because a rule that lives only in the Jira console is invisible to anyone reading
 this repository. Re-export after every change to the rule, and commit the export as Jira produces it.
 
+It lives here, in the consuming repository, and not in the tracker pack: it names one site, one
+project, one actor and this repository's dispatch URL, and a pack ships to every consumer. Its
+Jira smart values (`{{issue.key}}` and the rest) would also fail the pack manifest's
+unfilled-placeholder check, which rejects `{{` anywhere under a pack root.
+
 ## What the rule does
 
 - **Name:** `agentic-run → GitHub dispatch`.
