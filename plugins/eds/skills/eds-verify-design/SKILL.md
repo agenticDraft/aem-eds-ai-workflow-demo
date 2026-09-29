@@ -302,14 +302,22 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    - Exit `0` or `1` — every `mismatch` line is a named mismatch, tagged `[fixable]` (a computed
      value does not depend on which font loaded, so a missing family never changes this), written as
      `<selector> <property>: <detail>`. Every `unmeasured` line is a value judged visually only,
-     recorded with its reason. `match` lines are recorded as confirmed.
+     recorded with its reason. `match` lines are recorded as confirmed. Every `approx` line is a
+     value that depends on the design's content (placeholder copy, an image): it is **content-
+     dependent, not graded** — never a match, never a mismatch, and never answered by an edit. List
+     each one, tagged `[content-dependent]`, as `<selector> <property>: <detail>`. The script alone
+     decides which values are approx; never move a line between `approx` and `mismatch` here.
    - Exit `2` — go to **Report fail**, naming the script's stderr reason.
+
+   In step 1, a difference in the width or height of an element whose selector an `approx` line
+   names is `[content-dependent]` too, naming that line; any other size difference keeps step 1's
+   rule.
 4. Write this check's mismatch list to `.ai/run-context/verify-design-check-<n>.txt`, where `<n>`
    is this check's number, starting at `1`. Replace any file already at that path. One line per
-   mismatch, starting with its tag: `[fixable] <mismatch>` or `[content-asset gap] <mismatch>`. No
-   headings, bullets or blank lines between entries. An empty list is an empty file. This file is
-   what **Anything fixable left?** counts, so a tag that is missing or placed mid-line counts as
-   `[fixable]`.
+   mismatch, starting with its tag: `[fixable] <mismatch>`, `[content-asset gap] <mismatch>` or
+   `[content-dependent] <mismatch>`. No headings, bullets or blank lines between entries. An empty
+   list is an empty file. This file is what **Anything fixable left?** counts, so a tag that is
+   missing or placed mid-line counts as `[fixable]`.
 5. Keep this check's own list of mismatches (or "none") only long enough to compare against the
    next check's, the same "kept only long enough to compare" scope `eds-lint` gives its own
    output, and to write into the report below.
@@ -328,12 +336,15 @@ bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/count-fixable.sh \
   .ai/run-context/verify-design-check-<n>.txt
 ```
 
-It counts the `[fixable]` and untagged lines. Keep its exit code and its line for this check.
+It counts the `[fixable]` and untagged lines; `[content-asset gap]` and `[content-dependent]` lines
+are counted apart (`gaps=`, `approx=`) and never make an edit due. Keep its exit code and its line
+for this check.
 
 - Exit `0`, `nothing-fixable:` — go straight to **Every remaining mismatch a content-asset gap?**.
   Do not ask the budget question, make no edit, and run no further check. Every edit from here would
-  change nothing, because no block edit can supply missing content. The loop ends here and not at
-  the budget, and the report says so: `Loop end: nothing fixable`.
+  change nothing, because no block edit can supply missing content or make a content-dependent value
+  follow other content. The loop ends here and not at the budget, and the report says so:
+  `Loop end: nothing fixable`.
 - Exit `1`, `fixable:` — continue to **Attempts exhausted or no improvement?**.
 - Exit `2` — go to **Report fail**, naming the script's stderr reason.
 
@@ -367,10 +378,10 @@ Budget left and (on the first check) nothing to compare against, or an improveme
 ### Every remaining mismatch a content-asset gap?
 
 Answer from this check's **Anything fixable left?** result, not by rereading the list: the check
-file has not changed since. Exit `0` — every entry is a `[content-asset gap]`; exit `1` — at least
-one `[fixable]` or untagged entry remains.
+file has not changed since. Exit `0` — every entry is a `[content-asset gap]` or a
+`[content-dependent]`; exit `1` — at least one `[fixable]` or untagged entry remains.
 
-Every entry is a `[content-asset gap]` — continue to **Any degradation to report?**: a
+Every entry is a `[content-asset gap]` or a `[content-dependent]` — continue to **Any degradation to report?**: a
 missing real asset is not something exhausting the fix-loop's edit budget was ever going to close,
 so treating it the same as an unresolved code defect would fail a route the fix loop had no way to
 save regardless of how many edits it made. At least one `[fixable]` or untagged entry remains — go to
@@ -385,6 +396,9 @@ comparison did not implicate, the same "edit exactly what was named" discipline 
 to its own fix step.
 
 **Edit causes, not symptoms** (`../../../agentic-core/shared/fix-loop.md`):
+
+Answer `[fixable]` and untagged mismatches only; a `[content-dependent]` or `[content-asset gap]`
+entry gets no change.
 
 1. Group the `[fixable]` mismatches by the cause that produces them — one property, one rule, one
    element's placement. Two mismatches often share one cause: an element stacked where it should sit
@@ -407,9 +421,11 @@ run (see **Any degradation to report?**).
 
 Any of the following — go to **Report warn**:
 
-- The final check's mismatch list is non-empty (every entry `[content-asset gap]`, reached only
-  from **Every remaining mismatch a content-asset gap?**) — name each one, and what content is
-  missing, in the report; this is the degradation itself, not a side note.
+- The final check's mismatch list is non-empty (every entry `[content-asset gap]` or
+  `[content-dependent]`, reached only from **Every remaining mismatch a content-asset gap?**) — name
+  each one in the report, what content is missing for a gap, and each content-dependent value under
+  **Content-dependent, not graded**; this is the degradation itself, not a side note.
+- The comparison script printed at least one `approx` line on the final check.
 - `design-reference.json`'s `has_values` is `false` (an image-only source), so the whole comparison
   was visual-only; no value could be checked quantitatively at all.
 - At least one `variables` entry named a property outside `measure`'s own list, or the
@@ -453,7 +469,8 @@ resolution), then its mismatch list, and
 after it the edit that followed — each change made, the mismatch it answered, and the file it
 touched — then which of **Attempts exhausted or no improvement?**'s answers ended the loop (budget
 exhausted, with `edits-made`; no improvement; or the budget script's contract violation), or the
-count script's exit `2` from **Anything fixable left?**.
+count script's exit `2` from **Anything fixable left?**, then the `## Content-dependent, not graded`
+section **Report warn** describes.
 Skip the report when this stage failed before any check (missing inputs, unresolved browser role,
 missing draft file, or a render failure) — there is nothing to report on yet.
 
@@ -481,7 +498,9 @@ gap]` entry), how the loop ended, and which degradation(s) applied. How the loop
 line: `Loop end: nothing fixable` when **Anything fixable left?** printed `nothing-fixable:`,
 naming that check's file and its `gaps=` count; `Loop end: budget exhausted` with `edits-made`, or
 `Loop end: no improvement`, when **Attempts exhausted or no improvement?** ended it; omitted when
-the first check found no mismatch.
+the first check found no mismatch. Then a section headed `## Content-dependent, not graded`: every
+`approx` line of the final check, and every `[content-dependent]` entry of its list, one per line;
+`none` when there is none. Such a value is listed, never dropped and never graded.
 
 **Write the evidence manifest**, `.ai/run-context/evidence-manifest.json`, in the shape
 `../../../agentic-core/shared/evidence-manifest.md` fixes:
@@ -507,6 +526,8 @@ the first check found no mismatch.
     was judged visually only, not confirmed numerically — no corresponding measured property"`
   - an `unmeasured` line from the comparison script → `"design value '<property> <value>' on node
     <node> was judged visually only: <reason>"` — one entry per line
+  - an `approx` line or a `[content-dependent]` entry on the final check → `"content-dependent, not
+    graded: <selector> <property>: <detail>"` — one entry per line
   - an edit to an already-existing block → `"this run edited an already-existing block's CSS/JS
     ('<name>') ahead of plan approval"`
   - a `reduced` comparison line → `"design comparison at <capture width> was at reduced resolution:
@@ -601,6 +622,10 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   overall visual comparison, never measured. So is a value whose form the comparison script cannot
   decide against the computed value: a unitless `line-height`, `rem`/`em`/`%` lengths, `var()` and
   `calc()`.
+- **A content-dependent value is listed, never graded.** A width, height, min-height or
+  aspect-ratio on a node that holds copy or an image fill follows the content, so the comparison
+  script lists it beside the element's measured box and no edit is spent on it. Which values those
+  are is the value table's decision; padding, gap and margin are never among them.
 - **Logical padding is compared for a horizontal left-to-right writing mode.** `padding-inline`'s
   start and end map to left and right; a right-to-left block would report its two inline sides
   swapped.
