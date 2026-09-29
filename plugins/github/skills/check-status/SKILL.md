@@ -1,11 +1,12 @@
 ---
-description: scm.check_status — reports automated checks (CI) on a branch's open pull request. Requires gh authenticated on this machine (gh auth status).
+description: scm.check_status — reports the state of a branch's pull request (open, merged, closed, or none) and the automated checks (CI) on it. Requires gh authenticated on this machine (gh auth status).
 ---
 
 # check-status
 
-Implements the `scm` role's `check_status` operation: report the automated checks recorded against
-a branch's open pull request on a real GitHub remote.
+Implements the `scm` role's `check_status` operation: find a branch's pull request on a real GitHub
+remote in any state, report that state as `change_state` (`open`, `merged`, `closed`, or `none` when
+the branch has no pull request), and report the automated checks recorded against it.
 
 ## Input
 
@@ -33,5 +34,7 @@ every step below with `dangerouslyDisableSandbox: true`, unconditionally, on the
 
 The script alone decides `pass` versus `fail` from the checks it could or could not retrieve —
 `pass` means the checks were read successfully, not that they are all green; the per-check outcome
-is in the envelope's `summary` and `metrics` fields, not in `verdict`. Nothing here makes that
-decision, so there is no branch in this skill's own control flow.
+is in the envelope's `summary` and `metrics` fields, not in `verdict`. The script also decides
+`change_state`: `none` is a `pass` with no checks, and a lookup that failed carries no
+`change_state` at all, because an unknown state must never read as "no pull request". Nothing here makes those
+decisions, so there is no branch in this skill's own control flow.

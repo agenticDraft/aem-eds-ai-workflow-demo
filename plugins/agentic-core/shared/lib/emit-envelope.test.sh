@@ -120,6 +120,18 @@ blocker: no attachment is named design-reference.png.' \
    --option a.png --option b.png \
    --blocker "no attachment is named design-reference.png."
 
+assert_emits "change_state sits after next_action and error_class, before metrics (D534)" \
+'## Result
+verdict: fail
+summary: checks could not be read.
+artifacts: []
+next_action: none
+error_class: TRANSIENT
+change_state: open
+metrics: total=0' \
+-- --verdict fail --summary "checks could not be read." --error-class TRANSIENT \
+   --change-state open --metrics "total=0"
+
 assert_emits "question_id sits right after question, before options" \
 '## Result
 verdict: question
@@ -191,6 +203,9 @@ assert_refuses "blocker on a fail verdict" \
   -- --verdict fail --summary "x." --blocker "y."
 assert_refuses "options on a pass verdict" \
   -- --verdict pass --summary "x." --option a
+
+assert_refuses "a change_state the contract does not define" \
+  -- --verdict pass --summary "x." --change-state abandoned
 
 assert_refuses "an unknown flag" -- --verdict pass --summary "x." --colour green
 
