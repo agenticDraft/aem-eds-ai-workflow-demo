@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # check-status.sh <branch>
 #
-# scm.check_status — report automated checks on the branch's open pull
-# request, then print the result envelope. `verdict` here reports whether
+# scm.check_status — find the branch's pull request in any state, report its
+# state as `change_state` (open | merged | closed | none, D534) and the
+# automated checks recorded against it, then print the result envelope. `verdict` here reports whether
 # the checks could be retrieved, not whether the checks themselves are
 # green — the same reading Task 1 gave `fetch_item` (pass means "the read
 # succeeded," not a judgment on the item's own state). The per-check outcome
@@ -12,6 +13,11 @@
 # `bucket: fail` entry present in its own JSON (a non-required check failing
 # does not fail the command), so the operation's own verdict is derived by
 # parsing the JSON payload, never from gh's exit code.
+#
+# `none` means the lookup succeeded and found no pull request for the branch:
+# verdict pass, no checks. A lookup that did not succeed reports no
+# change_state at all — an unknown state is never `none`, because a caller
+# cleans up after a change that is gone.
 #
 # Exit codes: 0 with an envelope on stdout for every operational outcome
 # (pass or fail); 2 for a usage error (missing argument).
@@ -24,6 +30,8 @@ if [[ -z "$BRANCH" ]]; then
   exit 2
 fi
 
+# envelope_fail <summary> [change_state] — the state line only when the
+# lookup succeeded, so a failure before it can never read as a state.
 envelope_fail() {
   cat <<RESULT
 ## Result
@@ -32,6 +40,7 @@ summary: $1
 artifacts: []
 next_action: none
 RESULT
+  [[ -n "${2:-}" ]] && echo "change_state: $2"
   exit 0
 }
 
@@ -56,14 +65,43 @@ OUT_FILE="${OUT_DIR}/check-status-${BRANCH//\//_}.json"
 # same session: PR_NUMBER is looked up first via `--head`, an exact-match
 # flag with no such ambiguity, and only that trusted number is ever handed
 # to `gh pr checks`.
-PR_NUMBER="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty' 2>/dev/null)"
-if [[ -z "$PR_NUMBER" ]]; then
-  envelope_fail "no open pull request found for branch ${BRANCH}."
-fi
+#
+# `--state all` (D534): a merged or closed change is still this branch's
+# change. With several, an open one wins; otherwise the newest (highest
+# number). Measured 2026-09-29: an unknown branch returns `[]` with exit 0.
+LIST="$(gh pr list --head "$BRANCH" --state all --json number,state 2>/dev/null)" \
+  || envelope_fail "could not look up a pull request for branch ${BRANCH} (gh error)."
+
+PICK="$(printf '%s' "$LIST" | python3 -c '
+import json, sys
+prs = json.load(sys.stdin)
+if not prs:
+    print("none")
+    sys.exit(0)
+open_prs = [p for p in prs if p["state"] == "OPEN"]
+pr = max(open_prs or prs, key=lambda p: p["number"])
+print(pr["state"].lower(), pr["number"])
+' 2>/dev/null)"
+
+CHANGE_STATE="${PICK%% *}"
+case "$CHANGE_STATE" in
+  none)
+    cat <<RESULT
+## Result
+verdict: pass
+summary: No pull request exists for branch ${BRANCH}, so there are no checks to report.
+artifacts: []
+next_action: none
+change_state: none
+RESULT
+    exit 0 ;;
+  open|merged|closed) PR_NUMBER="${PICK##* }" ;;
+  *) envelope_fail "could not read the pull request lookup for branch ${BRANCH}." ;;
+esac
 
 RAW="$(gh pr checks "$PR_NUMBER" --json name,state,bucket,link 2>/dev/null)"
 if ! printf '%s' "$RAW" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null; then
-  envelope_fail "no checks could be retrieved for branch ${BRANCH} (pull request #${PR_NUMBER}, or a gh error)."
+  envelope_fail "no checks could be retrieved for branch ${BRANCH} (pull request #${PR_NUMBER}, or a gh error)." "$CHANGE_STATE"
 fi
 
 printf '%s' "$RAW" > "$OUT_FILE"
@@ -92,9 +130,10 @@ METRICS_LINE="$(printf '%s\n' "$PY_OUT" | tail -n 1)"
 cat <<RESULT
 ## Result
 verdict: pass
-summary: Retrieved checks for ${BRANCH} (${CHECK_SUMMARY}).
+summary: Retrieved checks for ${BRANCH} (#${PR_NUMBER}: ${CHECK_SUMMARY}).
 artifacts:
   - ${OUT_FILE}
 next_action: none
+change_state: ${CHANGE_STATE}
 ${METRICS_LINE}
 RESULT

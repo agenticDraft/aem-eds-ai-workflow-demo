@@ -37,11 +37,12 @@ question_id: <short lowercase id>      # verdict: question, optional
 options:                               # verdict: question, optional
   - <short option label>
 blocker: <what is missing>             # verdict: question, required
+change_state: open | merged | closed | none   # optional, any verdict (D534)
 metrics: <key=value pairs>             # optional, any verdict
 ```
 
 The fields appear in the order shown, after `next_action` — `error_class` before `question`,
-`metrics` last.
+`change_state` just before `metrics`, `metrics` last.
 
 ## How a stage writes it
 
@@ -61,7 +62,8 @@ carry.
 
 Options beyond the two required: `--artifact <path>` (repeatable; none emits `artifacts: []`),
 `--next-action <phrase>` (default `none`), `--error-class <class>`, `--question <text>`,
-`--question-id <id>`, `--option <label>` (repeatable), `--blocker <text>`, `--metrics <key=value …>`.
+`--question-id <id>`, `--option <label>` (repeatable), `--blocker <text>`, `--change-state <state>`,
+`--metrics <key=value …>`.
 
 A stage that has not yet adopted the emitter still ends its output with the block, and everything
 below still governs what that block must contain. Both paths are read the same way.
@@ -97,6 +99,10 @@ below still governs what that block must contain. Both paths are read the same w
   `verdict: question` only.
 - `blocker` — what is missing that stopped the stage from reaching a `pass`/`warn`/`fail`
   verdict. Required when `verdict: question`, absent otherwise.
+- `change_state` — the state of the change a `scm` operation looked up: exactly one of `open`,
+  `merged`, `closed` or `none` (no change exists). Optional, any verdict (D534). Absent means the
+  state is unknown — never read an absent field as `none`. A caller branches on it, so it is its own
+  validated field rather than a `metrics` key.
 - `metrics` — free-form `key=value` pairs. Optional on any verdict.
 
 ## Example — pass
@@ -163,6 +169,7 @@ blocker: An image-only design source cannot be identified as reference or eviden
 - `question` or `blocker` present with a verdict other than `question`.
 - `blocker` absent when `verdict: question`.
 - `question_id` present with a verdict other than `question`, or not a lowercase id.
+- A `change_state` outside the four literals, or written after `metrics`.
 - An `error_class` outside the three literals, or one present with `verdict: pass` or
   `verdict: warn`.
 - `error_class` carried as a `metrics` key instead of as its own field — nothing validates
@@ -190,7 +197,8 @@ the validator must catch: `unknown-verdict.md`, `multiline-summary.md`, `missing
 two verdicts it is valid with; `invalid/unknown-error-class.md` and
 `invalid/error-class-with-pass.md` are its two rejection cases. `question-id.md` carries a
 `question_id`; `invalid/question-id-with-pass.md` and `invalid/malformed-question-id.md` are its
-two rejection cases.
+two rejection cases. `change-state.md` carries a `change_state`; `invalid/unknown-change-state.md` and
+`invalid/change-state-after-metrics.md` are its two rejection cases.
 
 ## Verification
 

@@ -16,6 +16,8 @@
 #     PERMANENT, and appears only with verdict: fail or verdict: question
 #   * question_id, when present, is a lowercase id of at most 40 characters and
 #     appears only with verdict: question (D527 — the key its answer is stored under)
+#   * change_state, when present, is exactly one of open | merged | closed |
+#     none (D534)
 #
 # Usage:
 #   validate-result-envelope.sh <path>
@@ -112,7 +114,7 @@ if [[ "$next" == "artifacts:" || "$next" == "artifacts: []" ]]; then
   : # well-formed, handled below
 elif [[ "$next" =~ ^artifacts:\ .+$ ]]; then
   fail "'artifacts:' must be a list, even for a single path — write it as 'artifacts:' followed by '  - <path>' on the next line, not an inline value"
-elif [[ "$next" =~ ^(next_action|question|question_id|options|blocker|error_class|metrics):.*$ ]]; then
+elif [[ "$next" =~ ^(next_action|question|question_id|options|blocker|error_class|change_state|metrics):.*$ ]]; then
   fail "missing 'artifacts:' list"
 else
   fail "summary spans multiple lines"
@@ -190,6 +192,19 @@ else
   if [[ "${LINES[cursor]:-}" =~ ^(question|question_id|options|blocker):.*$ ]]; then
     fail "'${BASH_REMATCH[1]}:' is only valid with verdict: question"
   fi
+fi
+
+# --- change_state: optional, any verdict (D534) --------------------------
+# The state of the change a scm operation looked up. A caller branches on it
+# (a merged or closed change's leftovers are cleaned up), so an unrecognised
+# literal is rejected the same way an unrecognised verdict is.
+if [[ "${LINES[cursor]:-}" =~ ^change_state:\ ?(.*)$ ]]; then
+  change_state="${BASH_REMATCH[1]}"
+  case "$change_state" in
+    open|merged|closed|none) ;;
+    *) fail "unknown change_state '$change_state' (must be open, merged, closed or none)" ;;
+  esac
+  cursor=$((cursor + 1))
 fi
 
 # --- metrics: optional, any verdict -------------------------------------

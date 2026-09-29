@@ -17,6 +17,7 @@
 #   --question-id <id>       question only; the key its answer is stored under (D527)
 #   --option <label>         question only; repeatable
 #   --blocker <text>         question only, required there
+#   --change-state <state>   any verdict; open | merged | closed | none (D534)
 #   --metrics <key=value …>  any verdict
 #
 # Every rule the contract states about which field may appear with which
@@ -47,6 +48,7 @@ QUESTION=""
 QUESTION_ID=""
 BLOCKER=""
 METRICS=""
+CHANGE_STATE=""
 ARTIFACTS=()
 OPTIONS=()
 
@@ -57,6 +59,7 @@ HAVE_QUESTION_ID=0
 HAVE_BLOCKER=0
 HAVE_METRICS=0
 HAVE_ERROR_CLASS=0
+HAVE_CHANGE_STATE=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -69,6 +72,7 @@ while [ "$#" -gt 0 ]; do
     --question-id)  [ "$#" -ge 2 ] || usage "--question-id needs a value"; QUESTION_ID="$2"; HAVE_QUESTION_ID=1; shift 2 ;;
     --option)       [ "$#" -ge 2 ] || usage "--option needs a value"; OPTIONS+=("$2"); shift 2 ;;
     --blocker)      [ "$#" -ge 2 ] || usage "--blocker needs a value"; BLOCKER="$2"; HAVE_BLOCKER=1; shift 2 ;;
+    --change-state) [ "$#" -ge 2 ] || usage "--change-state needs a value"; CHANGE_STATE="$2"; HAVE_CHANGE_STATE=1; shift 2 ;;
     --metrics)      [ "$#" -ge 2 ] || usage "--metrics needs a value"; METRICS="$2"; HAVE_METRICS=1; shift 2 ;;
     *)              usage "unknown argument '$1'" ;;
   esac
@@ -95,6 +99,13 @@ if [ "$HAVE_ERROR_CLASS" -eq 1 ]; then
   case "$ERROR_CLASS" in
     TRANSIENT|VALIDATION|PERMANENT) ;;
     *) usage "--error-class must be one of: TRANSIENT VALIDATION PERMANENT (got '$ERROR_CLASS')" ;;
+  esac
+fi
+
+if [ "$HAVE_CHANGE_STATE" -eq 1 ]; then
+  case "$CHANGE_STATE" in
+    open|merged|closed|none) ;;
+    *) usage "--change-state must be one of: open merged closed none (got '$CHANGE_STATE')" ;;
   esac
 fi
 
@@ -147,6 +158,9 @@ fi
 
 if [ "$HAVE_BLOCKER" -eq 1 ]; then BODY="$BODY
 blocker: $BLOCKER"; fi
+
+if [ "$HAVE_CHANGE_STATE" -eq 1 ]; then BODY="$BODY
+change_state: $CHANGE_STATE"; fi
 
 if [ "$HAVE_METRICS" -eq 1 ]; then BODY="$BODY
 metrics: $METRICS"; fi

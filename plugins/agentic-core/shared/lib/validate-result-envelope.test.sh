@@ -114,6 +114,32 @@ OUT=$(bash "$VALIDATOR" "$LONG_FX" 2>&1); ST=$?
 rm -f "$LONG_FX"
 assert_exit "over-long question_id rejected (exit 1)" 1 $ST "$OUT"
 
+echo "[accept] change_state before metrics (D534)"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/change-state.md" 2>&1); ST=$?
+assert_exit "change-state.md accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "reports verdict pass" "verdict: pass" "$OUT"
+
+echo "[accept] every change_state literal, on pass and on fail"
+CS_FX="$(mktemp "${TMPDIR:-/tmp}/change-state.XXXXXX")"
+for state in open merged closed none; do
+  sed "s/^change_state: .*/change_state: $state/" "$FIXDIR/change-state.md" > "$CS_FX"
+  OUT=$(bash "$VALIDATOR" "$CS_FX" 2>&1); ST=$?
+  assert_exit "change_state: $state accepted (exit 0)" 0 $ST "$OUT"
+done
+printf '## Result\nverdict: fail\nsummary: Checks could not be read.\nartifacts: []\nnext_action: none\nerror_class: TRANSIENT\nchange_state: open\n' > "$CS_FX"
+OUT=$(bash "$VALIDATOR" "$CS_FX" 2>&1); ST=$?
+assert_exit "change_state after error_class on a fail accepted (exit 0)" 0 $ST "$OUT"
+rm -f "$CS_FX"
+
+echo "[reject] a change_state literal the contract does not define"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/unknown-change-state.md" 2>&1); ST=$?
+assert_exit "unknown change_state rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the bad literal" "abandoned" "$OUT"
+
+echo "[reject] change_state after metrics"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/change-state-after-metrics.md" 2>&1); ST=$?
+assert_exit "change_state after metrics rejected (exit 1)" 1 $ST "$OUT"
+
 echo "[usage] no argument"
 OUT=$(bash "$VALIDATOR" 2>&1); ST=$?
 assert_exit "no arg -> usage error (exit 2)" 2 $ST "$OUT"
