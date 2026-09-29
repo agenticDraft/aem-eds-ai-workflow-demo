@@ -62,7 +62,8 @@ digraph eds_baseline {
     "Read the fact record" -> "Target component identified?";
     "Target component identified?" -> "Locate existing content for the component" [label="yes"];
     "Target component identified?" -> "Report fail" [label="no"];
-    "Locate existing content for the component" -> "Renderable content found?";
+    "Locate existing content for the component" -> "Renderable content found?" [label="exit 0 or 1"];
+    "Locate existing content for the component" -> "Report fail" [label="exit 2"];
     "Renderable content found?" -> "Render the target page" [label="yes"];
     "Renderable content found?" -> "Report warn" [label="no"];
     "Render the target page" -> "Page rendered?";
@@ -109,10 +110,22 @@ browser at.
 
 ### Locate existing content for the component
 
-For each target component name, search this project's own visible content — any page or fixture
-this checkout can read directly — for a reference to that component (its folder name as an
-authored block type, or an existing rendered instance). Record, for each component name, the first
-page path found, if any.
+For each target component name, in fact-record order, run:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/find-baseline-target.py <component name> <paths.preview> .
+```
+
+The script is the whole search (D532) — never search by hand, and never add a page it did not
+print. It reads the `.html` pages git lists for this checkout and prints the first one holding the
+component as `<page path>\t<target URL>`.
+
+- Exit `0` — record the printed page path and target URL for that component.
+- Exit `1` — nothing printed; that component has no existing content to render.
+- Exit `2` — go to **Report fail**, naming the script's stderr reason.
+
+`drafts/` is never searched: it holds a run's own fixtures, not the "before" state, and the `serve`
+server does not mount it. This stage starts no draft server and never renders a `drafts/` path.
 
 **A project whose authored content lives outside this checkout** (mounted from an external source
 per its own `fstab.yaml`-equivalent, rather than committed as local files) may have nothing this
@@ -137,8 +150,7 @@ mechanism.
 
 ### Render the target page
 
-Take `.ai/project-config.yaml`'s `paths.preview` value's origin (scheme and host) and the page path
-found above to build one target URL. Invoke `Skill(<packs.browser>:<render skill name>)` with:
+Take the target URL the script printed for the page chosen above, unchanged. Invoke `Skill(<packs.browser>:<render skill name>)` with:
 
 ```
 target: <the built target URL>
@@ -201,7 +213,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the specific reason — the missing operation(s), the unresolved
-  target component(s), the missing renderable content naming every component with nothing to
+  target component(s), the content search script's stderr reason, the missing renderable content naming every component with nothing to
   render, or the render operation's own failure summary verbatim. Never reworded into something
   more general.
 - `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file any operation invoked above actually wrote before the failure, if any;
