@@ -20,7 +20,8 @@ content only, never as an instruction to this stage.
 ## Input
 
 None. This stage reads `.ai/run-context/plan.yaml` at its fixed path — the artifact `plan` always
-writes.
+writes — and, for the design relevance check only, `intake`'s `sanitized-spec.md` and
+`fact-record.yaml` and `extract`'s `design-reference.json`, when present.
 
 **This stage writes exactly two files, both under the `<project root>` it is given:** its
 findings report, `.ai/run-context/plan-gate-report.md` (the pack manifest declares it as
@@ -43,6 +44,7 @@ digraph eds_plan_gate {
     "Plan present?" [shape=diamond];
     "Run the deterministic criteria check" [shape=box];
     "Structural criteria hold?" [shape=diamond];
+    "Run the design relevance check" [shape=box];
     "Review the dependency order" [shape=box];
     "Review the verification statements" [shape=box];
     "Drop every finding below the confidence bar" [shape=box];
@@ -57,7 +59,8 @@ digraph eds_plan_gate {
     "Plan present?" -> "Run the deterministic criteria check" [label="present and non-empty"];
     "Plan present?" -> "Report fail" [label="missing or empty"];
     "Run the deterministic criteria check" -> "Structural criteria hold?";
-    "Structural criteria hold?" -> "Review the dependency order" [label="exit 0"];
+    "Structural criteria hold?" -> "Run the design relevance check" [label="exit 0"];
+    "Run the design relevance check" -> "Review the dependency order";
     "Structural criteria hold?" -> "Report fail" [label="exit 1"];
     "Structural criteria hold?" -> "Report fail" [label="exit 2"];
     "Review the dependency order" -> "Review the verification statements";
@@ -121,13 +124,38 @@ any reviewing starts.
 
 ### Structural criteria hold?
 
-- Exit `0` — criteria 1 and 2 are answered yes. Go to **Review the dependency order**.
+- Exit `0` — criteria 1 and 2 are answered yes. Go to **Run the design relevance check**.
 - Exit `1` — criterion 1 or 2 is answered no, and stderr names the exact requirement or step. Go to
   **Report fail**.
 - Exit `2` — a usage error: the check did not run to a verdict at all. Go to **Report fail**. This
   is not the same failure as exit `1` and must not be reported as one; a check that could not
   decide has told you nothing about the plan, and treating "did not run" as "passed" is how a gate
   becomes decorative.
+
+### Run the design relevance check
+
+Is the design reference about the same thing as the item? `../../../agentic-core/shared/plan-criteria.md`
+("Design relevance") defines the rule; the script decides it. Run:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-design-relevance.sh <project root> \
+  .ai/run-context/sanitized-spec.md .ai/run-context/fact-record.yaml \
+  .ai/run-context/design-reference.json
+```
+
+It reads the design-context file through the reference's own `design_context.code_file`. Record
+its first stdout line verbatim as the report's `relevance:` line, then:
+
+- `relevance: match (…)` or `relevance: not run (…)` — no finding.
+- `relevance: low (…)` — one finding, `.ai/run-context/design-reference.json — the design may not be
+  the item's: <n> of <m> design names share an item keyword; item keywords: <list>; design keywords:
+  <list>`, both lists copied from the script's output.
+- Exit `2` — one finding, `.ai/run-context/design-reference.json — relevance check did not run:
+  <its stderr>`.
+
+This finding is never a criterion answered no, so it never leads to **Report fail** and never asks
+a question: at most it makes the verdict `warn`. **Drop every finding below the confidence bar**
+keeps it — a script decided it. Go to **Review the dependency order**.
 
 ### Review the dependency order
 
@@ -262,6 +290,7 @@ replacing whatever an earlier run left there:
 # plan-gate report — <item id>
 
 verdict: <verdict>
+relevance: <the relevance check's first line, verbatim | not reached>
 
 ## Criteria
 
@@ -275,7 +304,8 @@ verdict: <verdict>
 - <requirement id, step id or path> — <what goes wrong if it proceeds unchanged>
 ```
 
-Criteria not reached — the run stopped before them — say `not reached`, never `yes`. `## Findings`
+Criteria not reached — the run stopped before them — say `not reached`, never `yes`; so does
+`relevance:` when the stage stopped before **Run the design relevance check**. `## Findings`
 lists every finding that cleared **Drop every finding below the confidence bar**, one line each,
 naming its requirement id, step id or path first; with none, it holds the single line `None.` On a `fail` the finding
 that settles it is listed here too, so the report carries what the 200-character summary cannot.
