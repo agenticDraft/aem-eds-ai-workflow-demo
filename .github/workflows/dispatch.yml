@@ -2,7 +2,7 @@ name: Dispatch
 
 on:
   repository_dispatch:
-    types: [my-event]
+    types: [agentic-route]
 
 permissions:
   contents: read
