@@ -15,8 +15,8 @@
 # A design name is one node name or element name, with any leading
 # `Desktop/`, `Mobile/` or `Component/` removed (case-insensitive, repeated),
 # identified by its token sequence; two names with the same tokens are one
-# name. A name matches when any of its tokens is an item keyword. Fewer than
-# 2 matching names is `low`.
+# name. A name matches when any of its tokens is an item keyword. No
+# matching name is `low`.
 #
 # Tokenisation, applied the same way to both sides:
 #   1. a lower-case letter or digit followed by an upper-case letter is split
@@ -39,8 +39,8 @@
 # <root>; a relative `code_file` is relative to <root>.
 #
 # Output (stdout), first line always the decision:
-#   relevance: match (<n> of <m> design names share an item keyword; threshold 2)
-#   relevance: low (<n> of <m> design names share an item keyword; threshold 2)
+#   relevance: match (<n> of <m> design names share an item keyword; threshold 1)
+#   relevance: low (<n> of <m> design names share an item keyword; threshold 1)
 #     followed, for both, by:
 #   item keywords: <sorted, comma-separated>
 #   design keywords: <sorted, comma-separated>
@@ -69,7 +69,7 @@ set -uo pipefail
 export LC_ALL=C
 
 STOP_WORDS="and are but component desktop for from has have into its mobile not onto our per should that the their this via was were will with your"
-THRESHOLD=2
+THRESHOLD=1
 
 usage() {
   echo "usage: check-design-relevance.sh <root> <spec> <fact record> <design reference>" >&2

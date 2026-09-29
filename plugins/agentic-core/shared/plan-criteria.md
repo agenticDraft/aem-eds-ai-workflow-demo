@@ -77,8 +77,8 @@ the gate and never asks a question. At most it adds a finding.
 
 | Outcome | When | The gate |
 |---|---|---|
-| `match` | 2 or more matching names | records the line in its report; no finding |
-| `low` | fewer than 2 | records a finding naming both keyword lists; at most `warn` |
+| `match` | 1 or more matching names | records the line in its report; no finding |
+| `low` | no matching name | records a finding naming both keyword lists; at most `warn` |
 | `not run` | the item has no design reference, its `design_context` is null, or it lacks `node_name`, the code file or any `data-name` value | records the line in its report; no finding, no `warn` |
 
 A `not run` line names what was missing. A checker that exits `2` — a usage error or a malformed
