@@ -40,6 +40,9 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
 - `.ai/run-context/stage-conditions.txt` — `evaluate-stage-conditions.sh`'s output, written once
   after `intake` and read back by `write-run-state.sh`, which turns its `skipped:` lines into run
   state's `skipped` array (`shared/run-state.md`)
+- `.ai/run-context/tree-before-<gate id>.txt` — the project root's snapshot taken right before a
+  gate runs, written and read only by `check-tree-unchanged.sh` (`shared/gate-contract.md`, "The
+  driver guards the tree")
 - `.ai/logs/run-route-reads.log` — the read-hook's log (see frontmatter above): one line per
   read the hook judged, allowed or denied
 
@@ -226,7 +229,9 @@ digraph run_route {
     "Record skipped stage" [shape=box];
     "Resolve stage adapter" [shape=box];
     "Adapter resolvable?" [shape=diamond];
+    "Snapshot the tree (gates only)" [shape=box];
     "Invoke adapter, capture envelope" [shape=box];
+    "Tree unchanged? (gates only)" [shape=diamond];
     "Validate envelope" [shape=box];
     "Envelope decision?" [shape=diamond];
     "Record stage, refresh flag" [shape=box];
@@ -266,8 +271,11 @@ digraph run_route {
     "Record skipped stage" -> "Drive next stage" [label="next stage"];
     "Resolve stage adapter" -> "Adapter resolvable?";
     "Adapter resolvable?" -> "failed" [label="no — unresolvable or unloaded"];
-    "Adapter resolvable?" -> "Invoke adapter, capture envelope" [label="yes"];
-    "Invoke adapter, capture envelope" -> "Validate envelope";
+    "Adapter resolvable?" -> "Snapshot the tree (gates only)" [label="yes"];
+    "Snapshot the tree (gates only)" -> "Invoke adapter, capture envelope";
+    "Invoke adapter, capture envelope" -> "Tree unchanged? (gates only)";
+    "Tree unchanged? (gates only)" -> "Validate envelope" [label="pass, or not a gate"];
+    "Tree unchanged? (gates only)" -> "failed" [label="fail — changed outside the allowlist"];
     "Validate envelope" -> "Envelope decision?";
     "Envelope decision?" -> "Record stage, refresh flag" [label="continue / continue-warn"];
     "Envelope decision?" -> "Handle question" [label="question"];
@@ -288,7 +296,7 @@ digraph run_route {
     "Ask human, record answer" -> "Re-invoke the asking stage";
     "Re-invoke the asking stage" -> "Asking stage is the branch step?";
     "Asking stage is the branch step?" -> "Ensure the working branch" [label="yes"];
-    "Asking stage is the branch step?" -> "Invoke adapter, capture envelope" [label="no — same stage, same argument"];
+    "Asking stage is the branch step?" -> "Snapshot the tree (gates only)" [label="no — same stage, same argument"];
 }
 ```
 
@@ -483,15 +491,63 @@ resolvable?**.
 in this session → route to **failed** (contract violation), naming the stage and which of the two
 it was.
 
-**Resolvable** → go to **Invoke adapter, capture envelope**.
+**Resolvable** → go to **Snapshot the tree (gates only)**.
+
+### Snapshot the tree (gates only)
+
+**Not `plan-gate` or `publish-gate`** → do nothing; go to **Invoke adapter, capture envelope**.
+
+**A gate** → first reset its envelope file (`reset-envelope.sh`, step 1 of "Getting a stage's
+envelope onto disk"), then:
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/check-tree-unchanged.sh snapshot <project root> \
+  .ai/run-context/tree-before-<gate id>.txt
+```
+
+`<project root>` is the same absolute path you pass the gate as `project_root:`. Take the snapshot
+every time the gate is invoked, including a re-invocation after a question: a stale snapshot would
+count the work of the stages in between as the gate's.
+
+Why: a gate must write nothing but its report and its envelope (`shared/gate-contract.md`), and the
+harness's isolation that should make this true is known to lapse without saying so. This snapshot
+and the comparison after the gate returns are what prove it instead.
+
+Go to **Invoke adapter, capture envelope**.
 
 ### Invoke adapter, capture envelope
 
 Invoke it (see "How a stage adapter is invoked" above) — with no argument text, except for
 `plan-gate` and `publish-gate`, which each take the single `project_root:` line named there.
 Get its envelope onto disk by the three steps in "Getting a stage's envelope onto disk" — reset the
-file first, then take it as written or capture from the output, then run `capture-envelope.sh`. Go
-to **Validate envelope**.
+file first (a gate's was already reset in **Snapshot the tree (gates only)**), then take it as
+written or capture from the output, then run `capture-envelope.sh`. Go to **Tree unchanged? (gates
+only)**.
+
+### Tree unchanged? (gates only)
+
+**Not a gate** → go to **Validate envelope**.
+
+**A gate** → run:
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/check-tree-unchanged.sh compare <project root> \
+  .ai/run-context/tree-before-<gate id>.txt \
+  .ai/run-context/<gate id>-report.md .ai/run-context/envelope-<gate id>.txt
+```
+
+The two allowed paths are the gate's own two files, and nothing else.
+
+- **Exit 0** → go to **Validate envelope**. The gate's verdict is judged as usual.
+- **Exit 1** → the gate changed something it must not. Route to **failed** with `<gate id>` as the
+  stage, whatever its envelope says, and report the script's `changed:` lines verbatim — they name
+  every path. Do not validate or act on the envelope: a gate that edited what it reviewed has
+  stopped reviewing it.
+- **Exit 2** → the guard could not run (for example, the snapshot is missing). Route to **failed**
+  as a contract violation, with the script's message.
+
+A gate that reports `isolation: absent` but changed nothing passes here. Being unisolated alone
+never fails a stage; the gate's own verdict, at most `warn` in that case, says so.
 
 ### Validate envelope
 
@@ -637,7 +693,7 @@ adapter. Go to **Ensure the working branch** and run it again with the same deri
 no answer; it succeeds on re-invocation only when the human has changed the repository state its
 question named, which is what that question asked them to do.
 
-**Otherwise** → go to **Invoke adapter, capture envelope** for `next_stage`, with the same
+**Otherwise** → go to **Snapshot the tree (gates only)** for `next_stage`, with the same
 invocation argument it was given the first time (`item_id:` for `intake`, `project_root:` for a
 gate, none for every other stage). The adapter reads its answer itself from the fixed path.
 
@@ -677,6 +733,10 @@ gate, none for every other stage). The adapter reads its answer itself from the 
   is a stage's job, inside its own isolated subagent (the read hook above blocks such a read and
   returns the reason, so a lapse here stops rather than being recorded).
 - Retrying a stage that returned `fail`, with or without changed input.
+- Invoking a gate without a fresh snapshot, or judging a gate's envelope before
+  `check-tree-unchanged.sh compare` has passed.
+- Failing a gate because it reported `isolation: absent` — only a change outside its two files
+  fails it.
 - Handing an answer forward to the stage after the one that asked, or recording the asking stage as
   completed before its re-invocation returns.
 - Spawning an adapter by pasting its `SKILL.md` body into a general subagent because `Skill()` did
@@ -689,4 +749,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: cbf7a8b2962e -->
+<!-- instructions-stamp: 6699f9c6d898 -->

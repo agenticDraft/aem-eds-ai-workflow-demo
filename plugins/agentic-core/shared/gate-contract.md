@@ -60,8 +60,37 @@ on every verdict:
 It writes nothing else: no other file under `project_root`, nothing in its own worktree, nothing
 through any role. It runs in an isolated worktree, and reports findings it is confident in rather
 than everything it noticed — confidence-based filtering, not exhaustive listing. These
-are obligations on whichever pack supplies the gate's adapter skill; this contract states them,
-it does not enforce them mechanically.
+are obligations on whichever pack supplies the gate's adapter skill. The write rule alone is also
+enforced, by the driver, under `project_root` (see "The driver guards the tree" below).
+
+## Isolation is checked, not assumed
+
+The harness may run a gate without its isolated worktree, and nothing tells the gate or the driver
+when it does. So a gate checks it itself, before reviewing anything: compare its own working
+directory with the `project_root` it was given, both resolved to physical paths (`pwd -P`).
+
+- **Different** — isolated. Review as usual.
+- **Equal** — not isolated. Record `isolation: absent` in the report, and return at most `warn`: a
+  review that would pass returns `warn` instead, and a `fail` stays `fail`. **Review anyway.** An
+  unisolated gate is still a working review; it is the read-only guarantee that is weaker, and the
+  driver's guard below covers that.
+
+Never refuse to run, and never `fail`, only because the gate is not isolated.
+
+## The driver guards the tree
+
+The driver takes a snapshot of `project_root` right before it invokes either gate, and compares it
+right after the gate returns, with `shared/lib/check-tree-unchanged.sh`. The snapshot holds `HEAD`
+and every tracked change and untracked file, each with a hash of its content. The allowlist is
+exactly the gate's two files above.
+
+- **No change outside the allowlist** — the gate's envelope is judged as usual.
+- **Any other change** — a moved `HEAD`, or any tracked or untracked path added, edited, staged,
+  reverted or deleted — the gate's stage ends `fail`, whatever its envelope says. The guard names
+  every such path.
+
+This makes "a gate writes nothing else" hold with or without the harness's isolation. It does not
+see files ignored by version control, and it does not see writes outside `project_root`.
 
 ## The run context is given, never inferred
 
