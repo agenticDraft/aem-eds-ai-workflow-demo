@@ -28,7 +28,9 @@ findings report, `.ai/run-context/plan-gate-report.md` (the pack manifest declar
 `plan-gate-report`), and its envelope, `.ai/run-context/envelope-plan-gate.txt`. It writes nothing else —
 no other file under `<project root>`, nothing in its own checkout, nothing through any role. A gate
 that edits what it is reviewing has stopped reviewing it, so `../../agents/eds-gate-reviewer.md`
-runs this stage in an isolated checkout, and neither file is tracked source.
+runs this stage in an isolated checkout, and neither file is tracked source. The harness does not
+always honour that isolation, and nothing tells this stage when it does not — **Check isolation**
+finds out, with a script, before anything is reviewed.
 
 That isolation has one consequence this stage has to handle rather than ignore: an isolated
 checkout holds tracked files only, and `.ai/run-context/` is a run's own scratch space, ignored by
@@ -39,6 +41,7 @@ version control. The plan is therefore **not** in this stage's own checkout, whi
 
 ```dot
 digraph eds_plan_gate {
+    "Check isolation" [shape=box];
     "Locate the run context" [shape=box];
     "Read the plan" [shape=box];
     "Plan present?" [shape=diamond];
@@ -54,6 +57,8 @@ digraph eds_plan_gate {
     "Report warn" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
 
+    "Check isolation" -> "Locate the run context" [label="exit 0"];
+    "Check isolation" -> "Report fail" [label="exit 2"];
     "Locate the run context" -> "Read the plan";
     "Read the plan" -> "Plan present?";
     "Plan present?" -> "Run the deterministic criteria check" [label="present and non-empty"];
@@ -75,6 +80,32 @@ digraph eds_plan_gate {
 ```
 
 ## Node Details
+
+### Check isolation
+
+Take the `project_root:` line this stage's invocation carries (**Locate the run context** describes
+it) and, from this stage's own working directory — never after changing directory — run:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-gate-isolation.sh isolation <project root>
+```
+
+The script compares this stage's working directory with `<project root>`, both resolved to physical
+paths, and prints one line. Record that line verbatim as `<isolation line>` and its value
+(`present` or `absent`) as `<isolation>`; the report carries it, and every `Report` node passes the
+value to the cap. Do not compare the paths yourself, and do not reword the line: the comparison is
+the script's, so the answer is the same on every run.
+
+- Exit `0`, `isolation: present` — this stage runs in its own checkout. Go to **Locate the run
+  context**.
+- Exit `0`, `isolation: absent` — this stage runs in the checkout under review. Go to **Locate the
+  run context** all the same, and review exactly as you would otherwise. An unisolated review is
+  still a review; what is weaker is the guarantee that it wrote nothing else, and the driver checks
+  that on its own. The cap in **Write the report and the envelope** turns a `pass` into `warn` and
+  leaves `warn` and `fail` alone. Never refuse to run, and never report `fail`, for this alone.
+- Exit `2` — the given root is missing or not a directory, so nothing this stage reads from it can
+  be trusted. Go to **Report fail**, with `<isolation line>` `isolation: not checked` and the
+  script's stderr as the reason.
 
 ### Locate the run context
 
@@ -231,13 +262,16 @@ The report goes to `<project root>/.ai/run-context/plan-gate-report.md`; the env
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
   <project root>/.ai/run-context/envelope-plan-gate.txt \
-  --verdict fail --summary "<one sentence>" \
+  --verdict "$(bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-gate-isolation.sh cap <isolation> fail)" \
+  --summary "<one sentence>" \
   --artifact .ai/run-context/plan-gate-report.md
 ```
 
 Values to pass:
 
 - `verdict: fail`
+- The cap never changes a `fail`. On a `fail` from **Check isolation**'s exit `2` there is no
+  `<isolation>` to pass: give `--verdict fail` directly.
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-plan reason; or the checker's `invalid: <reason>` from stderr, verbatim, never reworded into something more general; or that a checker could not run to a verdict, naming which and its usage error; or which of criteria 3 and 4 is answered no and the single step or requirement that settles it.
 - `artifacts`: `.ai/run-context/plan-gate-report.md` — the one `--artifact`.
 - `next_action: none` — the emitter's default; pass nothing.
@@ -252,7 +286,8 @@ The report goes to `<project root>/.ai/run-context/plan-gate-report.md`; the env
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
   <project root>/.ai/run-context/envelope-plan-gate.txt \
-  --verdict warn --summary "<one sentence>" \
+  --verdict "$(bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-gate-isolation.sh cap <isolation> warn)" \
+  --summary "<one sentence>" \
   --artifact .ai/run-context/plan-gate-report.md
 ```
 
@@ -273,13 +308,15 @@ The report goes to `<project root>/.ai/run-context/plan-gate-report.md`; the env
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
   <project root>/.ai/run-context/envelope-plan-gate.txt \
-  --verdict pass --summary "<one sentence>" \
+  --verdict "$(bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-gate-isolation.sh cap <isolation> pass)" \
+  --summary "<one sentence>" \
   --artifact .ai/run-context/plan-gate-report.md
 ```
 
 Values to pass:
 
 - `verdict: pass`
+- The cap returns `warn` instead when `<isolation>` is `absent`; emit what it returns.
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many requirements and steps the plan carries and that all four criteria are answered yes.
 - `artifacts`: `.ai/run-context/plan-gate-report.md` — the one `--artifact`.
 - `next_action: none` — the emitter's default; pass nothing.
@@ -295,7 +332,9 @@ replacing whatever an earlier run left there:
 ```
 # plan-gate report — <item id>
 
-verdict: <verdict>
+verdict: <the verdict the cap returned>
+<isolation line>
+review verdict: <verdict>
 relevance: <the relevance check's first line, verbatim | could not run: <its stderr> | not reached>
 
 ## Criteria
@@ -310,6 +349,9 @@ relevance: <the relevance check's first line, verbatim | could not run: <its std
 - <requirement id, step id or path> — <what goes wrong if it proceeds unchanged>
 ```
 
+`<isolation line>` is the line **Check isolation** recorded, verbatim. `review verdict` is the verdict
+the review reached before the cap; with `isolation: present` it always equals `verdict`.
+
 Criteria not reached — the run stopped before them — say `not reached`, never `yes`; so does
 `relevance:` when the stage stopped before **Run the design relevance check**. `## Findings`
 lists every finding that cleared **Drop every finding below the confidence bar**, one line each,
@@ -322,9 +364,14 @@ by its absolute path under `<project root>`:
 ```
 bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
   <project root>/.ai/run-context/envelope-plan-gate.txt \
-  --verdict <verdict> --summary "<one sentence>" \
+  --verdict "$(bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-gate-isolation.sh cap <isolation> <verdict>)" \
+  --summary "<one sentence>" \
   --artifact .ai/run-context/plan-gate-report.md
 ```
+
+The verdict you emit is the one `check-gate-isolation.sh cap` prints, never one you worked out:
+`pass` becomes `warn` when `<isolation>` is `absent`; nothing else changes. The report's
+`verdict:` line and the envelope carry that same capped value.
 
 See `../../../agentic-core/shared/result-envelope.md` for every option. The script owns the block's
 spelling and refuses a field the contract does not allow on this verdict — exit `2`, with nothing

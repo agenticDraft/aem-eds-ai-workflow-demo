@@ -8,6 +8,11 @@
 // (found: false) — not a reason to fail the whole read, the same reading
 // the design pack's fetch_reference gives an empty variable map.
 //
+// The read is taken only once the page has settled (settle.cjs): fonts
+// loaded, every named target that matches an element visible, and two
+// consecutive snapshots identical. A page that does not settle within the
+// bound fails with the reason, and no artifact is written.
+//
 // Exit codes: 0 with an envelope on stdout for every operational outcome
 // (pass or fail); 2 for a usage error (missing argument).
 
@@ -19,6 +24,7 @@ const { execSync } = require('child_process');
 const { missingToolSummary } = require('../../../scripts/requires.cjs');
 // Every call writes a new file; an earlier call's artifact is never replaced.
 const { nextArtifactPath } = require('../../../scripts/next-artifact-path.cjs');
+const { settle, notVisible } = require('../../../scripts/settle.cjs');
 
 // Longhands only: no padding shorthand is ever reported.
 const PROPERTIES = [
@@ -60,6 +66,41 @@ function resolvePlaywright() {
 function slugify(url) {
   const slug = url.replace(/^https?:\/\//, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return (slug || 'target').slice(0, 80);
+}
+
+// One snapshot: every selector's reading in the output shape, plus what
+// still stops the page counting as settled.
+async function probe(page, selectors) {
+  const { results, states, fontsLoading } = await page.evaluate(({ sels, props }) => {
+    const out = {};
+    const vis = {};
+    for (const sel of sels) {
+      const el = document.querySelector(sel);
+      if (!el) {
+        out[sel] = { found: false };
+        vis[sel] = { found: false };
+      } else {
+        const rect = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        const computed = {};
+        for (const p of props) computed[p] = style.getPropertyValue(p);
+        out[sel] = {
+          found: true,
+          geometry: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+          computed,
+        };
+        vis[sel] = {
+          found: true, width: rect.width, height: rect.height, hidden: style.visibility === 'hidden',
+        };
+      }
+    }
+    return { results: out, states: vis, fontsLoading: document.fonts.status !== 'loaded' };
+  }, { sels: selectors, props: PROPERTIES });
+  const blockers = [];
+  const hidden = notVisible(states);
+  if (hidden.length) blockers.push(`named target(s) not visible: ${hidden.join(', ')}`);
+  if (fontsLoading) blockers.push('document fonts still loading');
+  return { value: results, blockers };
 }
 
 async function main() {
@@ -110,28 +151,17 @@ async function main() {
     return;
   }
 
-  const results = {};
-  let foundCount = 0;
-  for (const selector of selectors) {
-    // eslint-disable-next-line no-await-in-loop
-    const data = await page.evaluate(({ sel, props }) => {
-      const el = document.querySelector(sel);
-      if (!el) return { found: false };
-      const rect = el.getBoundingClientRect();
-      const style = getComputedStyle(el);
-      const computed = {};
-      for (const p of props) computed[p] = style.getPropertyValue(p);
-      return {
-        found: true,
-        geometry: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-        computed,
-      };
-    }, { sel: selector, props: PROPERTIES });
-    results[selector] = data;
-    if (data.found) foundCount += 1;
-  }
-
+  const read = await settle({
+    fontsReady: () => page.evaluate(() => document.fonts.ready.then(() => true)),
+    probe: () => probe(page, selectors),
+  });
   await browser.close();
+  if (!read.settled) {
+    fail(`could not measure ${target}: ${read.reason}`);
+    return;
+  }
+  const results = read.value;
+  const foundCount = selectors.filter((sel) => results[sel].found).length;
 
   const outDir = '.ai/playwright';
   fs.mkdirSync(outDir, { recursive: true });
