@@ -74,6 +74,11 @@ echo "[reject] trigger before limits"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/trigger-out-of-order.yaml" 2>&1); ST=$?
 assert_exit "trigger-out-of-order.yaml rejected (exit 1)" 1 $ST "$OUT"
 
+echo "[reject] trigger.token is empty"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/trigger-empty-token.yaml" 2>&1); ST=$?
+assert_exit "trigger-empty-token.yaml rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the empty token" "trigger.token is empty" "$OUT"
+
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
 exit $(( FAIL > 0 ? 1 : 0 ))
