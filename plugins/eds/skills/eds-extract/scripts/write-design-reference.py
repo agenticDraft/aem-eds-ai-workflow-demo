@@ -22,6 +22,11 @@
 # provider `design_context` of null (or none) is written as null and no code
 # file is written. The `image` mode always writes `design_context: null`.
 #
+# `node_name` — the referenced node's own name in the design source — is
+# carried as the provider gave it, or written as null when the provider has
+# none; a value that is neither a string nor null exits 2 before anything is
+# written. The `image` mode always writes `node_name: null`.
+#
 # `viewports` — the provider's list of viewport variants, each
 # {name, node_id, width, image, context} — is carried through sorted widest
 # first. Each variant's image and context file are copied byte-for-byte to
@@ -203,6 +208,7 @@ def main():
         record = {
             "source_kind": "image",
             "reference": f"{filename} (image attachment)",
+            "node_name": None,
             "has_values": False,
             "variables": None,
             "geometry": None,
@@ -226,6 +232,10 @@ def main():
 
         with open(provider_json_path, encoding="utf-8") as f:
             provider = json.load(f)
+
+        node_name = provider.get("node_name")
+        if node_name is not None and not isinstance(node_name, str):
+            usage_error(f"'{provider_json_path}': node_name must be a string or null, got {node_name!r}")
 
         provider_context = provider.get("design_context")
         if provider_context is not None:
@@ -252,6 +262,7 @@ def main():
         record = {
             "source_kind": "design_tool",
             "reference": reference_url,
+            "node_name": node_name,
             "has_values": True,
             "variables": provider.get("variables", {}),
             "geometry": provider.get("geometry"),
