@@ -73,6 +73,7 @@ if [ -f "$OUT" ]; then
   check "no viewports key without viewports" 'has("viewports") | not' "$OUT"
   check "no screenshots key without screenshots" 'has("screenshots") | not' "$OUT"
   check "no provider assets gives an explicit empty list" 'has("assets") and .assets == []' "$OUT"
+  check "node_name carried from the provider" '.node_name == "Button"' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
@@ -95,6 +96,7 @@ OUT="$D/.ai/run-context/design-reference.json"
 if [ -f "$OUT" ]; then
   check "design_context key present and null" 'has("design_context") and .design_context == null' "$OUT"
   check "variables still carried as {}" '.variables == {}' "$OUT"
+  check "node_name carried without a design context" '.node_name == "Button"' "$OUT"
   check "no viewports key without viewports" 'has("viewports") | not' "$OUT"
   check "no screenshots key without screenshots" 'has("screenshots") | not' "$OUT"
 else
@@ -185,6 +187,20 @@ if [ -f "$OUT" ]; then
 else
   bad "design-reference.json written" "missing: $OUT"
 fi
+
+echo "design_tool: a provider JSON with no node_name"
+D="$(case_dir nonodename)"
+jq -n '{geometry: {width: 138}, variables: {}, design_context: null}' > "$D/.ai/figma/abc123-1-185.json"
+if run_design_tool "$D"; then ok "exits 0"; else bad "exits 0" "stderr: $(cat "$D/stderr")"; fi
+check "node_name key present and null" 'has("node_name") and .node_name == null' "$D/.ai/run-context/design-reference.json"
+
+echo "design_tool: a node_name that is not a string"
+D="$(case_dir badnodename)"
+jq -n '{node_name: 7, geometry: {width: 138}, variables: {}, design_context: null}' > "$D/.ai/figma/abc123-1-185.json"
+run_design_tool "$D"
+status=$?
+if [ "$status" -eq 2 ]; then ok "exits 2"; else bad "exits 2" "got: $status"; fi
+if [ -e "$D/.ai/run-context/design-reference.json" ]; then bad "writes nothing" "found output"; else ok "writes nothing"; fi
 
 echo "design_tool: an empty viewports list is a single width"
 D="$(case_dir emptyvp)"
@@ -385,6 +401,7 @@ if [ -f "$OUT" ]; then
   check "variables null, has_values false" '.variables == null and .has_values == false' "$OUT"
   check "no viewports key" 'has("viewports") | not' "$OUT"
   check "assets is an explicit empty list" 'has("assets") and .assets == []' "$OUT"
+  check "node_name key present and null" 'has("node_name") and .node_name == null' "$OUT"
 else
   bad "design-reference.json written" "missing: $OUT"
 fi

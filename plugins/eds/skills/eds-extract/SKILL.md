@@ -212,7 +212,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-extract/scripts/write-design-reference.
 ```
 
 This writes this pack's own `design-reference.json` — `source_kind: "design_tool"`,
-`has_values: true`, the provider's `variables` and `geometry` carried through, and a copy of the
+`has_values: true`, the provider's `node_name`, `variables` and `geometry` carried through (a
+missing `node_name` is written as null), and a copy of the
 provider's reference image at this pack's own fixed path — never the provider's raw JSON returned
 as-is (D34).
 
@@ -268,7 +269,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-extract/scripts/write-design-reference.
 ```
 
 This writes `design-reference.json` with `source_kind: "image"`, `has_values: false`,
-`variables: null`, `geometry: null`, `design_context: null`, `assets: []` — §6.1's no-values case, represented
+`node_name: null`, `variables: null`, `geometry: null`, `design_context: null`, `assets: []` — §6.1's no-values case, represented
 explicitly rather than as an empty result. It is the same artifact on both paths into this node, which is the point: every
 downstream consumer already honors `has_values: false`, so none of them has to learn that a
 substitution happened.

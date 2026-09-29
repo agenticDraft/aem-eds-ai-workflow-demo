@@ -57,12 +57,51 @@ regardless of what requirements exist — and are out of scope for this shape: t
   covering that (nonexistent) requirement, and does not exempt the stage from criterion 2 either —
   the stage still needs at least one entry that resolves to a real requirement.
 
+## Design relevance — a finding, never a criterion
+
+When the item carries a design reference, the plan gate's deterministic half also asks whether the
+design is about the same thing as the item. It is not a fifth criterion: its decision cannot fail
+the gate and never asks a question. At most it adds a finding.
+
+- **Item keywords** — the tokens of the sanitized spec's summary (its first `# ` heading) and of
+  each entry of the fact record's `components`.
+- **Design names** — the design reference's `node_name`, and every `data-name` attribute value in
+  the design-context file its `design_context.code_file` names — never a fixed path. Leading
+  `Desktop/`, `Mobile/` and `Component/` are removed. These are element names; text between tags is
+  rendered copy and is never read.
+- **Tokens** — both sides alike: split at camel case and at every character that is not an ASCII
+  letter or digit, lower-cased; tokens shorter than 3 characters, of digits only, or on the
+  checker's fixed stop-word list are dropped; a trailing `s` (not `ss`) is dropped from a token of 4
+  or more characters. The stop-word list is stated in the checker and printed by `--stop-words`.
+- **Score** — the number of distinct design names with at least one token among the item keywords.
+
+| Outcome | When | The gate |
+|---|---|---|
+| `match` | 1 or more matching names | records the line in its report; no finding |
+| `low` | no matching name | records a finding naming both keyword lists; at most `warn` |
+| `not run` | the item has no design reference, its `design_context` is null, or it lacks `node_name`, the code file or any `data-name` value | records the line in its report; no finding, no `warn` |
+
+A `not run` line names what was missing. A checker that exits `2` — a usage error or a malformed
+design reference — has not run to a decision: a contract violation, as `gate-contract.md` states
+for every deterministic check, and the gate fails.
+
+Checker: `lib/check-design-relevance.sh <root> <spec> <fact record> <design reference>` — exit `0`
+on every decision, first stdout line `relevance: match | low | not run (…)`; `2` for a usage error
+or malformed input, with no decision line.
+Fixtures: `fixtures/design-relevance/`.
+
+```bash
+bash plugins/agentic-core/shared/lib/check-design-relevance.test.sh
+```
+
 ## Anti-patterns
 
 - A stage with an empty `satisfies` list, on the theory that it is "obviously needed" — if it is,
   some requirement should name it; if no requirement does, criterion 2 is doing its job.
 - A criterion phrased so its answer could be "sort of" or "mostly" — see `gate-contract.md`'s
   reject condition.
+- Answering a `low` relevance score with `fail`, a `not run` with a finding, or a checker exit `2`
+  with anything but a contract violation; or reading a design's rendered copy as its names.
 - Treating criteria 3 and 4 as skippable because 1 and 2 passed. Passing the deterministic half is
   what earns criteria 3 and 4 a model's attention, not a reason to skip them.
 

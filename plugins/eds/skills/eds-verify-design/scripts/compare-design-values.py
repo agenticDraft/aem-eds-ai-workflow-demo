@@ -9,9 +9,9 @@
 # every `## Design values` line in the prototype report that names a node
 # (`... — node: <node_id>`). Those are the selectors to measure.
 #
-# `compare` reads the value table (`<node_id> TAB <property> TAB <value>`) and
-# compares each row against the measurement file the browser role's `measure`
-# wrote. A row is compared on the selectors of the report lines that name its
+# `compare` reads the value table (`<node_id> TAB <property> TAB <value> TAB
+# <approx>`) and compares each row against the measurement file the browser
+# role's `measure` wrote. A row is compared on the selectors of the report lines that name its
 # node and its property (a trailing `(qualifier)` on the line's property is
 # ignored); when no line names the property, on every selector the report names
 # for the node.
@@ -27,6 +27,8 @@
 #   match       TAB <node> TAB <selector> TAB <property> TAB <value>
 #   mismatch    TAB <node> TAB <selector> TAB <property> TAB expected <v>, measured <v>[ (<note>)]
 #   unmeasured  TAB <node> TAB <selector|-> TAB <property> TAB <value>: <reason>
+#   approx      TAB <node> TAB <selector|-> TAB <property> TAB expected <v>, measured box <w>x<h>px
+#   approx      TAB <node> TAB <selector|-> TAB <property> TAB <value>: <reason>
 #
 # where <note> is `table: <property> <value>` for an expanded shorthand,
 # `split of [<property> ]<value>` for a split line, and `line: <value> is not a
@@ -39,6 +41,13 @@
 # `padding-block`, `padding-inline-start`, `padding-inline-end`) is expanded
 # to the physical longhands first, for a horizontal left-to-right writing mode;
 # the table line is named after a mismatch on an expanded value.
+#
+# A row whose <approx> is `true` depends on the design's content: it is never
+# graded, never a match or a mismatch, and never changes the exit code. It is
+# listed, one `approx` line per selector, with the selector's measured box
+# (geometry width and height) beside the table's value, after every other
+# line. `approx` is `true` or `false`; `true` on any property but width,
+# height, min-height or aspect-ratio is a usage error.
 #
 # Values are compared by form, never guessed: lengths in px (and `0`) as
 # numbers; colours as hex, rgb() or rgba(); `border-radius` and `gap` as the
@@ -64,6 +73,7 @@ LENGTH_PX = re.compile(r"^(-?(?:\d+\.?\d*|\.\d+))px$")
 HEX = re.compile(r"^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 RGB = re.compile(r"^rgba?\(\s*([^)]*)\)$")
 INTEGER = re.compile(r"^\d+$")
+APPROX_PROPERTIES = {"width", "height", "min-height", "aspect-ratio"}
 NODE_TAIL = re.compile(r"^node:\s*(\S+)$")
 QUALIFIER = re.compile(r"\s*\([^)]*\)$")
 SPLITTABLE = {"border-radius", "gap", "padding", "padding-inline", "padding-block",
@@ -271,11 +281,49 @@ def read_table(path):
     for n, line in enumerate(read_text(path).splitlines(), 1):
         if not line.strip():
             continue
-        cols = line.split("\t")
-        if len(cols) != 3 or not all(c.strip() for c in cols):
-            usage_error(f"'{path}' line {n}: expected <node_id> TAB <property> TAB <value>")
-        rows.append(tuple(c.strip() for c in cols))
+        cols = [c.strip() for c in line.split("\t")]
+        if len(cols) != 4 or not all(cols):
+            usage_error(f"'{path}' line {n}: expected <node_id> TAB <property> TAB <value> TAB <approx>")
+        if cols[3] not in ("true", "false"):
+            usage_error(f"'{path}' line {n}: approx must be true or false, got '{cols[3]}'")
+        if cols[3] == "true" and cols[1] not in APPROX_PROPERTIES:
+            usage_error(f"'{path}' line {n}: {cols[1]} is never approx")
+        rows.append((cols[0], cols[1], cols[2], cols[3] == "true"))
     return rows
+
+
+def box(result):
+    """'<w>x<h>px' from a measurement's geometry, or None."""
+    geometry = result.get("geometry") if isinstance(result, dict) else None
+    if not isinstance(geometry, dict):
+        return None
+    sides = []
+    for key in ("width", "height"):
+        v = geometry.get(key)
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        sides.append(f"{round(float(v), 2):f}".rstrip("0").rstrip("."))
+    return f"{sides[0]}x{sides[1]}px"
+
+
+def list_approx(node, prop, value, lines, by_node, results):
+    """The `approx` lines for one content-dependent row; nothing is graded."""
+    selectors = by_node.get(node)
+    if not selectors:
+        return [("approx", node, "-", prop, f"{value}: no selector recorded for this node")]
+    named = [sel for sel, lprop, _, lnode in lines if lnode == node and lprop == prop]
+    out = []
+    for selector in named or selectors:
+        result = results.get(selector)
+        if not isinstance(result, dict) or not result.get("found"):
+            out.append(("approx", node, selector, prop, f"{value}: selector not found on the page"))
+            continue
+        measured = box(result)
+        if measured is None:
+            out.append(("approx", node, selector, prop, f"{value}: no box in the measurement"))
+        else:
+            out.append(("approx", node, selector, prop, f"expected {value}, measured box {measured}"))
+    return out
 
 
 def read_measurement(path):
@@ -296,8 +344,12 @@ def compare(table_path, report_path, measure_path):
     results = read_measurement(measure_path)
 
     out = []
+    listed = []
     mismatches = 0
-    for node, prop, value in rows:
+    for node, prop, value, approx in rows:
+        if approx:
+            listed += list_approx(node, prop, value, lines, by_node, results)
+            continue
         longhands = expand(prop, value)
         if longhands is None:
             longhands = [(prop, value)]
@@ -342,7 +394,7 @@ def compare(table_path, report_path, measure_path):
                     out.append(("mismatch", node, selector, longhand, detail))
                     mismatches += 1
 
-    for line in out:
+    for line in out + listed:
         print("\t".join(line))
     sys.exit(1 if mismatches else 0)
 

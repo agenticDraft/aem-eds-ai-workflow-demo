@@ -244,8 +244,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/design-context-values
 ```
 
 The script reads the reference code through `design_context.code_file` and prints one
-`<node_id> TAB <css-property> TAB <value>` row per arbitrary-value class, keyed by the element's
-`data-node-id`. It owns every decision about which class means which property; take its rows as
+`<node_id> TAB <css-property> TAB <value> TAB <approx>` row per arbitrary-value class, keyed by the
+element's `data-node-id`. It owns every decision about which class means which property, and which
+value depends on the design's content (`approx`, read only by `eds-verify-design`); take its rows as
 given and never parse the reference code's classes here, re-derive a property it left out, or read
 a reference-code file by a fixed path.
 

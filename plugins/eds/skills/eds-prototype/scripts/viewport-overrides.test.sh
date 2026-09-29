@@ -280,7 +280,7 @@ write_ref "$D"
 run_overrides "$D" -
 jq '. + {design_context: {code_file: ".ai/run-context/design-context-1-430.txt", styles: null}}' \
   "$D/.ai/run-context/design-reference.json" > "$D/single.json"
-(cd "$D" && python3 "$TABLE" single.json | sort > "$D/table.tsv")
+(cd "$D" && python3 "$TABLE" single.json | cut -f1-3 | sort > "$D/table.tsv")
 awk -F"$TAB" '$1 == "value" && $2 == "base" { print $3 "\t" $4 "\t" $5 }' "$D/stdout" | sort > "$D/base.tsv"
 if [ -s "$D/table.tsv" ] && cmp -s "$D/table.tsv" "$D/base.tsv"; then ok "base rows are the value table's rows"; else
   bad "base rows are the value table's rows" "table: $(cat "$D/table.tsv")" "base: $(cat "$D/base.tsv")"; fi

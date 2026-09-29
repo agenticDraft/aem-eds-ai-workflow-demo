@@ -1,0 +1,11 @@
+{
+  "source_kind": "design_tool",
+  "reference": "https://example-design-tool.test/file/abc123?node=2-1",
+  "node_name": "Component/Pricing",
+  "has_values": true,
+  "variables": {},
+  "geometry": { "x": 0, "y": 0, "width": 375, "height": 600 },
+  "design_context": { "code_file": "context-card.txt", "styles": "" },
+  "reference_image": "reference.png",
+  "assets": []
+}

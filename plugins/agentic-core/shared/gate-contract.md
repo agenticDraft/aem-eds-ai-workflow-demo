@@ -25,7 +25,8 @@ that treats a gate differently from any open, pack-declared stage id.
 
 The cheapest review is no model at all. Everything mechanically checkable about what a gate is
 reviewing is a deterministic script, run before any reviewing model starts — `check-plan-
-criteria.sh` for `plan-gate`, `check-publish-criteria.sh` for `publish-gate`. What survives the
+criteria.sh` and `check-design-relevance.sh` for `plan-gate`, `check-publish-criteria.sh` for
+`publish-gate`. What survives the
 deterministic pass is judgment by
 construction: a criterion a script could answer would already have been a script, not a question
 handed to a model. This is why a gate adapter runs on a stronger model tier than an ordinary

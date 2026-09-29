@@ -1,0 +1,19 @@
+const checkIcon = "asset-1";
+
+export default function Table() {
+  return (
+    <div className="flex gap-[8px]" data-name="Table" data-node-id="1:1">
+      <div className="flex flex-col" data-name="Column 1" data-node-id="1:2">
+        <div className="p-[14px]" data-name="Table item" data-node-id="1:3">
+          <p>Primary button styles</p>
+          <img alt="" src={checkIcon} data-name="Check icon" data-node-id="1:4" />
+        </div>
+      </div>
+      <div className="flex flex-col" data-name="Column 2" data-node-id="1:5">
+        <div className="p-[14px]" data-name='Table item' data-node-id="1:6">
+          <p>Hover colour for the button</p>
+        </div>
+      </div>
+    </div>
+  );
+}
