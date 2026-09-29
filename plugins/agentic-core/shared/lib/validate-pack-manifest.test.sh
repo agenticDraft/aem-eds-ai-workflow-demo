@@ -154,6 +154,27 @@ EOF
 OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
 assert_exit "accepted (exit 0)" 0 $ST "$OUT"
 
+echo "[accept] an scm pack's scripts.check_status (the change-state caller's script form)"
+for s in branch publish status; do
+  mkdir -p "$PROV_TMP/skills/$s"
+  cp "$PROV_TMP/skills/fetch/SKILL.md" "$PROV_TMP/skills/$s/SKILL.md"
+done
+mkdir -p "$PROV_TMP/skills/status/scripts"
+echo '#!/usr/bin/env bash' > "$PROV_TMP/skills/status/scripts/status.sh"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: scm
+operations:
+  create_branch: branch
+  publish_change: publish
+  check_status: status
+unsupported: []
+scripts:
+  check_status: "skills/status/scripts/status.sh"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
 echo "[reject] scripts names an operation this pack does not implement"
 cat > "$PROV_TMP/pack.yaml" <<'EOF'
 kind: provider

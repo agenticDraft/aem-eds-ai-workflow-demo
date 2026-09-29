@@ -1,22 +1,25 @@
 ---
-description: The serve stage (core contract §4) — always runs. Polls the project's configured preview URL first and starts the project's configured serve command only when nothing answers, then polls again on a fixed backoff ladder. Leaves a server answering for every later stage that needs a rendered page. A preview that never answers is a transient failure, reported with the serve command's own log named rather than returned unchanged.
+description: The serve stage (core contract §4) — always runs. First runs the draft cleanup, which deletes the drafts of items whose change is merged or closed and stops the draft server once no recorded change is open. Then polls the project's configured preview URL first and starts the project's configured serve command only when nothing answers, then polls again on a fixed backoff ladder. Leaves a server answering for every later stage that needs a rendered page. A preview that never answers is a transient failure, reported with the serve command's own log named rather than returned unchanged.
 context: fork
 ---
 
 # eds-serve
 
-This stage always runs. It has no `tracker`/`scm`/`design`/`browser` role dependency — it reads
-the project's own configured serve command and preview URL, and its whole job is that something is
-answering at that URL by the time it returns.
+This stage always runs. Its job is that something is answering at the project's configured
+preview URL by the time it returns. Before that, it runs the draft cleanup
+(`../../shared/draft-server.md`, **Cleanup**): the scm role's answer about each earlier run's change
+reaches it through the scm pack's script form of `check_status`, run by the cleanup script as a
+subprocess. This stage invokes no role skill itself.
 
-Read `../../../agentic-core/shared/project-config.md` for the shape referenced in **Read the
-configured serve command and preview URL**, and `../../../agentic-core/shared/result-envelope.md`
+Read `../../../agentic-core/shared/project-config.md` for the shape referenced in **Clean up
+earlier runs' drafts** and **Read the configured serve command and preview URL**,
+`../../shared/draft-server.md` for what the cleanup does, and `../../../agentic-core/shared/result-envelope.md`
 for the `## Result` block this stage must end with.
 
 ## Input
 
-None. This stage reads `.ai/project-config.yaml`'s `commands.serve` and `paths.preview` at their
-fixed path. It receives nothing from any earlier stage, and nothing it does depends on what the
+None. This stage reads `.ai/project-config.yaml`'s `packs.scm`, `commands.serve` and
+`paths.preview` at their fixed path. It receives nothing from any earlier stage, and nothing it does depends on what the
 work item says — which is why it carries no `when:` and runs on every item.
 
 ## The sandbox denies loopback, deterministically, every time
@@ -29,13 +32,22 @@ after a first sandboxed attempt fails, and not left to judgment in the moment.**
 attempt does not give a different, more informative failure than a first unsandboxed one would;
 it only spends a poll ladder's worth of time (and, at the exit-code level, is indistinguishable
 from nothing genuinely listening — see **Poll the preview URL**, below) confirming a fact this
-section already states as certain. This is scoped narrowly: only this stage's own two commands
-(`poll-preview.sh`, `start-serve.sh`), for the sole purpose of reaching `localhost` — no broader
-sandbox change, and no change to any other stage's own tool calls.
+section already states as certain. This is scoped narrowly: only this stage's own three commands
+(`clean-drafts.sh`, `poll-preview.sh`, `start-serve.sh`) — the first because the scm script it runs
+reaches the provider over the network and stops a process started outside the sandbox, the other
+two to reach `localhost`. No broader sandbox change, and no change to any other stage's own tool
+calls.
+
+## Clean up before anything else
+
+The cleanup runs before this stage polls or starts anything, so a stopped draft server and deleted
+drafts are settled before any later stage looks for them. Its outcome never changes this stage's
+verdict: this stage's verdict is whether the preview answers, and a cleanup that could not ask about
+a change keeps that change's draft, which is the safe outcome. It is recorded in the report.
 
 ## Poll before starting, never the other way round
 
-The first thing this stage does is poll. A server may already be answering — left by an earlier
+The first thing this stage does after the cleanup is poll. A server may already be answering — left by an earlier
 run of this same stage, or started by a human — and starting a second one against a bound port
 produces a process that dies on startup while the poll still succeeds against the first. The
 stage would then report success for a server it did not start and write a log nobody reads. Poll
@@ -47,7 +59,8 @@ A server started here outlives this stage. It has to: this stage runs in its own
 subagent, and every later stage that renders a page runs in a different one, so a server bound to
 the lifetime of its starter would be gone before the first consumer asked for a page.
 
-**The stage vocabulary has no teardown stage.** Nothing in a route stops what this stage started,
+**The stage vocabulary has no teardown stage.** Nothing in a route stops the preview server this
+stage started (the cleanup stops only the draft server, never this one),
 so the process survives the run and every run after it until a human ends it. The report this
 stage writes is therefore not a convenience — it is the only record of a process the run leaves
 running, and the process id in it is the only handle anyone gets.
@@ -56,6 +69,7 @@ running, and the process id in it is the only handle anyone gets.
 
 ```dot
 digraph eds_serve {
+    "Clean up earlier runs' drafts" [shape=box];
     "Read the configured serve command and preview URL" [shape=box];
     "Preview URL configured?" [shape=diamond];
     "Poll the preview URL" [shape=box];
@@ -68,6 +82,7 @@ digraph eds_serve {
     "Report fail" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
 
+    "Clean up earlier runs' drafts" -> "Read the configured serve command and preview URL";
     "Read the configured serve command and preview URL" -> "Preview URL configured?";
     "Preview URL configured?" -> "Poll the preview URL" [label="non-empty"];
     "Preview URL configured?" -> "Report fail" [label="empty"];
@@ -86,6 +101,21 @@ digraph eds_serve {
 ```
 
 ## Node Details
+
+### Clean up earlier runs' drafts
+
+1. Read `.ai/project-config.yaml`'s `packs.scm` value. Non-empty — the scm pack root is
+   `${CLAUDE_PLUGIN_ROOT}/../<packs.scm>`, the same "installed pack = sibling directory of the
+   plugin root" convention every stage uses. Empty or absent — the root is the literal `none`.
+2. Run, from the project root, with `dangerouslyDisableSandbox: true` on this call:
+
+   ```
+   bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/clean-drafts.sh <the scm pack root, or none>
+   ```
+
+3. Keep its whole stdout for the report. Its last line is `cleanup: …`. Continue to **Read the
+   configured serve command and preview URL** whatever it printed and whatever its exit code — the
+   script decides every deletion and the stop itself, so nothing here branches on it.
 
 ### Read the configured serve command and preview URL
 
@@ -172,9 +202,10 @@ this stage adds no retry of its own around it.
 
 ### Report fail
 
-Write `.ai/run-context/serve-report.md` unless this stage reached here from **Preview URL
-configured?** or **Serve command configured?** — in both of those nothing was polled and nothing
-was started, so there is nothing to report on. The report carries, one field per line: the URL
+Write `.ai/run-context/serve-report.md`. It carries the cleanup's whole output under a
+`## Cleanup` heading. When this stage reached here from **Preview URL configured?** or **Serve
+command configured?**, nothing was polled and nothing was started, so the report carries only that
+section. Otherwise it then carries, one field per line: the URL
 polled; the status that answered, or `none`; whether this stage started what is running; the
 process id, or `none`; the log path, or `none`; and the poll output that ended the attempt.
 
@@ -185,7 +216,7 @@ Then emit the `## Result` block as plain `key: value` lines per `../../../agenti
   no serve command is configured; or that the serve command exited on startup; or that the preview
   never answered before the poll ladder was exhausted, naming that this last one is a transient
   failure. Never the serve command's raw output verbatim.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): empty for the two configuration gaps. Otherwise `.ai/run-context/serve-report.md`,
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): `.ai/run-context/serve-report.md`,
   plus `.ai/run-context/serve.log` when a command was started.
 - `next_action: none`
 
@@ -195,7 +226,8 @@ taken). Say it inside the block's own fields, or in `serve-report.md`, not after
 
 ### Report pass
 
-Write `.ai/run-context/serve-report.md` with the same fields as **Report fail**. When this stage
+Write `.ai/run-context/serve-report.md` with the same `## Cleanup` section and fields as
+**Report fail**. When this stage
 reached here from **Already answering?**, the started-by-this-stage field is false and the process
 id and log are `none` — this stage has no handle on a server it did not start, and recording one
 it guessed at would be worse than recording none.
