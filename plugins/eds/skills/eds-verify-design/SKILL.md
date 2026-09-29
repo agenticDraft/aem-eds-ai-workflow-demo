@@ -69,6 +69,7 @@ digraph eds_verify_design {
     "Capture and measure the draft page" [shape=box];
     "Compare against the design reference" [shape=box];
     "Any mismatch found?" [shape=diamond];
+    "Anything fixable left?" [shape=diamond];
     "Attempts exhausted or no improvement?" [shape=diamond];
     "Every remaining mismatch a content-asset gap?" [shape=diamond];
     "Edit the block's CSS and JS" [shape=box];
@@ -98,7 +99,10 @@ digraph eds_verify_design {
     "Compare against the design reference" -> "Any mismatch found?";
     "Compare against the design reference" -> "Report fail" [label="comparison script: exit 2"];
     "Any mismatch found?" -> "Any degradation to report?" [label="no"];
-    "Any mismatch found?" -> "Attempts exhausted or no improvement?" [label="yes"];
+    "Any mismatch found?" -> "Anything fixable left?" [label="yes"];
+    "Anything fixable left?" -> "Attempts exhausted or no improvement?" [label="yes"];
+    "Anything fixable left?" -> "Every remaining mismatch a content-asset gap?" [label="no"];
+    "Anything fixable left?" -> "Report fail" [label="count script: exit 2"];
     "Attempts exhausted or no improvement?" -> "Every remaining mismatch a content-asset gap?" [label="yes"];
     "Attempts exhausted or no improvement?" -> "Edit the block's CSS and JS" [label="no"];
     "Attempts exhausted or no improvement?" -> "Report fail" [label="budget script: contract violation"];
@@ -300,14 +304,40 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
      `<selector> <property>: <detail>`. Every `unmeasured` line is a value judged visually only,
      recorded with its reason. `match` lines are recorded as confirmed.
    - Exit `2` — go to **Report fail**, naming the script's stderr reason.
-4. Keep this check's own list of mismatches (or "none") only long enough to compare against the
+4. Write this check's mismatch list to `.ai/run-context/verify-design-check-<n>.txt`, where `<n>`
+   is this check's number, starting at `1`. Replace any file already at that path. One line per
+   mismatch, starting with its tag: `[fixable] <mismatch>` or `[content-asset gap] <mismatch>`. No
+   headings, bullets or blank lines between entries. An empty list is an empty file. This file is
+   what **Anything fixable left?** counts, so a tag that is missing or placed mid-line counts as
+   `[fixable]`.
+5. Keep this check's own list of mismatches (or "none") only long enough to compare against the
    next check's, the same "kept only long enough to compare" scope `eds-lint` gives its own
    output, and to write into the report below.
 
 ### Any mismatch found?
 
-Empty list — continue to **Any degradation to report?**. One or more — continue to **Attempts
-exhausted or no improvement?**.
+Empty list — continue to **Any degradation to report?**. One or more — continue to **Anything
+fixable left?**.
+
+### Anything fixable left?
+
+Run (D536):
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/count-fixable.sh \
+  .ai/run-context/verify-design-check-<n>.txt
+```
+
+It counts the `[fixable]` and untagged lines. Keep its exit code and its line for this check.
+
+- Exit `0`, `nothing-fixable:` — go straight to **Every remaining mismatch a content-asset gap?**.
+  Do not ask the budget question, make no edit, and run no further check. Every edit from here would
+  change nothing, because no block edit can supply missing content. The loop ends here and not at
+  the budget, and the report says so: `Loop end: nothing fixable`.
+- Exit `1`, `fixable:` — continue to **Attempts exhausted or no improvement?**.
+- Exit `2` — go to **Report fail**, naming the script's stderr reason.
+
+The count is the script's, never this stage's own reading of the list.
 
 ### Attempts exhausted or no improvement?
 
@@ -336,8 +366,11 @@ Budget left and (on the first check) nothing to compare against, or an improveme
 
 ### Every remaining mismatch a content-asset gap?
 
-Every entry in this check's own mismatch list carries the `[content-asset gap]` tag (an untagged
-entry, or one tagged `[fixable]`, fails this check) — continue to **Any degradation to report?**: a
+Answer from this check's **Anything fixable left?** result, not by rereading the list: the check
+file has not changed since. Exit `0` — every entry is a `[content-asset gap]`; exit `1` — at least
+one `[fixable]` or untagged entry remains.
+
+Every entry is a `[content-asset gap]` — continue to **Any degradation to report?**: a
 missing real asset is not something exhausting the fix-loop's edit budget was ever going to close,
 so treating it the same as an unresolved code defect would fail a route the fix loop had no way to
 save regardless of how many edits it made. At least one `[fixable]` or untagged entry remains — go to
@@ -419,7 +452,8 @@ completed: the target block name and new/existing state, then per check each com
 resolution), then its mismatch list, and
 after it the edit that followed — each change made, the mismatch it answered, and the file it
 touched — then which of **Attempts exhausted or no improvement?**'s answers ended the loop (budget
-exhausted, with `edits-made`; no improvement; or the budget script's contract violation).
+exhausted, with `edits-made`; no improvement; or the budget script's contract violation), or the
+count script's exit `2` from **Anything fixable left?**.
 Skip the report when this stage failed before any check (missing inputs, unresolved browser role,
 missing draft file, or a render failure) — there is nothing to report on yet.
 
@@ -443,7 +477,11 @@ new/existing state, per check each comparison it made (capture width, variant na
 comparison at reduced resolution), its mismatch list and the edit that followed it (each change, the
 mismatch it answered, the file it touched), the final check's list (empty, unless reached via
 **Every remaining mismatch a content-asset gap?**, in which case every remaining `[content-asset
-gap]` entry), and which degradation(s) applied.
+gap]` entry), how the loop ended, and which degradation(s) applied. How the loop ended is one
+line: `Loop end: nothing fixable` when **Anything fixable left?** printed `nothing-fixable:`,
+naming that check's file and its `gaps=` count; `Loop end: budget exhausted` with `edits-made`, or
+`Loop end: no improvement`, when **Attempts exhausted or no improvement?** ended it; omitted when
+the first check found no mismatch.
 
 **Write the evidence manifest**, `.ai/run-context/evidence-manifest.json`, in the shape
 `../../../agentic-core/shared/evidence-manifest.md` fixes:
@@ -576,6 +614,8 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   absent from the project. A missing design font (D530) is such content, and only for text
   geometry: the stage decides by inspection whether a mismatch is text geometry, so a box mismatch
   whose real cause is a wrong rule could be tagged `[content-asset gap]` while a family is missing.
+  Only the tagging is judgment: whether any `[fixable]` mismatch is left is counted by
+  `count-fixable.sh` (D536), and an untagged line counts as fixable.
 - **`Skill(eds:eds-verify-design)` resolving inside a real route, under `context: fork`.** Same class
   as every prior stage-adapter task — the `eds` plugin is not loaded into this session, so the flow
   was executed by hand, node by node, against the real scripts and real project state.
