@@ -1,5 +1,5 @@
 ---
-description: browser.measure — loads a target URL and returns each named CSS selector's geometry and computed style values (color, background-color, font-family, font-size, font-weight, line-height, padding-top, padding-right, padding-bottom, padding-left, gap, border-radius) from a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
+description: browser.measure — loads a target URL and returns each named CSS selector's geometry and computed style values (color, background-color, font-family, font-size, font-weight, line-height, padding-top, padding-right, padding-bottom, padding-left, gap, border-radius), plus whether any element the selector matches holds text, from a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
 ---
 
 # measure
@@ -14,6 +14,11 @@ The computed values are exactly `color`, `background-color`, `font-family`, `fon
 and `border-radius`, each as the browser's computed string. Padding is reported as the four
 longhands only, never a shorthand; `border-radius` is one string, a single length when all four
 corners are equal.
+
+Each found selector also carries `holds_text`: `true` when any element the selector matches, not
+only the first, has a descendant text node that is not only whitespace, else `false`. It sits
+beside `geometry`, not among the computed values, and is never compared as a style value. A
+consumer uses it to tell an element that holds text from one that holds only an image or an icon.
 
 The read is taken only once the page has settled:
 

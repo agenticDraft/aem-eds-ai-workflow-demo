@@ -1,0 +1,174 @@
+/* Changed in this project. Derived from https://github.com/adobe/aem-block-collection blocks/table/table.css at 69d7d50839009376687f105cf1e323e05f4ecad2, Apache-2.0. */
+.table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: var(--body-font-size-xs);
+}
+
+@media (width >= 600px) {
+  .table table {
+    font-size: var(--body-font-size-s);
+  }
+}
+
+@media (width >= 900px) {
+  .table table {
+    font-size: var(--body-font-size-m);
+  }
+}
+
+.table table thead tr {
+  border-top: 2px solid #dadada;
+  border-bottom: 2px solid #dadada;
+}
+
+.table table tbody tr {
+  border-bottom: 1px solid #dadada;
+}
+
+.table table th {
+  font-weight: 700;
+}
+
+.table table th,
+.table table td {
+  padding: 0.5em;
+  text-align: left;
+}
+
+.table table th p,
+.table table td p {
+  margin: 0;
+}
+
+.table table td p + p {
+  margin-top: 0.25em;
+}
+
+/* no header variant */
+.table.no-header table tbody tr {
+  border-top: 1px solid #dadada;
+}
+
+/* comparison variant: row borders reset */
+.table.comparison table thead tr,
+.table.comparison table tbody tr {
+  border: none;
+}
+
+/* striped variant */
+.table.striped tbody tr:nth-child(odd) {
+  background-color: var(--light-color);
+}
+
+/* bordered variant */
+.table.bordered table th,
+.table.bordered table td {
+  border: 1px solid #dadada;
+}
+
+/* comparison variant */
+.table.comparison {
+  border-radius: 20px;
+}
+
+.table.comparison table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table.comparison table th {
+  min-width: 200px;
+  height: 96px;
+  padding-inline: 30px;
+  padding-block: 40px;
+  border-bottom: 1px solid var(--accent-accent-6);
+  font-weight: 500;
+  line-height: 0;
+  text-align: center;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+/* heading text box: design wrapper is leading 0, flex column, centred; inner text is leading 1.2 */
+.table.comparison table th p {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 16px;
+  line-height: 1.2;
+}
+
+.table.comparison table th:nth-child(2) {
+  color: var(--text-paragraph);
+  font-family: 'Rethink Sans', var(--body-font-family);
+  font-size: 22.857px;
+  letter-spacing: -1.8286px;
+}
+
+.table.comparison table th:nth-child(3) {
+  color: var(--text-paragraph);
+  font-family: 'Reddit Mono', monospace;
+  font-size: 21.654px;
+  letter-spacing: -1.7323px;
+}
+
+.table.comparison table td {
+  padding-inline: 30px;
+  padding-block: 32px;
+  border-bottom: 0.5px solid var(--dividers-divider-1);
+}
+
+.table.comparison table td p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-accent-4);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: -0.12px;
+  overflow-wrap: anywhere;
+}
+
+.table.comparison table td .icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.table.comparison table td:nth-child(3) {
+  border-left: 0.5px solid var(--dividers-divider-1);
+}
+
+/* comparison: emphasised first column */
+.table.comparison table th:first-child,
+.table.comparison table td:first-child {
+  background-color: var(--background-background-1);
+  border-inline: 1px solid var(--dividers-divider-1);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  clip-path: inset(0 -10px);
+}
+
+.table.comparison table th:first-child {
+  border-top: 1px solid var(--dividers-divider-1);
+  color: var(--text-headline);
+  font-family: 'DM Sans', var(--body-font-family);
+  font-size: 25.714px;
+  letter-spacing: -2.0571px;
+  border-radius: 20px 20px 0 0;
+  clip-path: inset(-10px -10px 0);
+}
+
+.table.comparison table tr:last-child td:first-child {
+  border-bottom-width: 1px;
+  border-bottom-color: var(--dividers-divider-1);
+  border-radius: 0 0 20px 20px;
+  clip-path: inset(0 -10px -10px);
+}

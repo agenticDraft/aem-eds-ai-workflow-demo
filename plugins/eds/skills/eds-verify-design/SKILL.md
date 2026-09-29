@@ -50,7 +50,8 @@ file exists and is non-empty, only through `scripts/compare-design-values.py` �
 Which widths it captures, and which reference image each capture is compared against, come only
 from `../shared/scripts/pair-viewports.py targets` — never from reading `viewports` here. Which
 design font families the project does not declare comes only from `../shared/scripts/design-fonts.py`
-(D530).
+(D530). Which fixed sizes on text no design node carries comes only from
+`../shared/scripts/check-size-origin.py` (D541).
 
 ## Flow
 
@@ -96,8 +97,10 @@ digraph eds_verify_design {
     "Page rendered?" -> "Report fail" [label="fail/question/invalid envelope"];
     "Capture and measure the draft page" -> "Compare against the design reference";
     "Capture and measure the draft page" -> "Report fail" [label="targets script: exit 2"];
+    "Capture and measure the draft page" -> "Report fail" [label="size selectors: exit 2"];
     "Compare against the design reference" -> "Any mismatch found?";
     "Compare against the design reference" -> "Report fail" [label="comparison script: exit 2"];
+    "Compare against the design reference" -> "Report fail" [label="size-origin script: exit 2"];
     "Any mismatch found?" -> "Any degradation to report?" [label="no"];
     "Any mismatch found?" -> "Anything fixable left?" [label="yes"];
     "Anything fixable left?" -> "Attempts exhausted or no improvement?" [label="yes"];
@@ -247,11 +250,22 @@ Read the captured envelope's `verdict`.
    ```
 
    It prints one selector per line, possibly none.
-4. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and these
+4. List the selectors that carry a fixed width or height in the block's CSS, as it is on disk for
+   this check:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-size-origin.py \
+     selectors blocks/<block name>/<block name>.css
+   ```
+
+   It prints one selector per line, possibly none. Exit `2` — go to **Report fail**, naming the
+   script's stderr reason.
+5. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and these
    selectors: `.<block name>` — the block wrapper's own convention, the same one `eds-verify` uses —
-   then every selector step 3 printed that is not `.<block name>`, in its order. Record the
-   measurement file path from the envelope's `artifacts:` and the resulting measurements, including
-   `found: false` for a selector that did not match.
+   then every selector step 3 printed that is not `.<block name>`, in its order, then every selector
+   step 4 printed that is not already in the list, in its order. Record the measurement file path
+   from the envelope's `artifacts:` and the resulting measurements, including `found: false` for a
+   selector that did not match.
 
 ### Compare against the design reference
 
@@ -293,7 +307,7 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
      compare .ai/run-context/design-context-values.tsv .ai/run-context/prototype-report.md \
-     <the measurement file step 4 of **Capture and measure the draft page** recorded>
+     <the measurement file step 5 of **Capture and measure the draft page** recorded>
    ```
 
    The script owns shorthand expansion, value normalisation and which properties are compared;
@@ -312,13 +326,33 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    In step 1, a difference in the width or height of an element whose selector an `approx` line
    names is `[content-dependent]` too, naming that line; any other size difference keeps step 1's
    rule.
-4. Write this check's mismatch list to `.ai/run-context/verify-design-check-<n>.txt`, where `<n>`
+4. **Size origin, always.** A fixed width or height on an element that holds text comes only from
+   that element's own node in the design, because text that grows past a fixed box overflows it
+   while the box's own geometry still looks right (D541). Run:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-size-origin.py \
+     check blocks/<block name>/<block name>.css .ai/run-context/prototype-report.md \
+     .ai/run-context/design-context-values.tsv \
+     <the measurement file step 5 of **Capture and measure the draft page** recorded>
+   ```
+
+   When `design-context-values.tsv` is absent, pass `-` in its place: with no value table no size is
+   tied to a node, so every fixed size on text is reported. Each line is
+   `<status> TAB <selector> TAB <property> TAB <detail>`.
+   - Exit `0` or `1` — every `hit` line is a named mismatch, tagged `[fixable]`, written as
+     `<selector> <property>: fixed <value> on text, not from the design (<reason>)`. Every `grown`
+     line is a tied size the text outgrew: tagged `[content-dependent]`, written as
+     `<selector> <property>: <detail>`. The script alone decides both; a derived value (a design
+     size minus its padding, say) is not from the design however it was reached.
+   - Exit `2` — go to **Report fail**, naming the script's stderr reason.
+5. Write this check's mismatch list to `.ai/run-context/verify-design-check-<n>.txt`, where `<n>`
    is this check's number, starting at `1`. Replace any file already at that path. One line per
    mismatch, starting with its tag: `[fixable] <mismatch>`, `[content-asset gap] <mismatch>` or
    `[content-dependent] <mismatch>`. No headings, bullets or blank lines between entries. An empty
    list is an empty file. This file is what **Anything fixable left?** counts, so a tag that is
    missing or placed mid-line counts as `[fixable]`.
-5. Keep this check's own list of mismatches (or "none") only long enough to compare against the
+6. Keep this check's own list of mismatches (or "none") only long enough to compare against the
    next check's, the same "kept only long enough to compare" scope `eds-lint` gives its own
    output, and to write into the report below.
 
@@ -400,6 +434,11 @@ to its own fix step.
 Answer `[fixable]` and untagged mismatches only; a `[content-dependent]` or `[content-asset gap]`
 entry gets no change.
 
+Never answer a mismatch by writing a fixed `width` or `height` on an element that holds text unless
+that exact value is on that element's node in the value table. A size-origin mismatch is answered by
+removing the fixed size, or by writing the node's own value: the element then grows with its text,
+and that growth is listed, not graded.
+
 1. Group the `[fixable]` mismatches by the cause that produces them — one property, one rule, one
    element's placement. Two mismatches often share one cause: an element stacked where it should sit
    inline makes a row both taller and misaligned.
@@ -425,7 +464,8 @@ Any of the following — go to **Report warn**:
   `[content-dependent]`, reached only from **Every remaining mismatch a content-asset gap?**) — name
   each one in the report, what content is missing for a gap, and each content-dependent value under
   **Content-dependent, not graded**; this is the degradation itself, not a side note.
-- The comparison script printed at least one `approx` line on the final check.
+- The comparison script printed at least one `approx` line on the final check, or the size-origin
+  script printed at least one `grown` line on it.
 - `design-reference.json`'s `has_values` is `false` (an image-only source), so the whole comparison
   was visual-only; no value could be checked quantitatively at all.
 - At least one `variables` entry named a property outside `measure`'s own list, or the
@@ -499,8 +539,8 @@ line: `Loop end: nothing fixable` when **Anything fixable left?** printed `nothi
 naming that check's file and its `gaps=` count; `Loop end: budget exhausted` with `edits-made`, or
 `Loop end: no improvement`, when **Attempts exhausted or no improvement?** ended it; omitted when
 the first check found no mismatch. Then a section headed `## Content-dependent, not graded`: every
-`approx` line of the final check, and every `[content-dependent]` entry of its list, one per line;
-`none` when there is none. Such a value is listed, never dropped and never graded.
+`approx` line of the final check, every size-origin `grown` line of it, and every
+`[content-dependent]` entry of its list, one per line; `none` when there is none. Such a value is listed, never dropped and never graded.
 
 **Write the evidence manifest**, `.ai/run-context/evidence-manifest.json`, in the shape
 `../../../agentic-core/shared/evidence-manifest.md` fixes:
@@ -526,8 +566,8 @@ the first check found no mismatch. Then a section headed `## Content-dependent, 
     was judged visually only, not confirmed numerically — no corresponding measured property"`
   - an `unmeasured` line from the comparison script → `"design value '<property> <value>' on node
     <node> was judged visually only: <reason>"` — one entry per line
-  - an `approx` line or a `[content-dependent]` entry on the final check → `"content-dependent, not
-    graded: <selector> <property>: <detail>"` — one entry per line
+  - an `approx` line, a size-origin `grown` line, or a `[content-dependent]` entry on the final
+    check → `"content-dependent, not graded: <selector> <property>: <detail>"` — one entry per line
   - an edit to an already-existing block → `"this run edited an already-existing block's CSS/JS
     ('<name>') ahead of plan approval"`
   - a `reduced` comparison line → `"design comparison at <capture width> was at reduced resolution:
@@ -626,6 +666,10 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   aspect-ratio on a node that holds copy or an image fill follows the content, so the comparison
   script lists it beside the element's measured box and no edit is spent on it. Which values those
   are is the value table's decision; padding, gap and margin are never among them.
+- **A fixed size on text must come from its node.** The size-origin script reads the block's CSS
+  rules at the top level and inside `@media`, `@supports`, `@container` and `@layer`; a nested rule
+  stops it (exit `2`) rather than being skipped. "Holds text" is the `measure` operation's own
+  `holds_text`, so a selector the page does not match is never reported.
 - **Logical padding is compared for a horizontal left-to-right writing mode.** `padding-inline`'s
   start and end map to left and right; a right-to-left block would report its two inline sides
   swapped.

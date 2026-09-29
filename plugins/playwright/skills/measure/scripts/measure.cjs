@@ -3,7 +3,8 @@
 //
 // browser.measure — load a target URL and return each named selector's
 // geometry and a fixed set of computed style values from a real headless
-// Chromium, then print the result envelope. Same standalone precondition as
+// Chromium, plus whether any element each selector matches holds text,
+// then print the result envelope. Same standalone precondition as
 // render.cjs. A selector matching no element is a normal, successful result
 // (found: false) — not a reason to fail the whole read, the same reading
 // the design pack's fetch_reference gives an empty variable map.
@@ -68,34 +69,48 @@ function slugify(url) {
   return (slug || 'target').slice(0, 80);
 }
 
+// Runs in the page: every selector's reading in the output shape, and what
+// the settle check needs to decide visibility. `holds_text` reads every match;
+// geometry and computed values are the first match's.
+function readSelectors({ sels, props }) {
+  const hasText = (node) => Array.from(node.childNodes).some((child) => (
+    (child.nodeType === 3 && child.nodeValue.trim() !== '')
+    || (child.nodeType === 1 && hasText(child))
+  ));
+  const out = {};
+  const vis = {};
+  for (const sel of sels) {
+    const all = document.querySelectorAll(sel);
+    const el = all[0];
+    if (!el) {
+      out[sel] = { found: false };
+      vis[sel] = { found: false };
+    } else {
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      const computed = {};
+      for (const p of props) computed[p] = style.getPropertyValue(p);
+      out[sel] = {
+        found: true,
+        geometry: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        computed,
+        holds_text: Array.from(all).some(hasText),
+      };
+      vis[sel] = {
+        found: true, width: rect.width, height: rect.height, hidden: style.visibility === 'hidden',
+      };
+    }
+  }
+  return { results: out, states: vis, fontsLoading: document.fonts.status !== 'loaded' };
+}
+
 // One snapshot: every selector's reading in the output shape, plus what
 // still stops the page counting as settled.
 async function probe(page, selectors) {
-  const { results, states, fontsLoading } = await page.evaluate(({ sels, props }) => {
-    const out = {};
-    const vis = {};
-    for (const sel of sels) {
-      const el = document.querySelector(sel);
-      if (!el) {
-        out[sel] = { found: false };
-        vis[sel] = { found: false };
-      } else {
-        const rect = el.getBoundingClientRect();
-        const style = getComputedStyle(el);
-        const computed = {};
-        for (const p of props) computed[p] = style.getPropertyValue(p);
-        out[sel] = {
-          found: true,
-          geometry: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-          computed,
-        };
-        vis[sel] = {
-          found: true, width: rect.width, height: rect.height, hidden: style.visibility === 'hidden',
-        };
-      }
-    }
-    return { results: out, states: vis, fontsLoading: document.fonts.status !== 'loaded' };
-  }, { sels: selectors, props: PROPERTIES });
+  const { results, states, fontsLoading } = await page.evaluate(
+    readSelectors,
+    { sels: selectors, props: PROPERTIES },
+  );
   const blockers = [];
   const hidden = notVisible(states);
   if (hidden.length) blockers.push(`named target(s) not visible: ${hidden.join(', ')}`);
@@ -177,7 +192,7 @@ async function main() {
   });
 }
 
-module.exports = { PROPERTIES };
+module.exports = { PROPERTIES, readSelectors };
 
 if (require.main === module) {
   main().catch((err) => {
