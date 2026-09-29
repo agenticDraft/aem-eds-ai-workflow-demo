@@ -6,6 +6,8 @@ on:
     paths:
       - 'plugins/agentic-core/**'
       - '.github/workflows/validate-agentic-core.yaml'
+      - '.ai/project-config.yaml'
+      - 'plugins/jira/triggers/**'
   pull_request:
     # No branch filter on purpose. A pull request into a long-lived
     # integration branch changes these files just as much as one into the
@@ -15,6 +17,8 @@ on:
     paths:
       - 'plugins/agentic-core/**'
       - '.github/workflows/validate-agentic-core.yaml'
+      - '.ai/project-config.yaml'
+      - 'plugins/jira/triggers/**'
 
 jobs:
   validate:
@@ -46,7 +50,11 @@ jobs:
       - name: Check trigger identity
         run: bash plugins/agentic-core/shared/lib/check-trigger-identity.test.sh
       - name: Check trigger config
-        run: bash plugins/agentic-core/shared/lib/check-trigger-config.test.sh
+        run: |
+          bash plugins/agentic-core/shared/lib/check-trigger-config.test.sh
+          bash plugins/agentic-core/shared/lib/check-trigger-config.sh \
+            .ai/project-config.yaml \
+            plugins/jira/triggers/route-trigger.rule.json
       - name: Validate pack manifest
         run: bash plugins/agentic-core/shared/lib/validate-pack-manifest.test.sh
       - name: Validate naming rule
