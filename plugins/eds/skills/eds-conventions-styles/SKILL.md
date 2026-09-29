@@ -55,6 +55,17 @@ This answers the two cases the contract already fixes outright — no design val
 values retrieved but no design system adopted yet — before any judgment is needed. Only when both
 exist does grading remain.
 
+Then run the design-font check (D530):
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/design-fonts.py .ai/run-context/design-reference.json .
+```
+
+Exit `1` prints each font family the design names that this project declares no `@font-face` for,
+one per line — keep them as the **missing families** for every report below. Exit `0` — none.
+Exit `2` — go to **Report missing artifact**. Fonts are added by a human once, with their license;
+this skill names what is missing and never adds, downloads or substitutes a font.
+
 ### Check ran?
 
 - Exit `2` — `.ai/run-context/design-reference.json` is missing or not valid JSON, despite this
@@ -97,7 +108,7 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 
 - `status: warning`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — no design values were retrieved for this item, so there is nothing to
-  grade; confidence capped low.
+  grade; confidence capped low — plus, when there are missing families, each one named.
 - `artifacts: []`
 - `next_action: none`
 
@@ -107,7 +118,8 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 
 - `status: warning`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — design values exist but this project has not adopted a design system
-  yet, so there is nothing to grade against; confidence capped low.
+  yet, so there is nothing to grade against; confidence capped low — plus, when there are missing
+  families, each one named.
 - `artifacts: []`
 - `next_action: run project onboarding before trusting a styles verdict`
 
@@ -115,8 +127,10 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list, with `status:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
-- `status: success`
+- `status: success` — or `status: warning` when there are missing families
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many variables matched the adopted system and how many
-  drifted — e.g. "Graded 2 design values against the adopted system: 1 matched, 1 drifted."
+  drifted — e.g. "Graded 2 design values against the adopted system: 1 matched, 1 drifted." — and, when
+  there are missing families, naming each — e.g. "…; fonts not declared: DM Sans, Roboto Mono."
 - `artifacts: []`
-- `next_action: none`
+- `next_action: none` — or, when there are missing families, `a human adds the missing font
+  families, with their licenses`

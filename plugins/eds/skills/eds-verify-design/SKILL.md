@@ -48,7 +48,9 @@ conventions.md`/`plan.yaml` (D76), since it is prose, not machine-parseable key/
 It also reads `.ai/run-context/design-context-values.tsv` (written by `eds-prototype`) when that
 file exists and is non-empty, only through `scripts/compare-design-values.py` — never parsed here.
 Which widths it captures, and which reference image each capture is compared against, come only
-from `../shared/scripts/pair-viewports.py targets` — never from reading `viewports` here.
+from `../shared/scripts/pair-viewports.py targets` — never from reading `viewports` here. Which
+design font families the project does not declare comes only from `../shared/scripts/design-fonts.py`
+(D530).
 
 ## Flow
 
@@ -129,8 +131,17 @@ Read `.ai/run-context/fact-record.yaml`, `.ai/run-context/design-reference.json`
 
 ### Inputs present?
 
-`design-reference.json` and `prototype-report.md` both exist and are non-empty — continue to
-**Resolve the browser pack**. Either missing — go to **Report fail**: `extract` runs earlier in
+`design-reference.json` and `prototype-report.md` both exist and are non-empty — run, once for the
+whole stage:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/design-fonts.py .ai/run-context/design-reference.json .
+```
+
+Exit `1` — keep each printed line as a **missing family** for every check this stage makes, even if
+an edit later adds an `@font-face`: a declaration with no font file behind it changes nothing on
+screen. Exit `0` — none. Exit `2` — go to **Report fail**, naming the script's stderr reason. Then
+continue to **Resolve the browser pack**. Either missing — go to **Report fail**: `extract` runs earlier in
 this pack's own route under the identical `design_source`/`design_mentioned` condition this stage
 shares, and `prototype` runs immediately before this stage under the same condition, so a missing
 file here means either a standalone invocation started out of route order, `prototype`'s own
@@ -256,7 +267,12 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    `<name>.css`/`<name>.js` could produce it, never as a softer way to describe a difference a CSS or
    JS change could actually close. A wrong color, wrong spacing, wrong font application, or wrong
    layout is always `[fixable]`, however small — this tag exists for missing *content*, not for
-   difficulty or scope of the fix. Each mismatch names its comparison — `<capture width> vs
+   difficulty or scope of the fix. **A missing design font is missing content (D530).** While there
+   is a missing family, a mismatch whose only difference is text geometry — where text sits inside
+   its box, or the height of its line box — is `[content-asset gap]`, naming the missing families
+   ("text geometry, with DM Sans, Roboto Mono not declared"), because fallback-font metrics move text
+   and no block edit can load the font. A wrong `font-family`, size, weight or colour, or a box that
+   is the wrong size for a reason other than its text, stays `[fixable]`. Each mismatch names its comparison — `<capture width> vs
    <name> (<node id>)`, or `<capture width> vs the reference` when the node id is `-`. A line whose
    resolution is `reduced` was compared against an image the design tool rendered smaller than the
    design: record that the comparison at that width is at reduced resolution, so fine detail
@@ -283,7 +299,8 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    The script owns shorthand expansion, value normalisation and which properties are compared;
    take its lines as given. Each line is `<status> TAB <node> TAB <selector> TAB <property> TAB
    <detail>`.
-   - Exit `0` or `1` — every `mismatch` line is a named mismatch, tagged `[fixable]`, written as
+   - Exit `0` or `1` — every `mismatch` line is a named mismatch, tagged `[fixable]` (a computed
+     value does not depend on which font loaded, so a missing family never changes this), written as
      `<selector> <property>: <detail>`. Every `unmeasured` line is a value judged visually only,
      recorded with its reason. `match` lines are recorded as confirmed.
    - Exit `2` — go to **Report fail**, naming the script's stderr reason.
@@ -558,7 +575,9 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   every visual comparison (D19), not a new category of risk.** Its guardrail is stated where the tag
   is assigned, not enforced by a script: a wrong color, spacing, font application or layout is always
   `[fixable]`, regardless of how small the edit would be — the tag exists only for content genuinely
-  absent from the project.
+  absent from the project. A missing design font (D530) is such content, and only for text
+  geometry: the stage decides by inspection whether a mismatch is text geometry, so a box mismatch
+  whose real cause is a wrong rule could be tagged `[content-asset gap]` while a family is missing.
 - **`Skill(eds:eds-verify-design)` resolving inside a real route, under `context: fork`.** Same class
   as every prior stage-adapter task — the `eds` plugin is not loaded into this session, so the flow
   was executed by hand, node by node, against the real scripts and real project state.
