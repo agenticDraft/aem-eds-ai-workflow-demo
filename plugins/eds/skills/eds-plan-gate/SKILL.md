@@ -150,7 +150,8 @@ its first stdout line verbatim as the report's `relevance:` line, then:
 - `relevance: match (…)` — no finding.
 - `relevance: not run (…)` — no finding and no `warn`. The line names what the design reference
   lacked; an expected absence is information for the report, not a problem with the plan.
-- `relevance: low (…)` — one finding, `.ai/run-context/design-reference.json — the design may not be
+- `relevance: low (…)` — no design name shares an item keyword (the checker's threshold is 1). One
+  finding, `.ai/run-context/design-reference.json — the design may not be
   the item's: <n> of <m> design names share an item keyword; item keywords: <list>; design keywords:
   <list>`, both lists copied from the script's output.
 - Exit `2` — a usage error or a malformed design reference: the check did not run to a decision.
