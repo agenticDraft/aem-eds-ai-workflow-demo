@@ -11,7 +11,7 @@ jobs:
   log-payload:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v5
 
       - name: Log dispatch event
         env:
@@ -24,10 +24,10 @@ jobs:
 
       - name: Validate ticket
         env:
-          TICKET: ${{ github.event.client_payload.ticket }}
+          TICKET: ${{ github.event.client_payload.item_id }}
         run: |
           if [[ ! "$TICKET" =~ ^[A-Z][A-Z0-9]+-[0-9]+$ ]]; then
-            echo "::error::client_payload.ticket '$TICKET' does not match ^[A-Z][A-Z0-9]+-[0-9]+\$ (e.g. DEMO-1)"
+            echo "::error::client_payload.item_id '$TICKET' does not match ^[A-Z][A-Z0-9]+-[0-9]+\$ (e.g. DEMO-1)"
             exit 1
           fi
           echo "Ticket OK: $TICKET"
