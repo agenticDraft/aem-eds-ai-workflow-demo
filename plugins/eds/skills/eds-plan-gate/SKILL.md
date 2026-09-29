@@ -60,7 +60,8 @@ digraph eds_plan_gate {
     "Plan present?" -> "Report fail" [label="missing or empty"];
     "Run the deterministic criteria check" -> "Structural criteria hold?";
     "Structural criteria hold?" -> "Run the design relevance check" [label="exit 0"];
-    "Run the design relevance check" -> "Review the dependency order";
+    "Run the design relevance check" -> "Review the dependency order" [label="exit 0"];
+    "Run the design relevance check" -> "Report fail" [label="exit 2"];
     "Structural criteria hold?" -> "Report fail" [label="exit 1"];
     "Structural criteria hold?" -> "Report fail" [label="exit 2"];
     "Review the dependency order" -> "Review the verification statements";
@@ -146,16 +147,20 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-design-relevance.sh 
 It reads the design-context file through the reference's own `design_context.code_file`. Record
 its first stdout line verbatim as the report's `relevance:` line, then:
 
-- `relevance: match (…)` or `relevance: not run (…)` — no finding.
+- `relevance: match (…)` — no finding.
+- `relevance: not run (…)` — no finding and no `warn`. The line names what the design reference
+  lacked; an expected absence is information for the report, not a problem with the plan.
 - `relevance: low (…)` — one finding, `.ai/run-context/design-reference.json — the design may not be
   the item's: <n> of <m> design names share an item keyword; item keywords: <list>; design keywords:
   <list>`, both lists copied from the script's output.
-- Exit `2` — one finding, `.ai/run-context/design-reference.json — relevance check did not run:
-  <its stderr>`.
+- Exit `2` — a usage error or a malformed design reference: the check did not run to a decision.
+  Record `relevance: could not run: <its stderr>` and go to **Report fail**, exactly as for the
+  structural check's exit `2` — a deterministic check that could not run is a contract violation
+  (`../../../agentic-core/shared/gate-contract.md`), never a finding.
 
-This finding is never a criterion answered no, so it never leads to **Report fail** and never asks
-a question: at most it makes the verdict `warn`. **Drop every finding below the confidence bar**
-keeps it — a script decided it. Go to **Review the dependency order**.
+On exit `0` the `low` finding is never a criterion answered no, so it never leads to **Report
+fail** and never asks a question: at most it makes the verdict `warn`. **Drop every finding below
+the confidence bar** keeps it — a script decided it. Go to **Review the dependency order**.
 
 ### Review the dependency order
 
@@ -218,7 +223,7 @@ Nothing survived — go to **Report pass**.
 ### Report fail
 
 Write the report first, then the envelope — both by the steps in **Write the report and the
-envelope**, with `<verdict>` `fail`. On a `fail` reached before any review — a mismatched run context, a missing plan, a checker that exited `1` or `2` — the report's criteria it never reached say `not reached`.
+envelope**, with `<verdict>` `fail`. On a `fail` reached before any review — a mismatched run context, a missing plan, a checker that exited `1` or `2`, a relevance check that exited `2` — the report's criteria it never reached say `not reached`.
 
 The report goes to `<project root>/.ai/run-context/plan-gate-report.md`; the envelope:
 
@@ -232,7 +237,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
 Values to pass:
 
 - `verdict: fail`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-plan reason; or the checker's `invalid: <reason>` from stderr, verbatim, never reworded into something more general; or that the checker could not run to a verdict, naming its usage error; or which of criteria 3 and 4 is answered no and the single step or requirement that settles it.
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-plan reason; or the checker's `invalid: <reason>` from stderr, verbatim, never reworded into something more general; or that a checker could not run to a verdict, naming which and its usage error; or which of criteria 3 and 4 is answered no and the single step or requirement that settles it.
 - `artifacts`: `.ai/run-context/plan-gate-report.md` — the one `--artifact`.
 - `next_action: none` — the emitter's default; pass nothing.
 
@@ -290,7 +295,7 @@ replacing whatever an earlier run left there:
 # plan-gate report — <item id>
 
 verdict: <verdict>
-relevance: <the relevance check's first line, verbatim | not reached>
+relevance: <the relevance check's first line, verbatim | could not run: <its stderr> | not reached>
 
 ## Criteria
 
