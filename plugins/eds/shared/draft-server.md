@@ -46,6 +46,13 @@ bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
   .ai/logs/draft-server.pid
 ```
 
+**Branch length first (D539).** Before it polls or starts anything, the script runs
+`check-branch-length.sh` on the checked-out branch. The dev server refuses a branch over 23
+characters, and that refusal reaches only its log. A too-long branch exits `1` with
+`start-failed: branch name too long (<n> > 23)`, never the poll ladder's `no-answer`. This failure is
+**not** transient: a restart fails the same way. The calling stage's question names the rename, not
+the recovery command. No branch checked out (detached HEAD) leaves nothing to measure.
+
 Polls before starting: the server an earlier stage or an earlier run started is normally still
 answering, and is reused. Only starts a new one when nothing answered, and writes the pid file only
 then. Prints `ready: origin=<url> port=<n> started=yes|no pid=<pid|none> log=<path|none>` on
