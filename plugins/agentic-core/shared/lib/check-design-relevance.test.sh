@@ -6,7 +6,7 @@
 # lower case, camel case, the fixed stop-word list, minimum length, digits,
 # plurals, hyphens); a matching pair; a mismatching pair, including copy
 # inside the design context that shares the item's words and is never
-# counted; the threshold at exactly 1 and exactly 2; the three name
+# counted; the threshold at exactly 0 and exactly 1; the three name
 # prefixes stripped; image mode, an item with no design, a missing node_name,
 # a missing code file and no data-name values reported as not run, as one
 # line naming what was missing; every outcome exiting 0; a field of the wrong
@@ -76,7 +76,7 @@ assert_eq "stop words dropped from a sentence" "table check icon" "$(tokens 'The
 echo "[match] a table item against a table design"
 OUT=$(bash "$CHECK" "$FIX" spec-table.md facts-table.yaml reference-table.json 2>&1); ST=$?
 assert_eq "exit 0" 0 "$ST"
-assert_eq "first line is the decision" "relevance: match (3 of 4 design names share an item keyword; threshold 2)" "$(head -1 <<< "$OUT")"
+assert_eq "first line is the decision" "relevance: match (3 of 4 design names share an item keyword; threshold 1)" "$(head -1 <<< "$OUT")"
 assert_contains "names the item keywords (summary and components)" "item keywords: cell, check, comparison, icon, table" "$OUT"
 assert_contains "names the design keywords" "design keywords: check, column, icon, item, table" "$OUT"
 assert_contains "names the matching names" "matching names: check icon; table; table item" "$OUT"
@@ -84,26 +84,34 @@ assert_contains "names the matching names" "matching names: check icon; table; t
 echo "[low] a button item against a table design"
 OUT=$(bash "$CHECK" "$FIX" spec-button.md facts-button.yaml reference-table.json 2>&1); ST=$?
 assert_eq "exit 0 -- a low score is never a failure" 0 "$ST"
-assert_eq "first line is the decision" "relevance: low (0 of 4 design names share an item keyword; threshold 2)" "$(head -1 <<< "$OUT")"
+assert_eq "first line is the decision" "relevance: low (0 of 4 design names share an item keyword; threshold 1)" "$(head -1 <<< "$OUT")"
 assert_contains "names the item keywords, components included" "item keywords: button, cta, hover, primary, state" "$OUT"
 assert_contains "names the design keywords" "design keywords: check, column, icon, item, table" "$OUT"
 assert_contains "no matching name" "matching names: none" "$OUT"
 assert_not_contains "copy inside the design is not a design keyword" "button" "$(grep '^design keywords:' <<< "$OUT")"
 
-echo "[threshold] exactly 2 matches, prefixes stripped"
+echo "[prefixes] Component/ and Mobile/ stripped"
 OUT=$(bash "$CHECK" "$FIX" spec-pricing.md facts-pricing.yaml reference-card.json 2>&1); ST=$?
 assert_eq "exit 0" 0 "$ST"
-assert_eq "2 is a match" "relevance: match (2 of 3 design names share an item keyword; threshold 2)" "$(head -1 <<< "$OUT")"
+assert_eq "2 matches" "relevance: match (2 of 3 design names share an item keyword; threshold 1)" "$(head -1 <<< "$OUT")"
 assert_contains "Component/ and Mobile/ stripped from names" "matching names: card; pricing" "$OUT"
 assert_contains "no prefix word among design keywords" "design keywords: card, image, pricing, wrapper" "$OUT"
 
 echo "[threshold] exactly 1 match"
 printf '# Card layout\n\nitem: DEMO-5 (Story)\n' > "$WORK/spec-card.md"
-cp "$FIX/facts-pricing.yaml" "$FIX/reference-card.json" "$FIX/context-card.txt" "$WORK/"
-OUT=$(bash "$CHECK" "$WORK" spec-card.md facts-pricing.yaml reference-card.json 2>&1); ST=$?
+printf 'item_id: "DEMO-5"\ncomponents: []\ndesign_source: true\ndesign_mentioned: true\n' > "$WORK/facts-card.yaml"
+cp "$FIX/reference-card.json" "$FIX/context-card.txt" "$WORK/"
+OUT=$(bash "$CHECK" "$WORK" spec-card.md facts-card.yaml reference-card.json 2>&1); ST=$?
 assert_eq "exit 0" 0 "$ST"
-assert_eq "1 is low" "relevance: low (1 of 3 design names share an item keyword; threshold 2)" "$(head -1 <<< "$OUT")"
+assert_eq "1 is a match" "relevance: match (1 of 3 design names share an item keyword; threshold 1)" "$(head -1 <<< "$OUT")"
 assert_contains "names the one match" "matching names: card" "$OUT"
+
+echo "[threshold] exactly 0 matches"
+printf '# Hero layout\n\nitem: DEMO-6 (Story)\n' > "$WORK/spec-hero.md"
+OUT=$(bash "$CHECK" "$WORK" spec-hero.md facts-card.yaml reference-card.json 2>&1); ST=$?
+assert_eq "exit 0" 0 "$ST"
+assert_eq "0 is low" "relevance: low (0 of 3 design names share an item keyword; threshold 1)" "$(head -1 <<< "$OUT")"
+assert_contains "no matching name" "matching names: none" "$OUT"
 
 echo "[paths] absolute paths are used as given"
 OUT=$(bash "$CHECK" "$FIX" "$FIX/spec-table.md" "$FIX/facts-table.yaml" "$FIX/reference-table.json" 2>&1); ST=$?
@@ -184,7 +192,7 @@ echo "[low] still a decision with its keyword lists, exit 0"
 ref ref-low.json '.'
 OUT=$(bash "$CHECK" "$WORK" "$FIX/spec-button.md" "$FIX/facts-button.yaml" ref-low.json 2>&1); ST=$?
 assert_eq "exit 0" 0 "$ST"
-assert_eq "first line is low" "relevance: low (0 of 4 design names share an item keyword; threshold 2)" "$(head -1 <<< "$OUT")"
+assert_eq "first line is low" "relevance: low (0 of 4 design names share an item keyword; threshold 1)" "$(head -1 <<< "$OUT")"
 assert_contains "keyword lists printed" "item keywords: button, cta, hover, primary, state" "$OUT"
 
 echo "[usage]"
