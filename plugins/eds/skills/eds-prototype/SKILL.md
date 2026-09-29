@@ -37,7 +37,8 @@ own question, read only through this stage's own `scripts/resolve-target.py` (wh
 `design-reference.json`'s `design_context.code_file` names, read only through this stage's own
 `scripts/design-context-values.py`, and each viewport variant's reference code, read only through
 this stage's own `scripts/viewport-overrides.py`. The asset files `design-reference.json`'s `assets`
-list names are placed only through this stage's own `scripts/place-assets.py`. It calls no `tracker`/`scm`/`design`/
+list names are placed only through this stage's own `scripts/place-assets.py`. The pack's pinned
+upstream block collection (D528) is read only through `../../shared/scripts/copy-upstream-blocks.sh`. It calls no `tracker`/`scm`/`design`/
 `browser` role operation — building the prototype is a content-authoring step, not a render/capture/
 measure step; `eds-verify-design` (not yet built) is the stage that renders and compares it.
 
@@ -48,6 +49,7 @@ digraph eds_prototype {
     "Read the required inputs" [shape=box];
     "Inputs present?" [shape=diamond];
     "Target block identified?" [shape=diamond];
+    "Copy an upstream block" [shape=box];
     "Block already exists?" [shape=diamond];
     "Read the existing block's markup, CSS, and JS" [shape=box];
     "Read the nearest exemplar's structure" [shape=box];
@@ -71,7 +73,9 @@ digraph eds_prototype {
     "Read the required inputs" -> "Inputs present?";
     "Inputs present?" -> "Target block identified?" [label="yes"];
     "Inputs present?" -> "Report fail" [label="no"];
-    "Target block identified?" -> "Block already exists?" [label="exit 0"];
+    "Target block identified?" -> "Copy an upstream block" [label="exit 0"];
+    "Copy an upstream block" -> "Block already exists?" [label="exit 0"];
+    "Copy an upstream block" -> "Report fail" [label="exit 1 or 2"];
     "Target block identified?" -> "Report question" [label="exit 4"];
     "Target block identified?" -> "Report fail" [label="exit 1 or 2"];
     "Block already exists?" -> "Read the existing block's markup, CSS, and JS" [label="yes"];
@@ -143,7 +147,7 @@ Never pick a block yourself from these fields, from the answer's free text, or f
 specification: which block is targeted is the script's decision alone.
 
 - **Exit `0`** — `target=<name>` is the target block; `source=` names where it came from. Continue
-  to **Block already exists?**.
+  to **Copy an upstream block**.
 - **Exit `4`** — no single candidate. Go to **Report question**, passing every `candidate=<name>`
   line as an option. `source=none` means no source named any block: a route reaches this stage on
   its design condition alone, with nothing gating it on a named component, so this is an
@@ -152,6 +156,31 @@ specification: which block is targeted is the script's decision alone.
   answer read out of a file whose entries cannot be trusted is never acted on.
 - **Exit `2`** — the fact record is unreadable. Go to **Report fail**, naming the script's reason.
 
+### Copy an upstream block
+
+Run:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/copy-upstream-blocks.sh .ai/run-context/fact-record.yaml .
+```
+
+A block the item names that is absent from `blocks/` but present in the pack's pinned upstream
+block collection is copied into `blocks/<name>/` here as the starting point this stage then changes
+(D528). Each copied file opens with a one-line Apache-2.0 change notice naming the upstream repo,
+path and commit; keep that line when changing the file. This stage runs before `plan` on a design route, so copying here is what
+keeps the block from being built new; `plan` and `implement` call the same script and, finding the
+block present, copy nothing. The script decides which names to copy from the fact record — never
+copy, or pick a name, yourself.
+
+- **Exit `0`** — note every `copied=blocks/<name>/<file>` line (`copied=(none)` when nothing was
+  copied) and any `upstream_unknown=<name>` line for **Write the prototype report**. Continue to
+  **Block already exists?**.
+- **Exit `1` or `2`** — go to **Report fail**, naming the script's stderr reason.
+
+`upstream_unknown=<name>` means the collection's manifest is missing or malformed, so whether the
+collection has that block could not be checked; the block is built new below. It is never "not in
+the collection" — report it as a degradation (**Any degradation to report?**).
+
 ### Block already exists?
 
 Test whether `blocks/<name>/<name>.js` or `blocks/<name>/<name>.css` already exists in this
@@ -159,9 +188,10 @@ checkout (either one counts — a block missing only its CSS or only its JS is s
 block, not a new one). Present — continue to **Read the existing block's markup, CSS, and JS**.
 Absent — continue to **Read the nearest exemplar's structure**.
 
-`design-conventions.md`'s own `## component reuse` section names this same block `reuse=` or
-`new=`, independently derived from the identical fact-record fields by `eds-conventions-component-
-reuse`. The two should agree. If they do not, note the disagreement explicitly in **Write the
+`design-conventions.md`'s own `## component reuse` section names this same block `reuse=`,
+`upstream=`, `new=` or `upstream_unknown=`, independently derived from the identical fact-record fields by `eds-conventions-component-
+reuse`. The two should agree — `upstream=` agrees with a block present now because
+**Copy an upstream block** copied it this run. If they do not, note the disagreement explicitly in **Write the
 prototype report** rather than silently preferring one — this stage's own disk check is what
 decides which branch it takes, since it is the more direct, more current source (a block created
 after `conventions` ran would only be visible to this check).
@@ -173,6 +203,9 @@ real structure, decoration logic, and CSS-scoping form. Also search this project
 content for one existing authored instance of this block, the same search `eds-baseline`'s own
 **Locate existing content for the component** node performs, to see today's real content shape, if
 any.
+
+**A block copied by this run's Copy an upstream block is not in use yet:** it is the upstream starting
+point, and changing it is this stage's ordinary work, not the degradation below. Otherwise:
 
 **This is the reuse path, and it always modifies a real, currently-used component.** Whatever this
 run writes to `blocks/<name>/<name>.css`/`.js` below replaces code other pages using this block
@@ -408,10 +441,12 @@ so every committed raster image is flagged, whatever its size. Its rows: `ignore
 ### Write the prototype report
 
 Write `.ai/run-context/prototype-report.md`: the target block name; whether it was new or existing
-(and any disagreement with `design-conventions.md`'s own `reuse=`/`new=` line, per **Block already
-exists?**); every file written or updated (`blocks/<name>/<name>.css`, `blocks/<name>/<name>.js`,
-`drafts/<item_id>.plain.html`); the token-mapping decisions made, or the image-only degradation, or
-the no-exemplar degradation; and, when the target block already existed, the explicit note from
+(and any disagreement with `design-conventions.md`'s own reuse line, per **Block already
+exists?**); every `copied=` file from **Copy an upstream block** with the collection's pinned commit
+(the `upstream_manifest=` line), or `upstream_unknown`; every file written or updated
+(`blocks/<name>/<name>.css`, `blocks/<name>/<name>.js`, `drafts/<item_id>.plain.html`); the
+token-mapping decisions made, or the image-only degradation, or the no-exemplar degradation; and,
+when the target block existed before this run, the explicit note from
 **Read the existing block's markup, CSS, and JS** that this run modified a real, currently-used
 component ahead of `plan`/`plan-gate` approval.
 
@@ -464,8 +499,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/flag-committed-assets
 
 Any of the following — go to **Report warn**:
 
-- The target block already existed, so this run modified real, currently-used project source ahead
-  of plan approval.
+- The target block already existed before this run, so this run modified real, currently-used
+  project source ahead of plan approval. A block this run copied from the upstream collection does
+  not count.
+- **Copy an upstream block** printed any `upstream_unknown=` line: the collection could not be
+  checked, so a block it may hold was built new.
 - `design-reference.json`'s `has_values` is `false` (an image-only source), so the CSS was
   approximated by inspection rather than derived from real values.
 - `design-conventions.md`'s own `## styles` section reports `no-manifest` or `no-values` (no
@@ -473,8 +511,7 @@ Any of the following — go to **Report warn**:
   or the nearest-looking existing custom property without a graded comparison behind it.
 - `design-conventions.md`'s `## Exemplars` section named `(none)`, so no existing unit could be
   modeled for a new block.
-- `design-conventions.md`'s own `reuse=`/`new=` line for this block disagreed with this stage's own
-  disk check.
+- `design-conventions.md`'s own reuse line for this block disagreed with this stage's own disk check.
 - `viewport-overrides.tsv` holds any `same-interval`, `not-overridden`, `unmatched`, `missing` or
   `no-context` line, so part of a viewport variant was not written.
 - `committed-assets.tsv` holds any `flag` row, so an unoptimised raster image will be committed.
@@ -498,8 +535,8 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   `design-conventions.md` — verbatim, never reworded into something more general; or, from
   **Target block identified?**, the reason `resolve-target.py` gave for refusing the answer file or
   the fact record; or, from **Read the design-context values**, the reason `design-context-values.py` gave;
-  or, from **Place the assets**, **Flag committed binaries** or **Check the optimise flags**, the
-  reason that script gave.
+  or, from **Copy an upstream block**, **Place the assets**, **Flag committed binaries** or **Check
+  the optimise flags**, the reason that script gave.
 - `artifacts: []`
 - `next_action: none`
 
@@ -566,6 +603,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   - `blocks/<name>/<name>.css`
   - `blocks/<name>/<name>.js`
   - `drafts/<item_id>.plain.html`
+  - every other `copied=` file of **Copy an upstream block**
   - `.ai/run-context/prototype-report.md`
   - `.ai/run-context/design-context-values.tsv`
   - `.ai/run-context/viewport-overrides.tsv`, only when **Read the viewport overrides** ran

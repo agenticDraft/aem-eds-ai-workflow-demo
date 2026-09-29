@@ -32,12 +32,18 @@ units forward into `plan.yaml`'s `# Conventions:` header comment (D76). This sta
 comment and opens the files it names — it neither repeats that research nor reads the conventions
 artifact directly, so `plan.yaml` stays the single thing this stage has to be given.
 
+One exception, deterministic and model-free: `../../shared/scripts/copy-upstream-blocks.sh` reads
+`.ai/run-context/fact-record.yaml` itself to copy any named block the pack's pinned upstream block
+collection holds and `blocks/` still lacks (D528). This stage passes it the path and never reads
+the fact record for anything else.
+
 ## Flow
 
 ```dot
 digraph eds_implement {
     "Read the plan" [shape=box];
     "Plan present and valid?" [shape=diamond];
+    "Copy an upstream block" [shape=box];
     "Resolve execution order" [shape=box];
     "Order resolvable?" [shape=diamond];
     "Implement the next unblocked step" [shape=box];
@@ -49,7 +55,9 @@ digraph eds_implement {
     "Report pass" [shape=doublecircle];
 
     "Read the plan" -> "Plan present and valid?";
-    "Plan present and valid?" -> "Resolve execution order" [label="valid"];
+    "Plan present and valid?" -> "Copy an upstream block" [label="valid"];
+    "Copy an upstream block" -> "Resolve execution order" [label="exit 0"];
+    "Copy an upstream block" -> "Report fail" [label="exit 1 or 2"];
     "Plan present and valid?" -> "Report fail" [label="missing or invalid"];
     "Resolve execution order" -> "Order resolvable?";
     "Order resolvable?" -> "Implement the next unblocked step" [label="yes"];
@@ -85,7 +93,24 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-plan-criteria.sh .ai
 this stage has no such guarantee, so this check is defensive rather than redundant. Missing,
 empty, or a non-zero exit — go to **Report fail**, naming the checker's `invalid: <reason>`
 verbatim, or "plan.yaml is missing" if the file does not exist. A valid plan — continue to
-**Resolve execution order**.
+**Copy an upstream block**.
+
+### Copy an upstream block
+
+Run:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/copy-upstream-blocks.sh .ai/run-context/fact-record.yaml .
+```
+
+`prototype` or `plan` has normally copied the block already, and this prints `copied=(none)`; it
+copies here only on a route where neither did, so the steps below still change the upstream files
+rather than write the block from scratch. Never copy, or pick a name, yourself.
+
+- **Exit `0`** — record every `copied=blocks/<name>/<file>` line as a file this stage created. An
+  `upstream_unknown=<name>` line needs no action here: the block is built new, as planned, and
+  `conventions` already warned. Continue to **Resolve execution order**.
+- **Exit `1` or `2`** — go to **Report fail**, naming the script's stderr reason.
 
 ### Resolve execution order
 
@@ -141,7 +166,7 @@ One or more steps ended blocked — go to **Report question**. Every step ended 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-or-invalid-plan reason, or the unresolvable-order reason,
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-or-invalid-plan reason, the copy script's stderr reason, or the unresolvable-order reason,
   verbatim. Never reworded into something more general.
 - `artifacts: []`
 - `next_action: none`
@@ -166,5 +191,5 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id and how many of the plan's steps were implemented.
-- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file created or updated across every step.
+- `artifacts` (always a YAML list — `artifacts:` then `  - <path>` per line; even a single path is a list, never an inline scalar): every file created or updated across every step, and every file **Copy an upstream block** copied.
 - `next_action: none`
