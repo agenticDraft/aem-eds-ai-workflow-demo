@@ -111,6 +111,11 @@ COMBINED="$TMPDIR_TEST/combined.yaml"
   echo "limits:"
   echo "  questions_per_run: 3"
   echo "  fix_attempts_default: 2"
+  echo
+  echo "trigger:"
+  echo '  token: "@example-run"'
+  echo "  allowed_identities:"
+  echo '    - "example-identity-1"'
 } > "$COMBINED"
 OUT=$(bash "$SCRIPT_DIR/validate-project-config.sh" "$COMBINED" 2>&1); ST=$?
 assert_exit "spliced file passes validate-project-config.sh (exit 0)" 0 $ST "$OUT"
