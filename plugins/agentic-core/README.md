@@ -48,8 +48,9 @@ the core can be pointed at.
    unanswered question, an exhausted budget or a pre-flight failure; `failed` on a stage's own
    `fail` or on a contract violation. `warn` is never terminal.
 6. **Configuration is written once.** `setup` detects the project's commands and paths, confirms
-   them, and writes `.ai/project-config.yaml` with five top-level keys: `version`, `packs`,
-   `commands`, `paths`, `limits`. Every pack reads that one file.
+   them, and writes them into `.ai/project-config.yaml`, which holds six top-level keys:
+   `version`, `packs`, `commands`, `paths`, `limits`, `trigger`. `limits` and `trigger` are human
+   decisions that `setup` never writes. Every pack reads that one file.
 7. **Every decision that can be a script is a script.** The shared library holds the validators,
    writers and checkers the driver and the packs call; each has a `.test.sh` beside it, and none
    involves a model.

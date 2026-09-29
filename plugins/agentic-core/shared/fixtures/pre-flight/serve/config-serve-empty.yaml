@@ -20,3 +20,8 @@ paths:
 limits:
   questions_per_run: 3
   fix_attempts_default: 2
+
+trigger:
+  token: "@example-run"
+  allowed_identities:
+    - "example-identity-1"

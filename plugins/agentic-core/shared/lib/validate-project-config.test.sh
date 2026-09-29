@@ -60,6 +60,25 @@ echo "[usage] file not found"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/does-not-exist.yaml" 2>&1); ST=$?
 assert_exit "missing file -> usage error (exit 2)" 2 $ST "$OUT"
 
+echo "[reject] trigger.allowed_identities is an empty list"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/trigger-empty-list.yaml" 2>&1); ST=$?
+assert_exit "trigger-empty-list.yaml rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the empty list" "at least one identity" "$OUT"
+
+echo "[reject] trigger block absent"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/trigger-missing.yaml" 2>&1); ST=$?
+assert_exit "trigger-missing.yaml rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the missing block" "trigger:" "$OUT"
+
+echo "[reject] trigger before limits"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/trigger-out-of-order.yaml" 2>&1); ST=$?
+assert_exit "trigger-out-of-order.yaml rejected (exit 1)" 1 $ST "$OUT"
+
+echo "[reject] trigger.token is empty"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/invalid/trigger-empty-token.yaml" 2>&1); ST=$?
+assert_exit "trigger-empty-token.yaml rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the empty token" "trigger.token is empty" "$OUT"
+
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
 exit $(( FAIL > 0 ? 1 : 0 ))

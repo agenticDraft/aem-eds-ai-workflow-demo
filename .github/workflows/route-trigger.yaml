@@ -1,0 +1,153 @@
+name: route-trigger
+
+run-name: "route ${{ github.event.client_payload.item_id }} c${{ github.event.client_payload.comment_id }}"
+
+on:
+  repository_dispatch:
+    types: [agentic-route]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    env:
+      ITEM_ID: ${{ github.event.client_payload.item_id }}
+      COMMENT_ID: ${{ github.event.client_payload.comment_id }}
+      AUTHOR_ID: ${{ github.event.client_payload.author_id }}
+      AUTHOR_NAME: ${{ github.event.client_payload.author_name }}
+      ITEM_TYPE: ${{ github.event.client_payload.item_type }}
+      RULE_VERSION: ${{ github.event.client_payload.rule_version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Gate 1 — shape. A malformed dispatch is a defect in the tracker-side
+      # rule, not a refusal, so this one fails the run loudly.
+      - name: Validate payload shape
+        run: |
+          set -u
+          missing=""
+          for k in ITEM_ID COMMENT_ID AUTHOR_ID AUTHOR_NAME ITEM_TYPE RULE_VERSION; do
+            [ -z "${!k}" ] && missing="$missing $k"
+          done
+          if [ -n "$missing" ]; then
+            echo "malformed dispatch; empty or missing:$missing" >&2
+            exit 1
+          fi
+
+          # Strict shape, defense in depth: every field but AUTHOR_NAME has a
+          # known shape and is rejected here if it doesn't match. AUTHOR_NAME
+          # is a human display name and is deliberately left unvalidated —
+          # it may legitimately contain quotes, spaces and non-Latin script;
+          # it is made safe downstream by JSON-encoding, not by pattern
+          # policing.
+          fail_shape() {
+            echo "malformed dispatch; $1 does not match the expected shape: '$2'" >&2
+            exit 1
+          }
+          [[ "$ITEM_ID" =~ ^[A-Za-z][A-Za-z0-9_]*-[0-9]+$ ]] || fail_shape "ITEM_ID" "$ITEM_ID"
+          [[ "$COMMENT_ID" =~ ^[0-9]+$ ]] || fail_shape "COMMENT_ID" "$COMMENT_ID"
+          [[ "$RULE_VERSION" =~ ^[0-9]+$ ]] || fail_shape "RULE_VERSION" "$RULE_VERSION"
+          [[ "$AUTHOR_ID" =~ ^[A-Za-z0-9:_-]+$ ]] || fail_shape "AUTHOR_ID" "$AUTHOR_ID"
+          [[ "$ITEM_TYPE" =~ ^[A-Za-z][A-Za-z0-9\ _-]*$ ]] || fail_shape "ITEM_TYPE" "$ITEM_TYPE"
+
+          echo "payload shape ok"
+
+      # Precondition for the identity gate. The gate reads the allowlist out
+      # of this file; a malformed or tampered config is a precondition
+      # failure, not something the gate itself can detect. A committed
+      # config that fails this is a defect, so this fails the run rather
+      # than refusing.
+      - name: Validate project config
+        run: |
+          bash plugins/agentic-core/shared/lib/validate-project-config.sh .ai/project-config.yaml
+
+      # Gate 2 — identity. A refusal is a correct outcome: record it and end
+      # the run green. See shared/trigger-contract.md.
+      - name: Identity gate
+        id: identity
+        run: |
+          set -u
+          if bash plugins/agentic-core/shared/lib/check-trigger-identity.sh \
+               .ai/project-config.yaml "$AUTHOR_ID"; then
+            echo "verdict=allowed" >> "$GITHUB_OUTPUT"
+          else
+            echo "verdict=refused" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Trigger refused"
+              echo ""
+              echo "- item: \`$ITEM_ID\`"
+              echo "- comment: \`$COMMENT_ID\`"
+              printf -- '- author: `%s`\n' "$AUTHOR_NAME"
+              echo ""
+              echo "The author is not in \`trigger.allowed_identities\`. No run was started."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Gate 3 — duplicate. Best-effort by design: any API failure logs and
+      # proceeds, because the guarantee belongs to the runner's idempotency.
+      # Only OLDER runs count: run ids only increase, so of two racing runs
+      # the older one proceeds. Excluding just this run lets each see the
+      # other and both stop, which starts no run at all.
+      - name: Duplicate check
+        id: dedup
+        if: steps.identity.outputs.verdict == 'allowed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          THIS_TITLE="route ${ITEM_ID} c${COMMENT_ID}"
+          if ! RUNS=$(gh api \
+                "/repos/${GITHUB_REPOSITORY}/actions/workflows/route-trigger.yaml/runs?per_page=20" \
+                --jq ".workflow_runs[] | select(.id < ${GITHUB_RUN_ID}) | .display_title" 2>/dev/null); then
+            echo "runs lookup failed; proceeding without a duplicate check"
+            echo "verdict=proceed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if printf '%s\n' "$RUNS" | grep -qxF "$THIS_TITLE"; then
+            echo "verdict=duplicate" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Duplicate trigger"
+              echo ""
+              echo "Comment \`$COMMENT_ID\` on \`$ITEM_ID\` was already handled by an earlier run."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "verdict=proceed" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Phase 9 / Task 3 replaces THIS STEP and nothing else. The values it
+      # inherits are ITEM_ID, COMMENT_ID and ITEM_TYPE, read from the job env
+      # above.
+      - name: Hand off
+        if: steps.dedup.outputs.verdict == 'proceed'
+        run: |
+          set -u
+          mkdir -p handoff
+          # Built with jq, not a heredoc: every value is JSON-encoded rather
+          # than pasted into the string, so a quote in AUTHOR_NAME (a free-text
+          # field this workflow does not and must not validate) cannot break
+          # out of its string and inject a duplicate/forged key.
+          jq -n \
+            --arg item_id     "$ITEM_ID" \
+            --arg comment_id  "$COMMENT_ID" \
+            --arg author_name "$AUTHOR_NAME" \
+            --arg item_type   "$ITEM_TYPE" \
+            '{item_id: $item_id, comment_id: $comment_id, author_name: $author_name, item_type: $item_type}' \
+            > handoff/handoff.json
+          {
+            echo "### Trigger accepted"
+            echo ""
+            echo "- item: \`$ITEM_ID\`"
+            echo "- type: $ITEM_TYPE"
+            echo "- comment: \`$COMMENT_ID\`"
+            printf -- '- author: `%s`\n' "$AUTHOR_NAME"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload handoff
+        if: steps.dedup.outputs.verdict == 'proceed'
+        uses: actions/upload-artifact@v4
+        with:
+          name: handoff
+          path: handoff/handoff.json

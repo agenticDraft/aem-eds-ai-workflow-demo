@@ -22,7 +22,6 @@ limits:
   fix_attempts_default: 2
 
 trigger:
-  token: "@example-run"
+  token: ""
   allowed_identities:
     - "example-identity-1"
-    - "example-identity-2"

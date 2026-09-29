@@ -37,13 +37,18 @@ paths:
 limits:
   questions_per_run: <int>
   fix_attempts_default: <int>
+
+trigger:
+  token: "<token>"
+  allowed_identities:
+    - "<opaque identity handle>"
 ```
 
 ## Top-level keys
 
-Exactly five, in this order: `version`, `packs`, `commands`, `paths`, `limits`. No other key may
-appear at this level. A key outside this set, a required key missing, or the five out of order is
-a contract violation.
+Exactly six, in this order: `version`, `packs`, `commands`, `paths`, `limits`, `trigger`. No other
+key may appear at this level. A key outside this set, a required key missing, or the six out of
+order is a contract violation.
 
 ## Field rules
 
@@ -57,6 +62,11 @@ a contract violation.
 - `limits` — two sub-keys in order: `questions_per_run`, `fix_attempts_default`. Each a
   non-negative integer. `fix_attempts_default` is the edit budget of a stage that declares no
   `fix_attempts` of its own, in the unit `fix-loop.md` defines.
+- `trigger` — two sub-keys in order: `token`, `allowed_identities`. `token` is a non-empty quoted
+  string, the comment token that signals a run (D25). `allowed_identities` is a sequence of one or
+  more quoted, non-empty opaque identity handles whose format the tracker pack defines; the comment
+  author is checked against it before any run starts (D98). An empty sequence is a contract
+  violation, not a permissive default.
 
 **No stage list lives here.** The platform pack owns the one stage list and every stage's own
 condition (`pack-manifest.md`'s Condition semantics section); this file describes the project and
@@ -88,12 +98,18 @@ paths:
 limits:
   questions_per_run: 3
   fix_attempts_default: 2
+
+trigger:
+  token: "@example-run"
+  allowed_identities:
+    - "example-identity-1"
+    - "example-identity-2"
 ```
 
 ## Anti-patterns
 
-- A top-level key outside the five named above.
-- A required top-level key missing, or the five out of order.
+- A top-level key outside the six named above.
+- A required top-level key missing, or the six out of order.
 - A negative value under `limits`.
 
 ## Reference, not restatement
@@ -106,7 +122,8 @@ contract.
 
 One well-formed example lives at `fixtures/project-config/valid.yaml`.
 `fixtures/project-config/invalid/` holds one fixture per rejection case the validator must catch:
-`unknown-top-level-key.yaml`.
+`unknown-top-level-key.yaml`, `trigger-empty-list.yaml`, `trigger-missing.yaml`,
+`trigger-out-of-order.yaml`.
 
 ## Verification
 

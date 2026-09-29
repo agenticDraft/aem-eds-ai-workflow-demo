@@ -6,6 +6,8 @@ packs:
   scm: example-scm
   design: none
   browser: example-browser
+  allowed_identities:
+    - "decoy-identity"
 
 commands:
   lint: "run-lint"
