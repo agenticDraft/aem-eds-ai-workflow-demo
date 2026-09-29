@@ -442,6 +442,35 @@ for prop in padding-inline gap margin-top border-radius; do
   exit_is "approx true on $prop is refused (exit 2)" 2
 done
 
+echo "a node: tail that is not one node id is an error, in both modes"
+tail_report() {
+  printf '# Prototype report\n\n## Design values\n\n- .t th — padding — 8px — source: design_context — token: none — %s\n' "$1"
+}
+printf '1:196%spadding%s8px%sfalse\n' "$TAB" "$TAB" "$TAB" > "$WORK/tail.tsv"
+printf '{"target":"x","results":{}}' > "$WORK/tail.json"
+for tail in 'node: 1:196, 1:205' 'node: 1:199–1:204' 'node:'; do
+  tail_report "$tail" > "$WORK/tail.md"
+  python3 "$CMP" selectors "$WORK/tail.md" >"$WORK/tail.out" 2>"$WORK/tail.err"
+  STATUS=$?
+  exit_is "selectors: '$tail' exits 2" 2
+  if grep -qF -- "$tail" "$WORK/tail.err"; then ok "selectors: stderr names '$tail'"; else bad "selectors: stderr names '$tail'" "stderr: $(cat "$WORK/tail.err")"; fi
+  python3 "$CMP" compare "$WORK/tail.tsv" "$WORK/tail.md" "$WORK/tail.json" >"$WORK/tail.out" 2>"$WORK/tail.err"
+  STATUS=$?
+  exit_is "compare: '$tail' exits 2" 2
+  if grep -qF -- "$tail" "$WORK/tail.err"; then ok "compare: stderr names '$tail'"; else bad "compare: stderr names '$tail'" "stderr: $(cat "$WORK/tail.err")"; fi
+done
+for tail in 'node: 1:196' 'node: I1:199;1:564'; do
+  tail_report "$tail" > "$WORK/tail.md"
+  python3 "$CMP" selectors "$WORK/tail.md" >"$WORK/tail.out" 2>"$WORK/tail.err"
+  STATUS=$?
+  exit_is "selectors: '$tail' still exits 0" 0
+  if [ "$(cat "$WORK/tail.out")" = ".t th" ]; then ok "selectors: '$tail' still yields its selector"; else bad "selectors: '$tail' still yields its selector" "got: $(cat "$WORK/tail.out")"; fi
+done
+printf '# Prototype report\n\n## Design values\n\n- .t th — color — #000 — source: variables — token: --text\n' > "$WORK/tail.md"
+python3 "$CMP" selectors "$WORK/tail.md" >"$WORK/tail.out" 2>"$WORK/tail.err"
+STATUS=$?
+exit_is "selectors: a line with no node: part is still skipped, exit 0" 0
+
 echo
 echo "passed: $PASS, failed: $FAIL"
 [ "$FAIL" -eq 0 ]

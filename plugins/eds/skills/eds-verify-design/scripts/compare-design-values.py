@@ -7,7 +7,9 @@
 #
 # Deterministic. `selectors` prints, once each and in order, the selector of
 # every `## Design values` line in the prototype report that names a node
-# (`... — node: <node_id>`). Those are the selectors to measure.
+# (`... — node: <node_id>`). Those are the selectors to measure. A line whose
+# last part starts with `node:` but is not exactly one node id (a list, a
+# range, nothing) exits 2 in both modes, naming the line on stderr.
 #
 # `compare` reads the value table (`<node_id> TAB <property> TAB <value> TAB
 # <approx>`) and compares each row against the measurement file the browser
@@ -74,7 +76,7 @@ HEX = re.compile(r"^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 RGB = re.compile(r"^rgba?\(\s*([^)]*)\)$")
 INTEGER = re.compile(r"^\d+$")
 APPROX_PROPERTIES = {"width", "height", "min-height", "aspect-ratio"}
-NODE_TAIL = re.compile(r"^node:\s*(\S+)$")
+NODE_TAIL = re.compile(r"^node:\s*(I?\d+:\d+(?:;\d+:\d+)*)$")
 QUALIFIER = re.compile(r"\s*\([^)]*\)$")
 SPLITTABLE = {"border-radius", "gap", "padding", "padding-inline", "padding-block",
               "padding-top", "padding-right", "padding-bottom", "padding-left",
@@ -122,6 +124,9 @@ def design_value_lines(report):
         if len(parts) < 2:
             continue
         m = NODE_TAIL.match(parts[-1])
+        if not m and parts[-1].startswith("node:"):
+            print(f"unreadable node: part (one node id expected): {raw.strip()}", file=sys.stderr)
+            sys.exit(2)
         if m and parts[0]:
             prop = value = None
             if len(parts) >= 4:
