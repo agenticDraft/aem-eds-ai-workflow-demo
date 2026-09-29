@@ -29,12 +29,17 @@ at their fixed paths — the two artifacts `intake` always writes — and
 runs before it on every route and has already surveyed the project; re-deriving that here would
 duplicate the work and let the two answers drift apart.
 
+Its one write outside `.ai/run-context/` is the upstream copy (D528): a block the item names that the
+pack's pinned upstream block collection holds, copied into `blocks/<name>/` by
+`../../shared/scripts/copy-upstream-blocks.sh` so the plan is written against those files.
+
 ## Flow
 
 ```dot
 digraph eds_plan {
     "Read the fact record, spec and conventions" [shape=box];
     "Artifacts present?" [shape=diamond];
+    "Copy an upstream block" [shape=box];
     "Derive requirements from the spec" [shape=box];
     "Requirements derivable?" [shape=diamond];
     "Apply the conventions artifact" [shape=box];
@@ -48,7 +53,9 @@ digraph eds_plan {
     "Report question" [shape=doublecircle];
 
     "Read the fact record, spec and conventions" -> "Artifacts present?";
-    "Artifacts present?" -> "Derive requirements from the spec" [label="all present"];
+    "Artifacts present?" -> "Copy an upstream block" [label="all present"];
+    "Copy an upstream block" -> "Derive requirements from the spec" [label="exit 0"];
+    "Copy an upstream block" -> "Report fail" [label="exit 1 or 2"];
     "Artifacts present?" -> "Report fail" [label="any missing"];
     "Derive requirements from the spec" -> "Requirements derivable?";
     "Requirements derivable?" -> "Apply the conventions artifact" [label="at least one"];
@@ -77,7 +84,27 @@ All three files must exist and be non-empty. If any is missing, go to **Report f
 cannot plan a change it has no fact record or specification for, and it cannot follow conventions
 it was never given. `intake` and `conventions` both run before this stage on every route, so a
 missing artifact is a broken route, not a case to work around by researching the project directly.
-Name which file was missing in the failure summary.
+Name which file was missing in the failure summary. All present — go to **Copy an upstream block**.
+
+### Copy an upstream block
+
+Run:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/copy-upstream-blocks.sh .ai/run-context/fact-record.yaml .
+```
+
+The script copies — each file headed by its one-line Apache-2.0 change notice, the upstream bytes
+below it unchanged — every block the item names that is absent from `blocks/` but
+present in the pack's pinned upstream block collection — the same names the conventions artifact's
+`## component reuse` section calls `upstream=`. On a design route `prototype` has usually copied
+them already, and then this prints `copied=(none)`. Never copy, or pick a name, yourself: the
+upstream files are the starting point, and the plan's steps are the item's changes applied on top.
+
+- **Exit `0`** — keep every `copied=blocks/<name>/<file>` line for **Draft the plan**. An
+  `upstream_unknown=<name>` line means the collection could not be checked; `conventions` has
+  already warned, and that block is planned new. Go to **Derive requirements from the spec**.
+- **Exit `1` or `2`** — go to **Report fail**, naming the script's stderr reason.
 
 ### Derive requirements from the spec
 
@@ -110,6 +137,10 @@ Two rules, both there to keep this stage from quietly re-becoming a research ste
   report, not one to paper over here.
 - **If `## Exemplars` says `(none)`** — a project with no existing units yet — carry that through
   as `# Conventions: (none — no existing units in this project)`. Do not invent an exemplar.
+- **A block named `upstream=`** is now in `blocks/<name>/` (copied here or by `prototype`). Plan
+  its steps as changes to those files, not as a new block written from scratch, and add
+  `blocks/<name>/ (upstream starting point)` to the `# Conventions:` comment so `implement` opens
+  it.
 
 Keep what you take to one or two short notes; this step informs the plan, it does not reproduce the
 artifact.
@@ -190,7 +221,7 @@ satisfies or is removed. Raise `edits-made` by one. Go back to **Validate the pl
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-artifact reason, or the validator's `invalid: <reason>`
+- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-artifact reason, the copy script's stderr reason, or the validator's `invalid: <reason>`
   from the last failed validation, or the budget script's `invalid:` line, verbatim. Never reworded into something more general.
 - `artifacts: []`
 - `next_action: none`
@@ -206,6 +237,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
   below as this stage's artifact; a human or a later stage reads the file for it, not this sentence.
 - `artifacts`:
   - `.ai/run-context/plan.yaml`
+  - every `copied=` file of **Copy an upstream block**, if any
 - `next_action: none`
 
 ### Report question
