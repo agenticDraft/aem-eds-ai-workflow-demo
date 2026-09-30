@@ -171,6 +171,23 @@ EOF
 OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
 assert_exit "accepted (exit 0)" 0 $ST "$OUT"
 
+echo "[accept] text_conventions carrying before_state_keywords"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: tracker
+operations:
+  fetch_item: fetch
+  post_note: note
+  attach_file: attach
+  list_types: list
+unsupported: [create_item, update_item]
+text_conventions:
+  design_keywords: [design]
+  before_state_keywords: [unchanged, same as before]
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
 echo "[reject] text_conventions declared for a non-tracker role"
 cat > "$PROV_TMP/pack.yaml" <<'EOF'
 kind: provider

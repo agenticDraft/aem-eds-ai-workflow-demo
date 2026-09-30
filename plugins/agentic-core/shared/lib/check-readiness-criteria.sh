@@ -6,7 +6,7 @@
 # comparing the fact record against the pack manifest, so this script is the
 # entire gate, not a first pass before a reviewing model.
 #
-# Checks two things:
+# Checks three things:
 #   1. The fact record's item_type has a declared `readiness_criteria` entry
 #      in the pack manifest, and every field that entry requires holds —
 #      `true` for a boolean field, `present` (non-empty) for a list field,
@@ -17,6 +17,9 @@
 #      whose text asks for a visual change but carries no design reference
 #      — `design_mentioned: true` and `design_source: false` — is never
 #      ready, regardless of what the pack declares for its item_type.
+#   3. The second fixed rule, same shape: an item whose text compares against
+#      a before-state no stage can capture — `before_state_mentioned: true`
+#      and `before_state_available: false` — is never ready.
 #
 # Usage:
 #   check-readiness-criteria.sh <path-to-pack.yaml> <path-to-fact-record.yaml>
@@ -59,10 +62,14 @@ fail() {
 FACT_FIELDS=(item_id item_type labels components files_named
              design_source design_mentioned
              has_description has_acceptance_criteria
-             has_reproduction_url has_reproduction_steps)
+             has_reproduction_url has_reproduction_steps
+             reproduction_content_ok
+             before_state_mentioned before_state_available)
 FACT_KINDS=(string string list list list
             bool bool
             bool bool
+            bool bool
+            bool
             bool bool)
 
 field_kind() {
@@ -199,6 +206,14 @@ DESIGN_MENTIONED="$(fact_get design_mentioned || true)"
 DESIGN_SOURCE="$(fact_get design_source || true)"
 if [[ "$DESIGN_MENTIONED" == "true" && "$DESIGN_SOURCE" == "false" ]]; then
   fail "design_mentioned is true but design_source is false — the item asks for a visual change with no design reference attached"
+fi
+
+# The second fixed rule, same shape: the text compares against a
+# before-state, and no stage will be able to capture one.
+BEFORE_MENTIONED="$(fact_get before_state_mentioned || true)"
+BEFORE_AVAILABLE="$(fact_get before_state_available || true)"
+if [[ "$BEFORE_MENTIONED" == "true" && "$BEFORE_AVAILABLE" == "false" ]]; then
+  fail "before_state_mentioned is true but before_state_available is false — a criterion compares against a before-state no stage can capture"
 fi
 
 echo "valid: readiness ($ITEM_TYPE, ${#REQUIRED_FIELDS[@]} fields checked)"

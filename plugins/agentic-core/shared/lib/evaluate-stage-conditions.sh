@@ -56,10 +56,14 @@ fail() {
 FACT_FIELDS=(item_id item_type labels components files_named
              design_source design_mentioned
              has_description has_acceptance_criteria
-             has_reproduction_url has_reproduction_steps)
+             has_reproduction_url has_reproduction_steps
+             reproduction_content_ok
+             before_state_mentioned before_state_available)
 FACT_KINDS=(string string list list list
             bool bool
             bool bool
+            bool bool
+            bool
             bool bool)
 
 field_kind() {

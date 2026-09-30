@@ -25,6 +25,10 @@ has_description: true | false
 has_acceptance_criteria: true | false
 has_reproduction_url: true | false
 has_reproduction_steps: true | false
+
+reproduction_content_ok: true | false
+before_state_mentioned: true | false
+before_state_available: true | false
 ```
 
 ## Field rules
@@ -40,6 +44,16 @@ has_reproduction_steps: true | false
 - `has_description`, `has_acceptance_criteria`, `has_reproduction_url`, `has_reproduction_steps` —
   whether the item carries each. `true` or `false`. Consumed by the `readiness` gate's declared
   criteria.
+- `reproduction_content_ok` — whether every page the item's text points at will exist for the
+  whole run. The platform extractor decides what "exists" means for its pages. `true` or `false`.
+- `before_state_mentioned` — whether the text compares the result against the current state, by
+  the tracker's `before_state_keywords`. `true` or `false`.
+- `before_state_available` — whether the run will be able to capture the current state of every
+  component the item names. `true` or `false`.
+
+**`before_state_mentioned` and `before_state_available` are a pair like the design pair.** Mentioned
+but not available is terminal at the `readiness` gate: a criterion that compares against a state no
+stage can capture can only fail later, after the run has spent its budget.
 
 **`design_source` and `design_mentioned` are two different questions**, and the pair is what makes
 four cases separable. Present-and-wanted and neither-nor are the easy ones. **Wanted but absent** —
@@ -47,9 +61,12 @@ an item asking for a visual change with nothing attached — is the case the pai
 terminal at the `readiness` gate. **Absent but present** runs the design stages anyway: a resolvable
 reference is stronger evidence than a word list.
 
-**Every boolean is a literal match, never a judgement.** The pack declares the word lists and heading
-names — a tracker pack's `text_conventions` (see `pack-manifest.md`) — and `intake` applies them to
-the sanitized text, recording which token matched so a run can be audited afterwards. A model reading
+**Every boolean is a literal match or a checked fact, never a judgement.** The pack declares the word
+lists and heading names — a tracker pack's `text_conventions` (see `pack-manifest.md`) — and `intake`
+applies them to the sanitized text, recording which token matched so a run can be audited
+afterwards. `reproduction_content_ok` and `before_state_available` are the two fields read from the
+checkout instead of the text: whether a file exists, whether a search finds a page. Both are
+deterministic; neither asks a model. A model reading
 the item and forming an opinion would be a conclusion in a facts-only record, and would make two runs
 on the same item diverge.
 
