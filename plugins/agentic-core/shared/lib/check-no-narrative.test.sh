@@ -55,6 +55,17 @@ OUT="$(bash "$CHECK" "$FIX/clean" 2>&1)"; ST=$?
 assert_exit "accepted (exit 0)" 0 $ST "$OUT"
 assert_contains "reports what it scanned" "valid: no narrative" "$OUT"
 
+echo "[a lock file and installed dependencies are not read]"
+LOCK_WORK=$(mktemp -d "${TMPDIR:-/tmp}/no-narrative-lock.XXXXXX") || { echo "cannot create a temp dir" >&2; exit 2; }
+[[ -n "$LOCK_WORK" && -d "$LOCK_WORK" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
+trap 'rm -rf "$LOCK_WORK"' EXIT
+git init -q "$LOCK_WORK" && printf 'node_modules/\n' > "$LOCK_WORK/.gitignore"
+mkdir -p "$LOCK_WORK/core/shared/runner/node_modules/dep"
+printf '{ "packages": { "node_modules/dep": { "version": "1.0.0" } } }\n' > "$LOCK_WORK/core/shared/runner/package-lock.json"
+printf 'see node_modules/dep/README.md\n' > "$LOCK_WORK/core/shared/runner/node_modules/dep/README.md"
+OUT=$(cd "$LOCK_WORK" && bash "$CHECK" "$LOCK_WORK/core" 2>&1); ST=$?
+assert_exit "a lock file naming installed paths is accepted (exit 0)" 0 $ST "$OUT"
+
 # --- rule 1 -----------------------------------------------------------------
 echo "[reject] a shipped file citing a path this repository does not publish"
 OUT="$(bash "$CHECK" "$FIX/cites-unpublished" 2>&1)"; ST=$?

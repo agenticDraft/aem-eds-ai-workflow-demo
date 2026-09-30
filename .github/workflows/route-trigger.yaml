@@ -1,11 +1,36 @@
 name: route-trigger
 
-run-name: "route ${{ github.event.client_payload.item_id }} c${{ github.event.client_payload.comment_id }}"
+run-name: "route ${{ github.event.client_payload.item_id || inputs.item_id }} c${{ github.event.client_payload.comment_id || inputs.comment_id }}"
 
 on:
   repository_dispatch:
     types: [agentic-route]
+  # A manual start, for verification and recovery. The person dispatching
+  # already passed the platform's own write check, so the identity gate is
+  # not applied to a manual run; the shape gate and the claim still are.
+  workflow_dispatch:
+    inputs:
+      item_id:
+        description: "Work item id, e.g. EDS-18"
+        required: true
+        type: string
+      comment_id:
+        description: "Comment id of the trigger event — any fresh integer for a manual run"
+        required: true
+        type: string
+      skip_duplicate_check:
+        description: "Skip gate 3, so the claim alone decides whether this event already ran"
+        required: false
+        type: boolean
+        default: false
 
+# What this repository must hold before a run can succeed — the secrets, the
+# variables and the fine-grained token's permissions — is the checklist in
+# .github/route-runner-setup.md.
+#
+# The pushes a run makes (the claim tag, the working branch) use the
+# fine-grained token in ROUTE_GH_TOKEN, never this token: an event created by
+# the workflow token starts no workflow run, and deliver reads the change's CI.
 permissions:
   actions: read
   contents: read
@@ -14,14 +39,17 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     env:
-      ITEM_ID: ${{ github.event.client_payload.item_id }}
-      COMMENT_ID: ${{ github.event.client_payload.comment_id }}
-      AUTHOR_ID: ${{ github.event.client_payload.author_id }}
-      AUTHOR_NAME: ${{ github.event.client_payload.author_name }}
-      ITEM_TYPE: ${{ github.event.client_payload.item_type }}
-      RULE_VERSION: ${{ github.event.client_payload.rule_version }}
+      ITEM_ID: ${{ github.event.client_payload.item_id || inputs.item_id }}
+      COMMENT_ID: ${{ github.event.client_payload.comment_id || inputs.comment_id }}
+      AUTHOR_ID: ${{ github.event.client_payload.author_id || github.actor }}
+      AUTHOR_NAME: ${{ github.event.client_payload.author_name || github.actor }}
+      ITEM_TYPE: ${{ github.event.client_payload.item_type || 'manual' }}
+      RULE_VERSION: ${{ github.event.client_payload.rule_version || '0' }}
     steps:
+      # No persisted credentials: the workflow token is never the pusher.
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Gate 1 — shape. A malformed dispatch is a defect in the tracker-side
       # rule, not a refusal, so this one fails the run loudly.
@@ -70,6 +98,11 @@ jobs:
         id: identity
         run: |
           set -u
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "manual dispatch by $AUTHOR_NAME; the identity gate applies to tracker events only"
+            echo "verdict=allowed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if bash plugins/agentic-core/shared/lib/check-trigger-identity.sh \
                .ai/project-config.yaml "$AUTHOR_ID"; then
             echo "verdict=allowed" >> "$GITHUB_OUTPUT"
@@ -93,7 +126,7 @@ jobs:
       # other and both stop, which starts no run at all.
       - name: Duplicate check
         id: dedup
-        if: steps.identity.outputs.verdict == 'allowed'
+        if: steps.identity.outputs.verdict == 'allowed' && !(github.event_name == 'workflow_dispatch' && inputs.skip_duplicate_check)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -117,37 +150,141 @@ jobs:
             echo "verdict=proceed" >> "$GITHUB_OUTPUT"
           fi
 
-      # Phase 9 / Task 3 replaces THIS STEP and nothing else. The values it
-      # inherits are ITEM_ID, COMMENT_ID and ITEM_TYPE, read from the job env
-      # above.
-      - name: Hand off
-        if: steps.dedup.outputs.verdict == 'proceed'
+      # One verdict for the three gates, so every later step tests one value.
+      # A skipped duplicate check (manual run) counts as proceed: the claim
+      # below is the guarantee, the check is the cheap first filter.
+      - name: Gates verdict
+        id: gate
+        if: steps.identity.outputs.verdict == 'allowed'
+        run: |
+          if [ "${{ steps.dedup.outcome }}" = "skipped" ] || [ "${{ steps.dedup.outputs.verdict }}" = "proceed" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---- The runner environment (Phase 9 / Task 3) ----------------------
+      # Everything below runs on a machine nobody is logged into. Every
+      # credential is a repository secret or variable mapped onto a step's
+      # env: — never a file. The design role (figma) has no headless
+      # credential path at all: a URL-sourced design item fails at extract
+      # until Phase 10 lands; the line below says so in every run's log.
+
+      - name: Name what cannot authenticate headlessly
+        if: steps.gate.outputs.proceed == 'true'
+        run: |
+          echo "design role (figma): no headless credential path; URL-sourced design items fail at extract (Phase 10)"
+          echo "tracker (jira): JIRA_SITE, JIRA_EMAIL as variables, JIRA_API_TOKEN as a secret"
+          echo "scm (github): ROUTE_GH_TOKEN, a repository-scoped fine-grained token, as GH_TOKEN"
+          echo "core: ANTHROPIC_API_KEY as a secret"
+
+      - name: Use Node.js 24
+        if: steps.gate.outputs.proceed == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      # The SDK ships its binary through optional dependencies: a plain
+      # `npm ci` keeps them. The project's own dependencies and the browser
+      # are what a whole route's serve and verify stages need.
+      - name: Install the runner, the project and the browser
+        if: steps.gate.outputs.proceed == 'true'
+        run: |
+          npm ci --prefix plugins/agentic-core/shared/runner
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # gh reads GH_TOKEN from the environment; setup-git points git's
+      # credential helper at gh. Neither writes the token anywhere.
+      - name: Point git at the route's token
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
+        run: |
+          gh auth setup-git
+          gh auth status
+
+      # The atomic claim. Exit 3 means this event already ran: end green,
+      # start nothing. Exit 1 is a real failure.
+      - name: Claim the event
+        id: claim
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
+          CLAIM_RUN_ID: ${{ github.run_id }}
+        run: |
+          set +e
+          OUT=$(bash plugins/agentic-core/shared/lib/claim-run.sh "$ITEM_ID" "$COMMENT_ID")
+          STATUS=$?
+          set -e
+          echo "$OUT"
+          case "$STATUS" in
+            0) echo "claimed=true" >> "$GITHUB_OUTPUT" ;;
+            3) echo "claimed=false" >> "$GITHUB_OUTPUT"
+               {
+                 echo "### Already claimed"
+                 echo ""
+                 echo "Comment \`$COMMENT_ID\` on \`$ITEM_ID\` was already claimed by an earlier run (\`$OUT\`). No run was started."
+               } >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo "claim failed (exit $STATUS)" >&2; exit 1 ;;
+          esac
+
+      # The prompt is a repository variable so the whole route (Phase 9 /
+      # Task 5) is switched on in the settings, not here. Until then the
+      # default is the single credentialed stage this task verifies.
+      # Secrets are mapped onto THIS step only.
+      - name: Run
+        id: runner
+        if: steps.claim.outputs.claimed == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_SITE: ${{ vars.JIRA_SITE }}
+          JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
+          GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
+          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
+          ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Bash({workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *),Bash(bash {workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *)' }}"
+          ROUTE_MAX_TURNS: ${{ vars.ROUTE_MAX_TURNS || '200' }}
+          ROUTE_TIMEOUT_MINUTES: ${{ vars.ROUTE_TIMEOUT_MINUTES || '45' }}
+          ROUTE_RESULT_FILE: .ai/run-context/runner-result.txt
         run: |
           set -u
-          mkdir -p handoff
-          # Built with jq, not a heredoc: every value is JSON-encoded rather
-          # than pasted into the string, so a quote in AUTHOR_NAME (a free-text
-          # field this workflow does not and must not validate) cannot break
-          # out of its string and inject a duplicate/forged key.
-          jq -n \
-            --arg item_id     "$ITEM_ID" \
-            --arg comment_id  "$COMMENT_ID" \
-            --arg author_name "$AUTHOR_NAME" \
-            --arg item_type   "$ITEM_TYPE" \
-            '{item_id: $item_id, comment_id: $comment_id, author_name: $author_name, item_type: $item_type}' \
-            > handoff/handoff.json
-          {
-            echo "### Trigger accepted"
-            echo ""
-            echo "- item: \`$ITEM_ID\`"
-            echo "- type: $ITEM_TYPE"
-            echo "- comment: \`$COMMENT_ID\`"
-            printf -- '- author: `%s`\n' "$AUTHOR_NAME"
-          } >> "$GITHUB_STEP_SUMMARY"
+          PROMPT="${ROUTE_PROMPT_TEMPLATE//\{item_id\}/$ITEM_ID}"
+          export ROUTE_ALLOWED_TOOLS="${ROUTE_ALLOWED_TOOLS_TEMPLATE//\{workspace\}/$GITHUB_WORKSPACE}"
+          node plugins/agentic-core/shared/runner/route-agent.mjs "$PROMPT"
 
-      - name: Upload handoff
-        if: steps.dedup.outputs.verdict == 'proceed'
-        uses: actions/upload-artifact@v4
-        with:
-          name: handoff
-          path: handoff/handoff.json
+      # The verdict is the envelope, validated — not the runner's exit code
+      # alone and never a regex over prose. Runs even when the runner failed,
+      # so a non-conformant ending is reported as such.
+      - name: Validate the result envelope
+        if: always() && steps.runner.outcome != 'skipped'
+        run: |
+          FILE=.ai/run-context/runner-result.txt
+          echo "### Result" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          { [ -f "$FILE" ] && tail -20 "$FILE" || echo "(no result file)"; } >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          bash plugins/agentic-core/shared/lib/validate-result-envelope.sh "$FILE"
+
+      # No secret value on disk, no .env-like file. Values are compared, never
+      # printed: only match counts reach the log.
+      - name: Check that no credential reached the disk
+        if: always() && steps.runner.outcome != 'skipped'
+        env:
+          S1: ${{ secrets.ANTHROPIC_API_KEY }}
+          S2: ${{ secrets.JIRA_API_TOKEN }}
+          S3: ${{ secrets.ROUTE_GH_TOKEN }}
+        run: |
+          set -u
+          leaked=0
+          for name in S1 S2 S3; do
+            value="${!name}"
+            if [ -z "$value" ]; then echo "$name: not set"; continue; fi
+            count=$(grep -rlF -- "$value" "$HOME" 2>/dev/null | wc -l | tr -d ' ')
+            echo "$name: found in $count file(s)"
+            [ "$count" = "0" ] || leaked=1
+          done
+          envfiles=$(find "$GITHUB_WORKSPACE" -maxdepth 3 \( -name '.env' -o -name '.env.*' \) -not -path '*/node_modules/*' 2>/dev/null | wc -l | tr -d ' ')
+          echo "env-like files in the workspace: $envfiles"
+          [ "$envfiles" = "0" ] || leaked=1
+          exit $leaked

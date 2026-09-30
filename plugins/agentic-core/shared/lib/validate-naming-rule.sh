@@ -7,7 +7,9 @@
 # Scans every file under <core-root>, except three paths that necessarily
 # carry the banned words as literal data rather than core vocabulary — the
 # denylist file itself, this validator's own test suite, and this
-# validator's own fixtures — for each term in naming-denylist.txt, matched
+# validator's own fixtures — and except installed third-party dependencies
+# (any node_modules directory), which are not the core's own text — for each
+# term in naming-denylist.txt, matched
 # case-sensitively as a whole word or phrase. No exceptions: every term is
 # forbidden everywhere else under the core, including this project's own
 # borrowed-material source — a third-party plugin's name gets no carve-out
@@ -81,7 +83,7 @@ if [[ ${#TERMS[@]} -eq 0 ]]; then
   exit 2
 fi
 
-FILES_SCANNED=$(find "$ROOT" -type f -not -path '*/.git/*' | wc -l | tr -d '[:space:]')
+FILES_SCANNED=$(find "$ROOT" -type f -not -path '*/.git/*' -not -path '*/node_modules/*' | wc -l | tr -d '[:space:]')
 VIOLATIONS=0
 
 for term in "${TERMS[@]}"; do
@@ -94,7 +96,7 @@ for term in "${TERMS[@]}"; do
     is_excluded_path "$file" && continue
     VIOLATIONS=$((VIOLATIONS + 1))
     echo "invalid: '$term' — ${file#"$ROOT"/}:$lineno:$content" >&2
-  done < <(grep -rnE --exclude-dir=.git -- "$pattern" "$ROOT" 2>/dev/null)
+  done < <(grep -rnE --exclude-dir=.git --exclude-dir=node_modules -- "$pattern" "$ROOT" 2>/dev/null)
 done
 
 if [[ "$VIOLATIONS" -gt 0 ]]; then

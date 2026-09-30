@@ -41,6 +41,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/capture-envelope.test.sh
       - name: a branch name is derived, never chosen
         run: bash plugins/agentic-core/shared/lib/derive-branch-name.test.sh
+      - name: a trigger event is claimed once, atomically
+        run: bash plugins/agentic-core/shared/lib/claim-run.test.sh
       - name: Validate result envelope
         run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
       - name: Validate subagent outcome

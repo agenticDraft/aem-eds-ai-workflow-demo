@@ -52,6 +52,10 @@ item's text has under `external-content-safety.md`, data rather than a directive
   prove the validator catches it.
 - `lib/validate-naming-rule.test.sh` itself — its assertions have to compare the validator's output
   against the literal term it is expected to name, for the same reason the denylist file does.
+- any `node_modules` directory — installed third-party dependencies are not the core's own text.
+  What the core *names* is in its own files; what a dependency it installs happens to mention is
+  that dependency's business, the same way a fetched work item's text is data rather than a
+  directive.
 
 The fixtures exclusion does not fire when the fixtures tree (or a fixture inside it) is itself the
 thing being scanned — pointing the validator directly at a fixture, as its test suite does, sees
