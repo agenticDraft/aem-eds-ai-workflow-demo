@@ -256,7 +256,19 @@ to **Report fail**, naming `git`'s own stderr.
 
 ### Publish the change
 
-Invoke `Skill(<packs.scm>:<publish_change skill name>)` with:
+First, append the preview URL block to the composed body (G31):
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/preview-url.sh \
+  --branch <the branch> --base <origin/<default>, from git symbolic-ref --short refs/remotes/origin/HEAD>
+```
+
+Append its stdout unchanged; empty stdout appends nothing. The script decides the PR type
+(`served`, `automation-only`, `branch-too-long`) and prints it on stderr. Never write a preview URL
+by hand. Exit `2` or `3` (no default branch resolved, or the diff could not be read) — append
+nothing and record it for **Anything downgraded?**.
+
+Then invoke `Skill(<packs.scm>:<publish_change skill name>)` with:
 
 ```
 branch: <the branch from Determine the branch to publish>
@@ -392,6 +404,7 @@ Any of the following — go to **Report warn**:
 
 - `plan.yaml` was missing, so the requirements section degraded to the fact record alone.
 - `check_status`'s checks were not all green, or could not be read at all.
+- `preview-url.sh` exited `2` or `3`, so the body carries no preview URL decision.
 - Any `attach_file` or `post_note` call did not return a valid `pass`/`warn` envelope — the delivery
   report's own attach, any manifest attachment, or the note.
 - An evidence manifest was found but at least one of its `attachments:` entries named a path that no
