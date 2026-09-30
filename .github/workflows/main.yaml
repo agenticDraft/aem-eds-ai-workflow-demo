@@ -1,5 +1,9 @@
 name: Build
-on: [push]
+on:
+  push:
+    # The claim tags the delivery automation pushes (agentic-run/<item>-c<comment>)
+    # carry no code change; a Build on each would be noise.
+    tags-ignore: ['agentic-run/**']
 
 jobs:
   build:

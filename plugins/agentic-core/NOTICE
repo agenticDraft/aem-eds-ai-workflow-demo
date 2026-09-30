@@ -11,6 +11,11 @@ project's own contracts, and several deviate deliberately from the originals.
   - the config-once principle
   - skills/run-route/scripts/check-driver-read.sh — the allowlist-then-denylist
     shape of no-source-reads.sh, inverted here to default-deny
+  - shared/runner/route-agent.mjs — the shape of its pipeline runner: one
+    SDK session for one literal prompt, plugins loaded by local path, the
+    caps and the tool list read from the environment, a wall-clock timer.
+    The permission mode, the per-event claim and the verdict handling are
+    this project's own and deviate from the original.
 
 This file is the plugin's attribution. It ships with the plugin, which is the
 point of it: the notice has to travel with the material it covers, and a
