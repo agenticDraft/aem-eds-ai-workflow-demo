@@ -266,18 +266,46 @@ assert_contains "reason says detached" "detached HEAD" "$OUT"
 # gate. A one-time repair does not stop the next consumer repeating it, so the
 # rule is enforced here rather than remembered: anything that resolves a
 # changed-file set must union both halves.
+# offenders <root> — every file under <root> resolving a changed-file set
+# without the untracked half. Installed dependencies are not this project's
+# code and are never read.
+offenders() {
+  local root="$1" candidate found=""
+  while IFS= read -r candidate; do
+    [[ -z "$candidate" ]] && continue
+    # This test file itself names both halves while discussing them.
+    [[ "$candidate" == *"check-publish-criteria.test.sh" ]] && continue
+    if ! grep -q -- "ls-files --others" "$candidate"; then
+      found+="${candidate#"$root"/} "
+    fi
+  done < <(grep -rl --exclude-dir=node_modules -- "diff.*--name-only" "$root" \
+             --include='*.sh' --include='*.md' --include='*.py' 2>/dev/null)
+  printf '%s' "$found"
+}
+
+echo "[drift scan] reads the project's own files, never installed dependencies"
+SCAN_TMP="$(mktemp -d "${TMPDIR:-/tmp}/publish-drift.XXXXXX")" || { echo "cannot create a temp dir" >&2; exit 2; }
+[[ -n "$SCAN_TMP" && -d "$SCAN_TMP" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
+mkdir -p "$SCAN_TMP/pack/node_modules/dep"
+printf 'git diff --name-only\n' > "$SCAN_TMP/pack/node_modules/dep/install.sh"
+SCAN="$(offenders "$SCAN_TMP")"
+if [[ -z "$SCAN" ]]; then
+  PASS=$((PASS + 1)); echo "  ok: a node_modules/ file is not an offender"
+else
+  FAIL=$((FAIL + 1)); echo "  FAIL: a node_modules/ file was reported: $SCAN"
+fi
+printf 'git diff --name-only\n' > "$SCAN_TMP/pack/own.sh"
+SCAN="$(offenders "$SCAN_TMP")"
+if [[ "$SCAN" == "pack/own.sh " ]]; then
+  PASS=$((PASS + 1)); echo "  ok: the project's own file is still an offender"
+else
+  FAIL=$((FAIL + 1)); echo "  FAIL: expected 'pack/own.sh ', got '$SCAN'"
+fi
+rm -rf "$SCAN_TMP"
+
 echo "[drift] every changed-file-set resolution unions the untracked half"
 ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-OFFENDERS=""
-while IFS= read -r candidate; do
-  [[ -z "$candidate" ]] && continue
-  # This test file itself names both halves while discussing them.
-  [[ "$candidate" == *"check-publish-criteria.test.sh" ]] && continue
-  if ! grep -q -- "ls-files --others" "$candidate"; then
-    OFFENDERS+="${candidate#"$ROOT"/} "
-  fi
-done < <(grep -rl -- "diff.*--name-only" "$ROOT" \
-           --include='*.sh' --include='*.md' --include='*.py' 2>/dev/null)
+OFFENDERS="$(offenders "$ROOT")"
 
 if [[ -z "$OFFENDERS" ]]; then
   PASS=$((PASS + 1))
