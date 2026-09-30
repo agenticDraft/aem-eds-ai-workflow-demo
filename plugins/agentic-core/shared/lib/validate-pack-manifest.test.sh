@@ -86,6 +86,57 @@ assert_exit "reason does not misdiagnose as unexpected content" 0 $? ""
 [[ "$OUT" != *"expected "* ]]
 assert_exit "reason does not misdiagnose as a parse error" 0 $? ""
 
+echo "[validator 22] branch_name (D544) — built from an existing fixture in a temp dir"
+BN_WORK=$(mktemp -d "${TMPDIR:-/tmp}/pack-manifest-branch-name.XXXXXX") || { echo "cannot create a temp dir" >&2; exit 2; }
+[[ -n "$BN_WORK" && -d "$BN_WORK" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
+trap 'rm -rf "$BN_WORK"' EXIT
+
+# with_branch_name <fixture> <case> <lines…> — the fixture copied, with lines appended
+with_branch_name() {
+  local fixture="$1" case_dir="$BN_WORK/$2"; shift 2
+  cp -R "$FIXDIR/$fixture" "$case_dir"
+  printf '%s\n' "$@" >> "$case_dir/pack.yaml"
+  echo "$case_dir/pack.yaml"
+}
+
+M=$(with_branch_name platform-valid-evidence-manifest both "branch_name:" "  max_length: 23" '  pattern: "^[a-z0-9/-]+$"')
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "both sub-keys after evidence_manifest accepted" 0 $ST "$OUT"
+M=$(with_branch_name platform-valid length-only "branch_name:" "  max_length: 40")
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "max_length only, no other optional key, accepted" 0 $ST "$OUT"
+M=$(with_branch_name platform-valid pattern-only "branch_name:" '  pattern: "^[a-z-]+$"')
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "pattern only accepted" 0 $ST "$OUT"
+
+M=$(with_branch_name platform-valid empty "branch_name:")
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "no sub-key rejected" 1 $ST "$OUT"
+assert_contains "names the key" "branch_name" "$OUT"
+for bad in "0" "-3" "abc" "2.5"; do
+  M=$(with_branch_name platform-valid "len-$bad" "branch_name:" "  max_length: $bad")
+  OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+  assert_exit "max_length '$bad' rejected" 1 $ST "$OUT"
+  assert_contains "max_length '$bad' → names max_length" "max_length" "$OUT"
+done
+M=$(with_branch_name platform-valid empty-pattern "branch_name:" '  pattern: ""')
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "empty pattern rejected" 1 $ST "$OUT"
+assert_contains "names pattern" "pattern" "$OUT"
+M=$(with_branch_name platform-valid broken-pattern "branch_name:" '  pattern: "[a-"')
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "pattern that does not compile rejected" 1 $ST "$OUT"
+assert_contains "says it does not compile" "compile" "$OUT"
+M=$(with_branch_name platform-valid unquoted "branch_name:" "  pattern: ^[a-z]+$")
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "unquoted pattern rejected" 1 $ST "$OUT"
+M=$(with_branch_name platform-valid unknown-sub "branch_name:" "  max_length: 23" "  min_length: 3")
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "unknown sub-key rejected" 1 $ST "$OUT"
+M=$(with_branch_name platform-valid-evidence-manifest wrong-order "branch_name:" "  max_length: 23" "evidence_manifest: change-summary")
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "a key after branch_name rejected (fixed order)" 1 $ST "$OUT"
+
 echo "[accept] a well-formed provider manifest"
 OUT=$(bash "$VALIDATOR" "$FIXDIR/provider-valid/pack.yaml" 2>&1); ST=$?
 assert_exit "provider-valid accepted (exit 0)" 0 $ST "$OUT"

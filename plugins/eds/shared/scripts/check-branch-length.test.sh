@@ -72,5 +72,10 @@ else
   assert_has "the checker's limit equals the formula" "limit=$FORMULA" "$OUT"
 fi
 
+echo "[manifest] this limit equals the eds pack's declared branch_name max_length"
+DECLARED=$(awk '/^branch_name:$/ { inside = 1; next } inside && /^  max_length:/ { print $2; exit } inside && !/^  / { exit }' "$SCRIPT_DIR/../../pack.yaml")
+run "$(name_of_length 1)"
+assert_has "pack.yaml max_length is this checker's limit" "limit=${DECLARED:-missing}" "$OUT"
+
 echo "=== $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ]

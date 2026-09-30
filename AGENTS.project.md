@@ -164,8 +164,9 @@ For other environments get owner/repo (`gh repo view --json nameWithOwner`) and 
 1. Push to a feature branch. AEM Code Sync publishes it to the feature preview.
    **Name it so the preview exists:** at most 23 characters, only lower-case `a-z`, `0-9`, `-`
    and `/`. Check before creating it:
-   `bash plugins/eds/shared/scripts/check-branch-name.sh <name>` → `ok`, `too-long` or
-   `bad-chars`. A name that fails gets no preview URL, and its PR fails `aem-psi-check`.
+   `bash plugins/agentic-core/shared/lib/check-branch-name.sh <name>` → `ok`, `too-long` or
+   `bad-chars`. A name that fails gets no preview URL, and its PR fails `aem-psi-check`. With the
+   `agentic-core` plugin enabled, its hook blocks a `git` command that would create such a branch.
 2. Run PageSpeed Insights against the feature preview URL. Target 100.
 3. Open a PR to `main` with the feature preview link `AGENTS.md` requires — the same path you
    tested locally. If no page demonstrates it, create test content as static HTML and ask the
