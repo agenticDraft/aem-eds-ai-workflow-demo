@@ -34,7 +34,9 @@ git -c init.defaultBranch=main init -q "$WORK/a"
   git remote add origin "$WORK/remote.git"
   git push -q -u origin main
 )
-git clone -q "$WORK/remote.git" "$WORK/b"
+# -b main: a bare repository initialised elsewhere may point HEAD at another
+# default branch name, and a clone of it would then have no commit checked out.
+git clone -q -b main "$WORK/remote.git" "$WORK/b"
 
 # run <dir> <args...> — runs the script from <dir>; sets OUT, ERR, STATUS
 run() {
