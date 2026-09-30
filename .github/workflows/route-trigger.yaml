@@ -24,6 +24,10 @@ on:
         type: boolean
         default: false
 
+# What this repository must hold before a run can succeed — the secrets, the
+# variables and the fine-grained token's permissions — is the checklist in
+# .github/route-runner-setup.md.
+#
 # The pushes a run makes (the claim tag, the working branch) use the
 # fine-grained token in ROUTE_GH_TOKEN, never this token: an event created by
 # the workflow token starts no workflow run, and deliver reads the change's CI.

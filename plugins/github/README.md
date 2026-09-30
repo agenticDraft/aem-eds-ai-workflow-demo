@@ -21,7 +21,14 @@ GitHub remote.
    response. The output ends with the `## Result` block the core's `shared/result-envelope.md`
    defines.
 2. **Authentication is the machine's, not the pack's.** Every skill requires `gh` to be
-   authenticated on the machine (`gh auth status`); no token is read or stored here.
+   authenticated on the machine (`gh auth status`); no token is read or stored here. With nobody
+   logged in — a CI runner — that authentication is the environment variable `GH_TOKEN`, which
+   `gh` reads in place of a stored login, plus `gh auth setup-git` run once so `git push` goes
+   through the same token. A fine-grained personal access token scoped to the one repository
+   covers every operation here with: Contents read and write (branches and tags are pushed),
+   Pull requests read and write (`publish_change`, `check_status`), Commit statuses read and
+   Actions read (`check_status`). Not the workflow's own token: an event it creates starts no
+   workflow run, so a change it opened would carry no checks for `check_status` to read.
 3. **`create_branch` ensures rather than creates.** An existing branch is reported, not refused,
    with `metrics` naming what happened: `branch_action=existing`, `switched` or `created`. A new
    branch bases on `origin/<default>` when the caller is on the default branch, on the current
@@ -110,7 +117,8 @@ $ bash plugins/github/skills/create-branch/scripts/create-branch.test.sh
 
 ## Running it yourself
 
-1. Authenticate `gh` on the machine and confirm it: `gh auth status`.
+1. Authenticate `gh` on the machine and confirm it: `gh auth status`. Headless: export
+   `GH_TOKEN` instead (see *How it handles it*, point 2).
 2. Load the pack next to the core, from the directory that holds `plugins/`:
 
    ```text
