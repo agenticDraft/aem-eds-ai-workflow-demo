@@ -52,6 +52,7 @@ scripts:                        # optional
   <operation name>: "<path, relative to the pack root>"
 text_conventions:               # tracker role only
   design_keywords: [<string>, …]
+  before_state_keywords: [<string>, …]
   reproduction_headings: [<string>, …]
   acceptance_criteria_headings: [<string>, …]
 requires:                       # optional
@@ -288,7 +289,8 @@ digraph route {
   A caller that needs an operation's script form and finds `scripts` silent about it degrades rather
   than guessing one — this is never inferred from a skill's own prose.
 - `text_conventions` — `tracker` role only. Describes how one tracker's items are written: the word
-  list that sets `design_mentioned` (`design_keywords`) and the heading names that set
+  lists that set `design_mentioned` (`design_keywords`) and `before_state_mentioned`
+  (`before_state_keywords`), and the heading names that set
   `has_reproduction_steps` (`reproduction_headings`) and `has_acceptance_criteria`
   (`acceptance_criteria_headings`). It lives with the tracker because a team that formats items
   differently changes its tracker pack, not its platform pack. `has_reproduction_url` needs no list

@@ -67,6 +67,15 @@ OUT=$(bash "$CHECK" "$PACK" "$FIXDIR/design-wanted-absent.yaml" 2>&1); ST=$?
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "reason states the fixed rule" "design_mentioned is true but design_source is false" "$OUT"
 
+echo "[reject] before_state_mentioned is true but before_state_available is false"
+OUT=$(bash "$CHECK" "$PACK" "$FIXDIR/before-state-unavailable.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason states the fixed rule" "before_state_mentioned is true but before_state_available is false" "$OUT"
+
+echo "[accept] a before-state is mentioned and can be captured"
+OUT=$(bash "$CHECK" "$PACK" "$FIXDIR/before-state-available.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
 echo "[usage] no arguments"
 OUT=$(bash "$CHECK" 2>&1); ST=$?
 assert_exit "no args -> usage error (exit 2)" 2 $ST "$OUT"

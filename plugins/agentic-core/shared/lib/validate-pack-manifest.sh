@@ -91,10 +91,14 @@ STAGE_VOCAB=(intake readiness extract conventions serve baseline prototype
 FACT_FIELDS=(item_id item_type labels components files_named
              design_source design_mentioned
              has_description has_acceptance_criteria
-             has_reproduction_url has_reproduction_steps)
+             has_reproduction_url has_reproduction_steps
+             reproduction_content_ok
+             before_state_mentioned before_state_available)
 FACT_KINDS=(string string list list list
             bool bool
             bool bool
+            bool bool
+            bool
             bool bool)
 
 field_kind() {
@@ -626,12 +630,12 @@ if [[ "$kind" == "provider" ]]; then
       || fail "text_conventions belongs to the tracker role, not '$role'"
     cursor=$((cursor + 1))
     conv_count=0
-    while [[ "${LINES[cursor]:-}" =~ ^\ \ (design_keywords|reproduction_headings|acceptance_criteria_headings):\ \[(.*)\]$ ]]; do
+    while [[ "${LINES[cursor]:-}" =~ ^\ \ (design_keywords|before_state_keywords|reproduction_headings|acceptance_criteria_headings):\ \[(.*)\]$ ]]; do
       cursor=$((cursor + 1))
       conv_count=$((conv_count + 1))
     done
     [[ $conv_count -eq 0 ]] \
-      && fail "text_conventions is present but declares none of 'design_keywords', 'reproduction_headings' or 'acceptance_criteria_headings'"
+      && fail "text_conventions is present but declares none of 'design_keywords', 'before_state_keywords', 'reproduction_headings' or 'acceptance_criteria_headings'"
   fi
 
   # --- requires (validator 18, D97) -----------------------------------------
