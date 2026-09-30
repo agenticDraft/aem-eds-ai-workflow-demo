@@ -18,6 +18,7 @@
 import json
 import os
 import re
+import subprocess
 import sys
 
 
@@ -67,13 +68,14 @@ def adf_to_text(node):
 
 
 def parse_text_conventions(pack_yaml_path):
-    """Reads the three optional word lists from a tracker pack's
-    text_conventions block. Same single-line-per-key shape
-    validate-pack-manifest.sh's parser requires (shared/pack-manifest.md)."""
-    lists = {"design_keywords": [], "reproduction_headings": [], "acceptance_criteria_headings": []}
+    """Reads the optional word lists from a tracker pack's text_conventions
+    block. Same single-line-per-key shape validate-pack-manifest.sh's parser
+    requires (shared/pack-manifest.md)."""
+    lists = {"design_keywords": [], "before_state_keywords": [],
+             "reproduction_headings": [], "acceptance_criteria_headings": []}
     if not os.path.isfile(pack_yaml_path):
         return lists
-    pattern = re.compile(r"^\s\s(design_keywords|reproduction_headings|acceptance_criteria_headings):\s\[(.*)\]$")
+    pattern = re.compile(r"^\s\s(design_keywords|before_state_keywords|reproduction_headings|acceptance_criteria_headings):\s\[(.*)\]$")
     with open(pack_yaml_path, encoding="utf-8") as f:
         for line in f:
             m = pattern.match(line.rstrip("\n"))
@@ -121,6 +123,70 @@ def any_design_url(text):
     return False
 
 
+PROJECT_CONFIG = ".ai/project-config.yaml"
+DRAFTS_DIR = "drafts"
+FIND_BASELINE_TARGET = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "shared", "scripts",
+    "find-baseline-target.py")
+
+
+def preview_url():
+    """paths.preview from the project config, read from the working
+    directory the stage runs in; None when it cannot be read."""
+    if not os.path.isfile(PROJECT_CONFIG):
+        return None
+    with open(PROJECT_CONFIG, encoding="utf-8") as f:
+        for line in f:
+            m = re.match(r'^\s+preview:\s*"?([^"\s]+)"?\s*$', line)
+            if m:
+                return m.group(1)
+    return None
+
+
+def url_host(url):
+    m = re.match(r"https?://([^/:]+)", url)
+    return m.group(1).lower() if m else None
+
+
+def reproduction_content_ok(text, item_id):
+    """Every URL on the preview host that names a draft must name this
+    item's own draft, and that file must exist. Drafts are the only local
+    pages that live in the checkout and that the serve stage's cleanup can
+    delete; another item's draft is deleted once that item's change closes.
+    Any other URL is not probed and counts as ok."""
+    preview = preview_url()
+    local_host = url_host(preview) if preview else None
+    for url in URL_RE.findall(text):
+        url = url.rstrip(".,;:)\"'`")
+        if local_host is None or url_host(url) != local_host:
+            continue
+        path = re.sub(r"^https?://[^/]+", "", url).split("?")[0].split("#")[0]
+        m = re.match(r"^/drafts/([^/]+)/?$", path)
+        if not m:
+            continue
+        name = re.sub(r"(\.plain)?\.html$", "", m.group(1))
+        if name != item_id:
+            return False
+        if not os.path.isfile(os.path.join(DRAFTS_DIR, name + ".plain.html")):
+            return False
+    return True
+
+
+def before_state_available(components):
+    """True when every named component has a page outside drafts/ that the
+    baseline stage can render — the same search that stage runs."""
+    preview = preview_url()
+    if not components or not preview:
+        return False
+    for component in components:
+        result = subprocess.run(
+            [sys.executable, FIND_BASELINE_TARGET, component, preview],
+            capture_output=True, text=True)
+        if result.returncode != 0:
+            return False
+    return True
+
+
 def yaml_list(values):
     if not values:
         return "[]"
@@ -165,6 +231,7 @@ def main():
 
     conventions = parse_text_conventions(pack_yaml_path)
     design_matches = find_matches(plain_text, conventions["design_keywords"])
+    before_state_matches = find_matches(plain_text, conventions["before_state_keywords"])
     reproduction_matches = find_matches(plain_text, conventions["reproduction_headings"])
     acceptance_matches = find_matches(plain_text, conventions["acceptance_criteria_headings"])
 
@@ -177,6 +244,9 @@ def main():
     has_acceptance_criteria = bool(acceptance_matches)
     has_reproduction_steps = bool(reproduction_matches)
     has_reproduction_url = bool(URL_RE.search(plain_text))
+    content_ok = reproduction_content_ok(plain_text, item_id)
+    before_state_mentioned = bool(before_state_matches)
+    before_available = before_state_available(components)
 
     files_named = sorted(set(FILE_RE.findall(plain_text)) | set(BLOCK_DIR_RE.findall(plain_text)))
 
@@ -195,6 +265,10 @@ def main():
         f.write(f"has_acceptance_criteria: {yaml_bool(has_acceptance_criteria)}\n")
         f.write(f"has_reproduction_url: {yaml_bool(has_reproduction_url)}\n")
         f.write(f"has_reproduction_steps: {yaml_bool(has_reproduction_steps)}\n")
+        f.write("\n")
+        f.write(f"reproduction_content_ok: {yaml_bool(content_ok)}\n")
+        f.write(f"before_state_mentioned: {yaml_bool(before_state_mentioned)}\n")
+        f.write(f"before_state_available: {yaml_bool(before_available)}\n")
 
     os.makedirs(os.path.dirname(out_sanitized_spec) or ".", exist_ok=True)
     with open(out_sanitized_spec, "w", encoding="utf-8") as f:
@@ -211,6 +285,8 @@ def main():
     print(
         "matched: design_keywords="
         + (",".join(design_matches) or "none")
+        + " before_state_keywords="
+        + (",".join(before_state_matches) or "none")
         + " reproduction_headings="
         + (",".join(reproduction_matches) or "none")
         + " acceptance_criteria_headings="

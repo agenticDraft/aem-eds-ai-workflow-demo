@@ -82,7 +82,12 @@ with no authored content.
 
 Every path in the last column is under `.ai/run-context/`. Readiness requires, per item type:
 Story and Task `has_description` and `has_acceptance_criteria`; Bug `has_description`,
-`has_reproduction_url` and `has_reproduction_steps`.
+`has_reproduction_url` and `has_reproduction_steps`. Every type also requires
+`reproduction_content_ok`: a `/drafts/<name>` URL on the preview host must name the item's own id,
+and `drafts/<name>.plain.html` must exist. Another item's draft is deleted by `serve` once that
+item's change closes. An item whose text compares against the current state
+(`before_state_keywords`) is refused when a named component has no page outside `drafts/`, since
+`baseline` never renders `drafts/`.
 
 ## Upstream Block Collection
 
