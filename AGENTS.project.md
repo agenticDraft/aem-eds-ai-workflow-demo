@@ -162,6 +162,10 @@ For other environments get owner/repo (`gh repo view --json nameWithOwner`) and 
 - Feature — `https://{branch}--{repo}--{owner}.aem.page/`
 
 1. Push to a feature branch. AEM Code Sync publishes it to the feature preview.
+   **Name it so the preview exists:** at most 23 characters, only lower-case `a-z`, `0-9`, `-`
+   and `/`. Check before creating it:
+   `bash plugins/eds/shared/scripts/check-branch-name.sh <name>` → `ok`, `too-long` or
+   `bad-chars`. A name that fails gets no preview URL, and its PR fails `aem-psi-check`.
 2. Run PageSpeed Insights against the feature preview URL. Target 100.
 3. Open a PR to `main` with the feature preview link `AGENTS.md` requires — the same path you
    tested locally. If no page demonstrates it, create test content as static HTML and ask the
@@ -171,8 +175,7 @@ For other environments get owner/repo (`gh repo view --json nameWithOwner`) and 
 
 **`aem-psi-check` by PR type (G31).** A PR that changes a served path (`blocks/`, `styles/`,
 `scripts/`, `fonts/`, `icons/`, `tools/`, `head.html`, `404.html`, `favicon.ico`; not `*.md`)
-carries its feature preview URL, on a branch of at most 23 characters using only `a-z`, `0-9`,
-`-` and `/`, so the check measures it.
+carries its feature preview URL, on a branch named per step 1, so the check measures it.
 An automation-only PR (`plugins/`, `.claude/`, `.github/`, `docs/`, Markdown) carries no preview
 URL and **is expected to fail `aem-psi-check`**. The check is not a required check; do not make it
 one. `plugins/eds/shared/scripts/preview-url.sh` decides the type.
