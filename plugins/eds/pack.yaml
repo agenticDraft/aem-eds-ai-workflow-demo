@@ -47,11 +47,11 @@ stages:
 always_autonomous: []
 readiness_criteria:
   Story:
-    require: [has_description, has_acceptance_criteria]
+    require: [has_description, has_acceptance_criteria, reproduction_content_ok]
   Bug:
-    require: [has_description, has_reproduction_url, has_reproduction_steps]
+    require: [has_description, has_reproduction_url, has_reproduction_steps, reproduction_content_ok]
   Task:
-    require: [has_description, has_acceptance_criteria]
+    require: [has_description, has_acceptance_criteria, reproduction_content_ok]
 artifacts:
   - id: fact-record
     produced_by: intake

@@ -89,6 +89,69 @@ OUT="$(run_case "prose mentioning 'blocks' with no path at all" \
   "Add support for reusable blocks across the site.")"
 check "no spurious blocks/ match" "files_named: []" "$OUT"
 
+# --- reproduction_content_ok, before_state_* --------------------------------
+# These read the checkout, so each case runs inside a throwaway project: its
+# own config (the preview host), its own drafts/, its own pages.
+PROJECT="$(mktemp -d "${TMPDIR:-/tmp}/extract-fact-record-project.XXXXXX")" || { echo "cannot create a temp dir" >&2; exit 2; }
+[ -n "$PROJECT" ] && [ -d "$PROJECT" ] || { echo "cannot create a temp dir" >&2; exit 2; }
+trap 'rm -rf "$PROJECT"' EXIT
+git init -q "$PROJECT"
+mkdir -p "$PROJECT/.ai" "$PROJECT/drafts"
+printf 'drafts/\n' > "$PROJECT/.gitignore"
+printf 'paths:\n  preview: "http://localhost:3000/preview"\n' > "$PROJECT/.ai/project-config.yaml"
+printf '<div><div class="table"><div><div>a</div></div></div></div>\n' > "$PROJECT/drafts/ITEM-1.plain.html"
+printf '<div><div class="table"><div><div>a</div></div></div></div>\n' > "$PROJECT/drafts/ITEM-9.plain.html"
+
+# field_case <label> <key> <components csv> <description> — prints the three new fields
+field_case() {
+  local label="$1" key="$2" components="$3" description_text="$4"
+  echo "[$label]" >&2
+  python3 -c "
+import json, sys
+item = {
+    'key': sys.argv[1],
+    'fields': {
+        'issuetype': {'name': 'Bug'},
+        'summary': 'Test item',
+        'description': {'type': 'doc', 'content': [
+            {'type': 'paragraph', 'content': [{'type': 'text', 'text': sys.argv[3]}]}]},
+        'labels': [],
+        'components': [{'name': c} for c in sys.argv[2].split(',') if c],
+        'attachment': [],
+    },
+}
+json.dump(item, open(sys.argv[4], 'w'))
+" "$key" "$components" "$description_text" "$PROJECT/item.json"
+  (cd "$PROJECT" && python3 "$SCRIPT" item.json "$PACK_YAML" fact-record.yaml spec.md >/dev/null 2>&1)
+  grep -E '^(reproduction_content_ok|before_state_mentioned|before_state_available):' "$PROJECT/fact-record.yaml" | tr '\n' ' '
+}
+
+echo "=== reproduction_content_ok / before_state_* tests ==="
+
+OUT="$(field_case "the item's own draft, present" ITEM-1 table "Open http://localhost:3001/drafts/ITEM-1")"
+check "own draft present -> ok" "reproduction_content_ok: true" "$OUT"
+
+OUT="$(field_case "the item's own draft, missing" ITEM-2 table "Open http://localhost:3001/drafts/ITEM-2")"
+check "own draft missing -> not ok" "reproduction_content_ok: false" "$OUT"
+
+OUT="$(field_case "another item's draft, present on disk" ITEM-2 table "Open http://localhost:3001/drafts/ITEM-9")"
+check "another item's draft -> not ok" "reproduction_content_ok: false" "$OUT"
+
+OUT="$(field_case "a remote URL and a proxied local page" ITEM-2 table "See https://example.test/page and http://localhost:3000/about")"
+check "no draft URL -> ok, nothing probed" "reproduction_content_ok: true" "$OUT"
+
+OUT="$(field_case "a before-state phrase, component only in drafts/" ITEM-1 table "AC-2 The data rows render the same as before the change.")"
+check "phrase matched" "before_state_mentioned: true" "$OUT"
+check "drafts/ is never a before-state" "before_state_available: false" "$OUT"
+
+printf '<div class="table"></div>\n' > "$PROJECT/index.html"
+OUT="$(field_case "the component has a page outside drafts/" ITEM-1 table "AC-2 The data rows render the same as before the change.")"
+check "page outside drafts/ -> available" "before_state_available: true" "$OUT"
+
+OUT="$(field_case "no component named" ITEM-1 "" "Nothing to compare.")"
+check "no phrase -> not mentioned" "before_state_mentioned: false" "$OUT"
+check "no component -> not available" "before_state_available: false" "$OUT"
+
 echo
 echo "=== $PASS passed, $FAIL failed ==="
 [[ $FAIL -eq 0 ]]
