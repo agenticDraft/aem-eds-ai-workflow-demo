@@ -593,6 +593,16 @@ branch name comes from.
    using the fact record's own `item_id`. The same id always yields the same name, which is what
    lets a resumed run and a re-run land on one branch rather than two.
 
+   Then check it against the platform pack's declared rule:
+
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/shared/lib/check-branch-name.sh <the derived name>
+   ```
+
+   Exit 0 — continue. Any other exit — route to **failed**, quoting the checker's one line. The
+   branch is created inside the scm operation, where no command hook sees it, so this is the only
+   point the rule is applied to a run's own branch.
+
 2. **Resolve the scm pack.** Read `.ai/project-config.yaml`'s `packs.scm`, then that pack's
    manifest at its own pack root, and take `operations.create_branch`. Absent, the literal `none`,
    or listed under `unsupported` — route to **failed**, naming it. `deliver` is the last stage of
@@ -749,4 +759,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: 6699f9c6d898 -->
+<!-- instructions-stamp: 7276a139a24c -->
