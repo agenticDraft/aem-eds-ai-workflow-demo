@@ -139,6 +139,15 @@ echo "[slash and case] a slash becomes '-', upper case is lowered"
 run "$D" --branch Feature/Cards --base main
 assert_has "host label" "https://feature-cards$HOST_SUFFIX/" "$OUT"
 
+echo "[characters] outside a-z 0-9 - (after / → - and lower case) → no URL"
+for b in eds_18 eds.18 'eds+18' 'eds@18'; do
+  run "$D" --branch "$b" --base main
+  assert_has "$b → branch-unsupported" "pr-type: branch-unsupported" "$ERR"
+  assert_eq "$b → no body text" "" "$OUT"
+done
+run "$D" --branch eds-18 --base main
+assert_has "eds-18 → served" "pr-type: served" "$ERR"
+
 echo "[errors] usage and an unreadable diff"
 run "$D" --base main
 assert_eq "no --branch → exit 2" "2" "$CODE"

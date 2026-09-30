@@ -264,8 +264,9 @@ bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/preview-url.sh \
 ```
 
 Append its stdout unchanged; empty stdout appends nothing. The script decides the PR type
-(`served`, `automation-only`, `branch-too-long`) and prints it on stderr. Never write a preview URL
-by hand. Exit `2` or `3` (no default branch resolved, or the diff could not be read) — append
+(`served`, `automation-only`, `branch-too-long`, `branch-unsupported`) and prints it on stderr as
+`pr-type: <type> …`. Keep `<type>` for **Check automated status** and the note. Never write a
+preview URL by hand. Exit `2` or `3` (no default branch resolved, or the diff could not be read) — append
 nothing and record it for **Anything downgraded?**.
 
 Then invoke `Skill(<packs.scm>:<publish_change skill name>)` with:
@@ -299,12 +300,18 @@ Invoke `Skill(<packs.scm>:<check_status skill name>)` with:
 branch: <the same branch>
 ```
 
-Capture its entire output. Read the captured envelope's `verdict` and, when present, its
-`metrics:` line (`total=<n> pass=<n> fail=<n> pending=<n> skipping=<n> cancel=<n>`).
+Capture its entire output and read the captured envelope's `verdict`.
 
-- `verdict: pass` with `fail=0` and `pending=0` (including `total=0`, "no checks configured") —
-  checks are clean; note this for **Anything downgraded?**.
-- `verdict: pass` with `fail>0` or `pending>0` — checks are not (yet) all green; note this as a
+- `verdict: pass` — decide green with the script, never by reading the metrics yourself:
+
+  ```
+  python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py checks \
+    --checks <check_status's written JSON, from its envelope's artifacts> [--pr-type <type>]
+  ```
+
+  Pass `--pr-type` when **Publish the change** kept one. `checks: green` (with or without an
+  `expected=` list) — checks are clean. `checks: not-green` or `checks: unreadable` — note it as a
+  downgrade. A check listed under `expected=` fails by design for that PR type and is not a
   downgrade.
 - `fail`, `question`, or an envelope that does not validate — the checks could not be read; note
   this as a downgrade too. This does not go to **Report fail**: the change itself already published
@@ -370,7 +377,7 @@ Capture its entire output. Read the captured envelope's `verdict` and, when pres
    python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py note \
      --branch <the branch> --item-id <item_id> --pr-url <the pull request URL> \
      --checks <check_status's written JSON, from its envelope's artifacts; `none` when it wrote none> \
-     [--block-name <the target block>]
+     [--block-name <the target block>] [--pr-type <the type kept in Publish the change>]
    ```
 
    `--block-name` is `fact-record.yaml`'s first `components` entry when non-empty, otherwise the
@@ -380,7 +387,8 @@ Capture its entire output. Read the captured envelope's `verdict` and, when pres
    person by the gap's own prefix, not by judgement: a `content-asset gap` entry, the
    placeholder-fixture gap (turned into a remedy line naming the block and the fixture file), a
    failing or cancelled check, checks that could not be read, or a manifest that could not be read.
-   None of these → "Nothing to do before merge". "Judged visually only" lines, skipped comparisons
+   None of these → "Nothing to do before merge". A check that fails by design for the PR type goes
+   under **Expected** instead. "Judged visually only" lines, skipped comparisons
    and the like stay out of the note; every one of them is already verbatim in
    `delivery-report.md`, which is attached. Use the output unchanged. This stage never authors,
    generates or publishes anything to make the note read better (D87).
@@ -403,7 +411,8 @@ Capture its entire output. Read the captured envelope's `verdict` and, when pres
 Any of the following — go to **Report warn**:
 
 - `plan.yaml` was missing, so the requirements section degraded to the fact record alone.
-- `check_status`'s checks were not all green, or could not be read at all.
+- `delivery-text.py checks` printed `not-green` or `unreadable`, or `check_status` itself did not
+  return `pass`.
 - `preview-url.sh` exited `2` or `3`, so the body carries no preview URL decision.
 - Any `attach_file` or `post_note` call did not return a valid `pass`/`warn` envelope — the delivery
   report's own attach, any manifest attachment, or the note.

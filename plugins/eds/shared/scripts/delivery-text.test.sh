@@ -117,6 +117,45 @@ printf '[{"bucket":"cancel","name":"build","state":"CANCELLED"}]' > "$WORK/cance
 run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/cancel.json" "${COMMON[@]}"
 assert_has "cancelled check" "- Check cancelled: build" "$OUT"
 
+echo "[note] a failing aem-psi-check on an automation-only PR is expected, not an action (G31)"
+printf '[{"bucket":"pass","name":"build","state":"SUCCESS"},{"bucket":"fail","name":"aem-psi-check","state":"FAILURE"}]' > "$WORK/psi-red.json"
+run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/psi-red.json" --pr-type automation-only "${COMMON[@]}"
+ACTION=$(printf '%s\n' "$OUT" | sed -n '/^Action needed$/,/^$/p')
+assert_has "nothing to do" "- Nothing to do before merge" "$ACTION"
+assert_lacks "psi not under Action needed" "aem-psi-check" "$ACTION"
+assert_has "psi under Expected" $'Expected\n- Check failing: aem-psi-check (automation-only PR: no preview URL to measure)' "$OUT"
+for t in served branch-too-long branch-unsupported ""; do
+  run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/psi-red.json" --pr-type "$t" "${COMMON[@]}"
+  ACTION=$(printf '%s\n' "$OUT" | sed -n '/^Action needed$/,/^$/p')
+  assert_has "pr-type '${t}' → psi is an action" "- Check failing: aem-psi-check" "$ACTION"
+  assert_lacks "pr-type '${t}' → no Expected section" "Expected" "$OUT"
+done
+printf '[{"bucket":"fail","name":"build","state":"FAILURE"},{"bucket":"fail","name":"aem-psi-check","state":"FAILURE"}]' > "$WORK/both-red.json"
+run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/both-red.json" --pr-type automation-only "${COMMON[@]}"
+assert_has "another failing check stays an action" "- Check failing: build" "$OUT"
+
+echo "[checks] one green/not-green decision for eds-deliver's downgrade"
+run checks --checks "$WORK/psi-red.json" --pr-type automation-only
+assert_eq "exit 0" "0" "$CODE"
+assert_eq "expected psi failure only → green" "checks: green expected=aem-psi-check" "$OUT"
+run checks --checks "$WORK/psi-red.json" --pr-type served
+assert_eq "served → not-green" "checks: not-green failing=aem-psi-check pending=0" "$OUT"
+run checks --checks "$WORK/both-red.json" --pr-type automation-only
+assert_eq "another failure → not-green" "checks: not-green failing=build pending=0 expected=aem-psi-check" "$OUT"
+run checks --checks "$WORK/green.json"
+assert_eq "a pending check → not-green" "checks: not-green failing= pending=1" "$OUT"
+printf '[{"bucket":"pass","name":"build"},{"bucket":"skipping","name":"x"}]' > "$WORK/all-pass.json"
+run checks --checks "$WORK/all-pass.json"
+assert_eq "all pass or skipping → green" "checks: green" "$OUT"
+run checks --checks "$WORK/cancel.json"
+assert_eq "cancelled → not-green" "checks: not-green failing=build pending=0" "$OUT"
+run checks --checks "$WORK/missing-checks.json"
+assert_eq "unreadable" "checks: unreadable" "$OUT"
+run checks
+assert_eq "no --checks → exit 2" "2" "$CODE"
+run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/green.json" --pr-type bogus "${COMMON[@]}"
+assert_eq "unknown --pr-type → exit 2" "2" "$CODE"
+
 echo "[note] the placeholder-fixture gap becomes the remedy line"
 printf '%s' '{"version":"1.0","item_id":"X-2","target":"http://localhost:3001/drafts/X-2","target_reachable":false,"target_reachable_reason":"loopback address","coverage_gaps":["the rendered target was a generated placeholder fixture (drafts/X-2.plain.html), not authored content"],"attachments":[]}' > "$WORK/fixture.json"
 run note --manifest "$WORK/fixture.json" --branch x-2 --item-id X-2 --pr-url "$PR" --checks "$WORK/green.json" --block-name cards "${COMMON[@]}"
