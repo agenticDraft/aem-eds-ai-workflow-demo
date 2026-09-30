@@ -110,6 +110,15 @@ echo "[item type with its own rules]"
 run_case "bug with no reproduction steps" 1 "reproduction steps" \
   "$(clean_draft | sed 's|^item_type: Story|item_type: Bug|')"
 
+echo "[content an item cites]"
+run_case "keyed item citing another item's draft" 1 "requires 'reproduction_content_ok'" \
+  "$(clean_draft | sed 's|^item_type: Story|item_type: Story\
+item_id: EDS-99|; s|^project.s standard.*|&\
+Open http://localhost:3001/drafts/EDS-18 to see it.|')"
+run_case "keyless draft citing a draft" 0 "review: reproduction_content_ok not checked" \
+  "$(clean_draft | sed 's|^project.s standard.*|&\
+Open http://localhost:3001/drafts/new-item to see it.|')"
+
 echo "[review notes do not fail the run]"
 run_case "criterion joined with and" 0 "review: AC-2 contains 'and'" \
   "$(clean_draft | sed 's|^AC-2 .*|AC-2 The list and the button render through the global styles.|')"
