@@ -61,6 +61,19 @@ echo "[accept] the real core, as built"
 OUT=$(bash "$VALIDATOR" "$CORE_ROOT" 2>&1); ST=$?
 assert_exit "plugins/agentic-core accepted (exit 0)" 0 $ST "$OUT"
 
+echo "[installed dependencies are not core vocabulary]"
+DEPS_WORK=$(mktemp -d "${TMPDIR:-/tmp}/naming-rule-deps.XXXXXX") || { echo "cannot create a temp dir" >&2; exit 2; }
+[[ -n "$DEPS_WORK" && -d "$DEPS_WORK" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
+trap 'rm -rf "$DEPS_WORK"' EXIT
+cp -R "$FIXDIR/clean" "$DEPS_WORK/core"
+mkdir -p "$DEPS_WORK/core/shared/runner/node_modules/some-package"
+printf 'Talks about Jira and Figma at length.\n' > "$DEPS_WORK/core/shared/runner/node_modules/some-package/README.md"
+OUT=$(bash "$VALIDATOR" "$DEPS_WORK/core" 2>&1); ST=$?
+assert_exit "a denylisted term inside node_modules is not a violation (exit 0)" 0 $ST "$OUT"
+printf 'Talks about Jira.\n' > "$DEPS_WORK/core/shared/runner/note.md"
+OUT=$(bash "$VALIDATOR" "$DEPS_WORK/core" 2>&1); ST=$?
+assert_exit "the same term beside node_modules is still a violation (exit 1)" 1 $ST "$OUT"
+
 echo "[reject then accept] injecting a product name into a real core file, then reverting"
 PROBE="$CORE_ROOT/shared/pack-manifest.md"
 if [[ ! -f "$PROBE" ]]; then

@@ -7,6 +7,11 @@
 # planning documents, so a shipped file that cites one is citing something the
 # reader cannot open, and a shipped file carrying a rationale section is
 # carrying reasoning that belongs with the task that produced it.
+# Installed third-party dependencies (any node_modules directory) and the
+# package manager's lock file are not read: the first is not the core's own
+# text, and the second is a generated inventory of that same tree, every line
+# of which names an installed path by design.
+#
 #
 # Two rules, each one mechanical:
 #   1. no path that this repository does not publish. Resolved through
@@ -124,8 +129,8 @@ while IFS= read -r file; do
              | sed 's/[.,;:)"`]*$//' | sort -u)
 done < <(find "$ROOT" -type f \
            \( -name '*.md' -o -name '*.sh' -o -name '*.py' -o -name '*.yaml' \
-              -o -name '*.yml' -o -name '*.js' -o -name '*.cjs' -o -name '*.json' \) \
-           -not -path '*/node_modules/*' -print)
+              -o -name '*.yml' -o -name '*.js' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.json' \) \
+           -not -path '*/node_modules/*' -not -name 'package-lock.json' -print)
 
 if [[ "$FINDINGS" -gt 0 ]]; then
   echo "invalid: $FINDINGS finding(s) across $SCANNED file(s)" >&2
