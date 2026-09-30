@@ -1,0 +1,18 @@
+{
+  "description": "Blocks a command that creates a branch whose name fails the configured platform pack's branch_name rule.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/shared/lib/check-branch-command.sh"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

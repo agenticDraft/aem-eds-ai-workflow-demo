@@ -157,6 +157,21 @@ run "$D" --branch x --base no-such-ref
 assert_eq "unknown base → exit 3" "3" "$CODE"
 assert_eq "unknown base → no body text" "" "$OUT"
 
+echo "[agreement] every name the eds branch_name rule accepts gets a preview URL"
+CORE_CHECK="$SCRIPT_DIR/../../../agentic-core/shared/lib/check-branch-name.sh"
+printf 'version: 1\n\npacks:\n  platform: eds\n' > "$WORK/eds-config.yaml"
+D=$(repo_with blocks/a/a.js)
+AGREE=1
+CHECKED=0
+for b in eds-18 feature/cards psi-preview-url "$(name_of_length 23)" "$(name_of_length 24)" eds_18 eds.18 EDS-18; do
+  bash "$CORE_CHECK" "$b" --config "$WORK/eds-config.yaml" >/dev/null 2>&1 || continue
+  CHECKED=$((CHECKED + 1))
+  run "$D" --branch "$b" --base main
+  [[ "$ERR" == *"pr-type: served"* ]] || { AGREE=0; bad "$b accepted but gets no URL" "$ERR"; }
+done
+[ "$AGREE" -eq 1 ] && [ "$CHECKED" -eq 4 ] && ok "the 4 accepted names all get a URL"
+[ "$CHECKED" -eq 4 ] || bad "expected 4 accepted names" "got $CHECKED"
+
 echo "[origin] the hard-coded host names this repository's origin"
 ORIGIN=$(git -C "$REPO" remote get-url origin 2>/dev/null)
 PATH_PART=$(printf '%s' "$ORIGIN" | sed -E 's#^[a-z+]+://[^/]+/##; s#^[^@]+@[^:]+:##; s#\.git$##')

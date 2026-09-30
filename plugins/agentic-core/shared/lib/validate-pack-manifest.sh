@@ -21,7 +21,10 @@
 #     segment. Neither is checked for existence here; that is pre-flight's
 #     job at runtime, against a real project. A third optional key,
 #     `evidence_manifest` (D86), when present, must name an artifact id this
-#     same pack registers in its own `artifacts:` list above.
+#     same pack registers in its own `artifacts:` list above. A last optional
+#     key, `branch_name` (D544), declares `max_length` (a positive integer),
+#     `pattern` (a double-quoted expression that compiles), or both, in that
+#     order, and nothing else.
 #
 #   provider — `role` is one of the four core roles; every key in
 #     `operations` and every entry in `unsupported` is an operation that
@@ -394,6 +397,33 @@ if [[ "$kind" == "platform" ]]; then
     in_list "$evidence_manifest_id" "${ARTIFACT_IDS[@]:-}" \
       || fail "evidence_manifest names an artifact this pack does not register: '$evidence_manifest_id'"
     cursor=$((cursor + 1))
+  fi
+
+  # --- branch_name (validator 22, D544) -------------------------------------
+  # Optional. The rule a branch name must meet on this platform: max_length,
+  # pattern, or both, in that order. The core never learns why a platform
+  # limits a name; check-branch-name.sh enforces whatever is declared here.
+  if [[ "${LINES[cursor]:-}" == "branch_name:" ]]; then
+    cursor=$((cursor + 1))
+    declared=0
+    if [[ "${LINES[cursor]:-}" =~ ^\ \ max_length:\ (.*)$ ]]; then
+      value="${BASH_REMATCH[1]}"
+      [[ "$value" =~ ^[1-9][0-9]*$ ]] \
+        || fail "branch_name max_length must be a positive integer, got '$value'"
+      declared=1
+      cursor=$((cursor + 1))
+    fi
+    if [[ "${LINES[cursor]:-}" =~ ^\ \ pattern:\ (.*)$ ]]; then
+      value="${BASH_REMATCH[1]}"
+      [[ "$value" =~ ^\"(.+)\"$ ]] \
+        || fail "branch_name pattern must be a non-empty, double-quoted expression, got '$value'"
+      pattern="${BASH_REMATCH[1]}"
+      printf '' | grep -E -- "$pattern" >/dev/null 2>&1
+      (( $? == 2 )) && fail "branch_name pattern does not compile: '$pattern'"
+      declared=1
+      cursor=$((cursor + 1))
+    fi
+    (( declared == 1 )) || fail "branch_name declares neither max_length nor pattern"
   fi
 
   # `requires:` is a provider key (validator 18, D97). A platform pack binds

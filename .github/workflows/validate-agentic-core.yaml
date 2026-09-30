@@ -57,6 +57,10 @@ jobs:
             triggers/jira/route-trigger.rule.json
       - name: Validate pack manifest
         run: bash plugins/agentic-core/shared/lib/validate-pack-manifest.test.sh
+      - name: a branch name meets the platform pack's declared rule
+        run: bash plugins/agentic-core/shared/lib/check-branch-name.test.sh
+      - name: a branch-creating command is blocked when its name fails
+        run: bash plugins/agentic-core/shared/lib/check-branch-command.test.sh
       - name: Validate naming rule
         run: bash plugins/agentic-core/shared/lib/validate-naming-rule.test.sh
       - name: Validate artifact registry
