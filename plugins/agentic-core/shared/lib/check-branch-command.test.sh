@@ -90,7 +90,7 @@ allowed "push a tag"                 "git push origin refs/tags/V1_0"
 allowed "push --tags"                "git push --tags"
 allowed "not git"                    "echo git switch -c a_b"
 allowed "text that mentions it"      $'cat > f <<EOF\n1. `git switch -c a_b` is blocked\nEOF'
-allowed "another tool entirely"      "npm test"
+allowed "another tool entirely"      "make test"
 
 echo "[allow and log] a name the shell has not expanded yet"
 rm -f "$LOG"
