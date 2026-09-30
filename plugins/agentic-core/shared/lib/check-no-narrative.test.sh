@@ -58,7 +58,9 @@ assert_contains "reports what it scanned" "valid: no narrative" "$OUT"
 echo "[a lock file and installed dependencies are not read]"
 LOCK_WORK=$(mktemp -d "${TMPDIR:-/tmp}/no-narrative-lock.XXXXXX") || { echo "cannot create a temp dir" >&2; exit 2; }
 [[ -n "$LOCK_WORK" && -d "$LOCK_WORK" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
-trap 'rm -rf "$LOCK_WORK"' EXIT
+CITE_WORK=$(mktemp -d "${TMPDIR:-/tmp}/no-narrative-cite.XXXXXX") || { echo "cannot create a temp dir" >&2; exit 2; }
+[[ -n "$CITE_WORK" && -d "$CITE_WORK" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
+trap 'rm -rf "$LOCK_WORK" "$CITE_WORK"' EXIT
 git init -q "$LOCK_WORK" && printf 'node_modules/\n' > "$LOCK_WORK/.gitignore"
 mkdir -p "$LOCK_WORK/core/shared/runner/node_modules/dep"
 printf '{ "packages": { "node_modules/dep": { "version": "1.0.0" } } }\n' > "$LOCK_WORK/core/shared/runner/package-lock.json"
@@ -67,11 +69,25 @@ OUT=$(cd "$LOCK_WORK" && bash "$CHECK" "$LOCK_WORK/core" 2>&1); ST=$?
 assert_exit "a lock file naming installed paths is accepted (exit 0)" 0 $ST "$OUT"
 
 # --- rule 1 -----------------------------------------------------------------
+# The cited path must exist and be ignored in the repository under scan, so the
+# case builds its own repository rather than relying on this one's ignored files.
 echo "[reject] a shipped file citing a path this repository does not publish"
-OUT="$(bash "$CHECK" "$FIX/cites-unpublished" 2>&1)"; ST=$?
+git init -q "$CITE_WORK/ignored" && printf 'docs/\n' > "$CITE_WORK/ignored/.gitignore"
+mkdir -p "$CITE_WORK/ignored/docs/implementation-plan" "$CITE_WORK/ignored/core"
+printf 'contracts\n' > "$CITE_WORK/ignored/docs/implementation-plan/01-core-contracts.md"
+cp "$FIX/cites-unpublished/cites.md" "$CITE_WORK/ignored/core/"
+OUT="$(bash "$CHECK" "$CITE_WORK/ignored/core" 2>&1)"; ST=$?
 assert_exit "rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "names the path" "01-core-contracts.md" "$OUT"
 assert_contains "says why it matters" "cannot open it" "$OUT"
+
+echo "[accept] the same citation, where the repository publishes the path"
+git init -q "$CITE_WORK/published"
+mkdir -p "$CITE_WORK/published/docs/implementation-plan" "$CITE_WORK/published/core"
+printf 'contracts\n' > "$CITE_WORK/published/docs/implementation-plan/01-core-contracts.md"
+cp "$FIX/cites-unpublished/cites.md" "$CITE_WORK/published/core/"
+OUT="$(bash "$CHECK" "$CITE_WORK/published/core" 2>&1)"; ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
 
 # --- rule 2 -----------------------------------------------------------------
 echo "[reject] a shipped file carrying its own rationale section"
