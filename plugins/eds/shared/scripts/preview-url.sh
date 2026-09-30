@@ -27,6 +27,11 @@
 #     pr-type: served label_length=<n> limit=63
 #     pr-type: automation-only
 #     pr-type: branch-too-long label_length=<n> limit=63
+#     pr-type: branch-unsupported branch=<name> allowed=a-z0-9-
+#
+# A host label holds only a-z, 0-9 and `-`. How the preview host rewrites any
+# other character in a branch name is not documented, so such a branch gets no
+# URL rather than a guessed one. `/` becomes `-` and upper case is lowered.
 #
 # Exit codes:
 #   0 — decided (any of the three types)
@@ -88,7 +93,13 @@ if [[ "$SERVED" -eq 0 ]]; then
   exit 0
 fi
 
-LABEL="$(printf '%s' "$BRANCH" | tr '/' '-' | tr '[:upper:]' '[:lower:]')$HOST_SUFFIX"
+HOST_BRANCH="$(printf '%s' "$BRANCH" | tr '/' '-' | tr '[:upper:]' '[:lower:]')"
+if [[ ! "$HOST_BRANCH" =~ ^[a-z0-9-]+$ ]]; then
+  echo "pr-type: branch-unsupported branch=$BRANCH allowed=a-z0-9-" >&2
+  exit 0
+fi
+
+LABEL="$HOST_BRANCH$HOST_SUFFIX"
 LENGTH=$(LC_ALL=C; printf '%s' "$LABEL" | wc -c | tr -d ' ')
 
 if [[ "$LENGTH" -gt "$LIMIT" ]]; then

@@ -171,7 +171,8 @@ For other environments get owner/repo (`gh repo view --json nameWithOwner`) and 
 
 **`aem-psi-check` by PR type (G31).** A PR that changes a served path (`blocks/`, `styles/`,
 `scripts/`, `fonts/`, `icons/`, `tools/`, `head.html`, `404.html`, `favicon.ico`; not `*.md`)
-carries its feature preview URL, on a branch of at most 23 characters, so the check measures it.
+carries its feature preview URL, on a branch of at most 23 characters using only `a-z`, `0-9`,
+`-` and `/`, so the check measures it.
 An automation-only PR (`plugins/`, `.claude/`, `.github/`, `docs/`, Markdown) carries no preview
 URL and **is expected to fail `aem-psi-check`**. The check is not a required check; do not make it
 one. `plugins/eds/shared/scripts/preview-url.sh` decides the type.

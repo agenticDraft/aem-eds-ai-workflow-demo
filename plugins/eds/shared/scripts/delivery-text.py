@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Run: python3 plugins/eds/shared/scripts/delivery-text.py block --branch eds-18
 #
-# delivery-text.py <block|note|report> [options]
+# delivery-text.py <block|note|report|checks> [options]
 #
 # Deterministic (D535, G535). Builds the text eds-deliver publishes, so the
 # pull request and the tracker note can never carry different target text:
@@ -12,6 +12,11 @@
 #            same function, and an "Action needed" list.
 #   report — the "## Evidence manifest" section of delivery-report.md: target,
 #            reachability, and every coverage gap verbatim, one line each.
+#   checks — one line deciding whether check_status's checks are green, for
+#            eds-deliver's downgrade: `checks: green [expected=<names>]`,
+#            `checks: not-green failing=<names> pending=<n> [expected=<names>]`,
+#            or `checks: unreadable`. Not green: any failing or cancelled
+#            check that is not expected, or any pending check.
 #
 # Options:
 #   --manifest <path>    evidence manifest (default .ai/run-context/evidence-manifest.json)
@@ -20,7 +25,9 @@
 #   --branch <name>      the branch checked out           (block, note)
 #   --item-id <id>       the work item id                 (note)
 #   --pr-url <url>       the pull request URL             (note)
-#   --checks <path>      check_status's JSON (a list of {bucket, name}) (note)
+#   --checks <path>      check_status's JSON (a list of {bucket, name}) (note, checks)
+#   --pr-type <type>     preview-url.sh's pr-type (note, checks): served,
+#                        automation-only, branch-too-long, branch-unsupported
 #   --block-name <name>  the target block, for the placeholder-fixture remedy (note)
 #
 # A missing, unparsable or incomplete manifest counts as no manifest: the block
@@ -36,6 +43,11 @@
 # Nothing → "Nothing to do before merge". Every other gap stays out of the
 # note; the report carries all of them.
 #
+# Expected failure (G31): on an automation-only PR, a failing `aem-psi-check`
+# is expected (no preview URL to measure). The note lists it under Expected,
+# not Action needed; `checks` does not count it. Any other PR type keeps it an
+# action.
+#
 # The Restart line: the draft server's port is paths.preview's port plus one
 # (3000 when it names none), as in start-draft-server.sh. package.json declares
 # "up:draft" → `npm run up:draft -- --port <port>`; otherwise commands.serve
@@ -50,6 +62,8 @@ import os
 import re
 import sys
 
+PR_TYPES = ("served", "automation-only", "branch-too-long", "branch-unsupported")
+EXPECTED_FAILURES = {"automation-only": ("aem-psi-check",)}
 FIXTURE_PREFIX = "the rendered target was a generated placeholder fixture ("
 ASSET_PREFIX = "content-asset gap"
 MANIFEST_KEYS = ("target", "target_reachable", "target_reachable_reason", "coverage_gaps")
@@ -139,20 +153,54 @@ def verified_block(manifest, branch, config, package):
     ])
 
 
-def check_actions(path):
+CHECK_LABELS = {"fail": "failing", "cancel": "cancelled"}
+
+
+def read_checks(path):
+    """check_status's list of checks, or None when it cannot be read."""
     try:
         with open(path, encoding="utf-8") as handle:
             checks = json.load(handle)
-        if not isinstance(checks, list):
-            raise ValueError
     except (OSError, ValueError, TypeError):
-        return ["Automated checks could not be read; see delivery-report.md"]
-    labels = {"fail": "failing", "cancel": "cancelled"}
-    return [
-        f"Check {labels[check.get('bucket')]}: {check.get('name', '(unnamed)')}"
-        for check in checks
-        if isinstance(check, dict) and check.get("bucket") in labels
-    ]
+        return None
+    if not isinstance(checks, list):
+        return None
+    return [check for check in checks if isinstance(check, dict)]
+
+
+def split_red(checks, pr_type):
+    """(unexpected red checks, expected red checks), each a list of checks."""
+    expected_names = EXPECTED_FAILURES.get(pr_type, ())
+    red = [check for check in checks if check.get("bucket") in CHECK_LABELS]
+    expected = [check for check in red if check.get("name") in expected_names]
+    return [check for check in red if check not in expected], expected
+
+
+def check_line(check):
+    return f"Check {CHECK_LABELS[check.get('bucket')]}: {check.get('name', '(unnamed)')}"
+
+
+def check_actions(path, pr_type):
+    """(action lines, expected lines) for the note."""
+    checks = read_checks(path)
+    if checks is None:
+        return ["Automated checks could not be read; see delivery-report.md"], []
+    unexpected, expected = split_red(checks, pr_type)
+    reason = f"{pr_type} PR: no preview URL to measure"
+    return [check_line(c) for c in unexpected], [f"{check_line(c)} ({reason})" for c in expected]
+
+
+def checks_verdict(path, pr_type):
+    checks = read_checks(path)
+    if checks is None:
+        return "checks: unreadable"
+    unexpected, expected = split_red(checks, pr_type)
+    pending = sum(1 for check in checks if check.get("bucket") == "pending")
+    tail = f" expected={','.join(c.get('name', '(unnamed)') for c in expected)}" if expected else ""
+    if unexpected or pending:
+        failing = ",".join(c.get("name", "(unnamed)") for c in unexpected)
+        return f"checks: not-green failing={failing} pending={pending}{tail}"
+    return f"checks: green{tail}"
 
 
 def gap_actions(manifest, block_name):
@@ -176,7 +224,8 @@ def note(args, manifest, reason, config):
     actions = gap_actions(manifest, args.block_name)
     if reason:
         actions.append(f"The evidence manifest could not be read ({reason}); see delivery-report.md")
-    actions += check_actions(args.checks)
+    check_lines, expected = check_actions(args.checks, args.pr_type)
+    actions += check_lines
     if not actions:
         actions = ["Nothing to do before merge"]
     lines = [
@@ -188,6 +237,7 @@ def note(args, manifest, reason, config):
         "Action needed",
         *[f"- {action}" for action in actions],
         "",
+        *(["Expected", *[f"- {line}" for line in expected], ""] if expected else []),
         "Details: delivery-report.md (attached)",
     ]
     return "\n".join(lines)
@@ -214,13 +264,13 @@ def report(manifest, reason):
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):
-        print(f"usage: delivery-text.py <block|note|report> [options] — {message}", file=sys.stderr)
+        print(f"usage: delivery-text.py <block|note|report|checks> [options] — {message}", file=sys.stderr)
         sys.exit(2)
 
 
 def main():
     parser = Parser(add_help=False)
-    parser.add_argument("mode", choices=["block", "note", "report"])
+    parser.add_argument("mode", choices=["block", "note", "report", "checks"])
     parser.add_argument("--manifest", default=".ai/run-context/evidence-manifest.json")
     parser.add_argument("--config", default=".ai/project-config.yaml")
     parser.add_argument("--package", default="package.json")
@@ -229,7 +279,16 @@ def main():
     parser.add_argument("--pr-url", default="")
     parser.add_argument("--checks", default="")
     parser.add_argument("--block-name", default="")
+    parser.add_argument("--pr-type", default="")
     args = parser.parse_args()
+
+    if args.pr_type and args.pr_type not in PR_TYPES:
+        parser.error(f"--pr-type must be one of {', '.join(PR_TYPES)}")
+    if args.mode == "checks":
+        if not args.checks:
+            parser.error("--checks is required")
+        print(checks_verdict(args.checks, args.pr_type))
+        return 0
 
     if args.mode in ("block", "note") and not args.branch:
         parser.error("--branch is required")
