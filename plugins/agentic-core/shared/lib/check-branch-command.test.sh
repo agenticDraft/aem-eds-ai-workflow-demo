@@ -72,6 +72,18 @@ blocked "after ;"                    "cd . ; git checkout -b a_b"
 blocked "on its own line"            $'git status\ngit switch -c a_b'
 blocked "first of two"               "git switch -c a_b && git push -u origin a_b"
 
+echo "[redirection] a redirection or its target is never read as a name"
+allowed "push, 2>&1 then a pipe"     "git push -q -u origin feature-1 2>&1 | tail -2"
+allowed "push, 2>/dev/null"          "git push origin feature-1 2>/dev/null"
+allowed "push, > and a spaced target" "git push origin feature-1 > out_log.txt"
+allowed "push, &>file"               "git push origin feature-1 &>out_log.txt"
+allowed "push, 2>> spaced target"    "git push origin feature-1 2>> out_log.txt"
+allowed "switch -c, 2>&1"            "git switch -c feature-1 2>&1"
+blocked "push, bad name then 2>&1"   "git push -u origin a_b 2>&1 | tail -2"
+blocked "push, redirection first"    "git push 2>&1 origin a_b"
+blocked "push, spaced target first"  "git push > out.txt origin a_b"
+blocked "switch -c, bad name, 2>&1"  "git switch -c a_b 2>&1"
+
 echo "[allow] a name that passes, and commands that create nothing"
 allowed "switch -c, fits"            "git switch -c feature-1"
 allowed "push the same good name"    "git push -u origin feature-1"

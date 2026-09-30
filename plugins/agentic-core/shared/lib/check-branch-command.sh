@@ -11,7 +11,8 @@
 # mentions a command is never judged. Creating forms: `switch -c|-C|--create`,
 # `checkout -b|-B`, `branch <name>` (not a list, delete, move or copy),
 # `worktree add -b|-B`, and `push` (each refspec's destination, not a tag,
-# not HEAD, not a delete). A name the shell has not expanded yet is allowed
+# not HEAD, not a delete). A redirection, and a target written apart from its
+# operator, is dropped before any word is read. A name the shell has not expanded yet is allowed
 # and appended to .ai/logs/branch-name-hook.log under the project root.
 #
 # A project without .ai/project-config.yaml, or input that is not a Bash call,
@@ -134,6 +135,10 @@ names_in() {
   esac
 }
 
+# A redirection word: an optional fd or `&`, the operator, an optional `&fd`,
+# then the target when it is joined to the operator.
+REDIRECT='^([0-9]*|&)(>>?|>\||<<?<?|<>)(&[0-9]*-?)?'
+
 SEGMENTS="$COMMAND"
 SEGMENTS="${SEGMENTS//&&/$'\n'}"
 SEGMENTS="${SEGMENTS//||/$'\n'}"
@@ -147,9 +152,19 @@ while IFS= read -r segment; do
     k=$((k + 1))
   done
   [[ "${words[k]:-}" == "git" ]] || continue
+  args=()
+  target=0
+  for word in "${words[@]:k+1}"; do
+    if (( target )); then target=0; continue; fi
+    if [[ "$word" =~ $REDIRECT ]]; then
+      [[ "$word" == "${BASH_REMATCH[0]}" && -z "${BASH_REMATCH[3]}" ]] && target=1
+      continue
+    fi
+    args+=("$word")
+  done
   while IFS= read -r name; do
     judge "$name" "$segment"
-  done < <(names_in "${words[@]:k+1}")
+  done < <(names_in ${args[@]+"${args[@]}"})
 done <<< "$SEGMENTS"
 
 exit 0
