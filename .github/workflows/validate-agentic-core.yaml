@@ -65,6 +65,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/check-branch-command.test.sh
       - name: Validate naming rule
         run: bash plugins/agentic-core/shared/lib/validate-naming-rule.test.sh
+      - name: a shipped file carries no narrative
+        run: bash plugins/agentic-core/shared/lib/check-no-narrative.test.sh
       - name: Validate artifact registry
         run: bash plugins/agentic-core/shared/lib/validate-artifact-registry.test.sh
       - name: Check plan criteria
