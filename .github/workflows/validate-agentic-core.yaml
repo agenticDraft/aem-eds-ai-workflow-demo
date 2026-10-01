@@ -43,6 +43,14 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/derive-branch-name.test.sh
       - name: a trigger event is claimed once, atomically
         run: bash plugins/agentic-core/shared/lib/claim-run.test.sh
+      - name: the route policy fails closed, and this repository's policy is valid
+        run: |
+          bash plugins/agentic-core/shared/lib/check-route-policy.test.sh
+          bash plugins/agentic-core/shared/lib/check-route-policy.sh .ai/route-policy.yaml
+      - name: daily run limits are counted from the claims, fail-closed
+        run: bash plugins/agentic-core/shared/lib/check-run-limits.test.sh
+      - name: a forbidden tool rule matches what it names and nothing else
+        run: node --test plugins/agentic-core/shared/runner/policy-match.test.mjs
       - name: Validate result envelope
         run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
       - name: Validate subagent outcome

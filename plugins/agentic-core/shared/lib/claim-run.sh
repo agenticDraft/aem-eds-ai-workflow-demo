@@ -8,12 +8,15 @@
 # that lease atomically, so of two callers racing for the same event exactly
 # one sees "claimed"; the other, and every later caller, sees "duplicate".
 #
-# What the tag points at is a claim commit: an otherwise empty commit on top
-# of the caller's HEAD whose message names the tag, the run id and the time.
-# Every claim is therefore a new object, so a repeat is a real ref update
-# the remote can refuse, never a no-op "already up to date" that would read
-# as success. The commit is built without touching HEAD, the index, the
-# working tree or any local ref; it exists locally only as a loose object.
+# What the tag points at is a claim commit: a commit with the empty tree and
+# no parent, whose message names the tag, the run id, the time, who started
+# the event, whether it was a break-glass override, and a random nonce. The
+# nonce makes every claim a new object, so a repeat is a real ref update the
+# remote can refuse, never a no-op "already up to date" that would read as
+# success. The empty tree and the missing parent keep a claim to a single
+# small object, so the run-limits check can read every claim's message
+# cheaply. The commit is built without touching HEAD, the index, the working
+# tree or any local ref; it exists locally only as loose objects.
 #
 # A refused push is a duplicate only if the remote really holds the tag —
 # that is asked of the remote directly, never read out of git's message text.
@@ -28,7 +31,11 @@
 #
 # Environment:
 #   CLAIM_REMOTE — the remote to claim on (default: origin)
-#   CLAIM_RUN_ID — recorded in the claim commit's message (default: unknown)
+#   CLAIM_RUN_ID   — recorded in the claim commit's message (default: unknown)
+#   CLAIM_BY       — the identity that started the event, recorded as "by:"
+#                    (default: unknown; letters, digits and ":_-" only)
+#   CLAIM_OVERRIDE — "1" when the event is a break-glass override, else "0"
+#                    (default: 0); recorded as "override:"
 #
 # Exit codes:
 #   0 — claimed;   "claimed <tag>" on stdout
@@ -60,11 +67,28 @@ fi
 
 REMOTE="${CLAIM_REMOTE:-origin}"
 RUN_ID="${CLAIM_RUN_ID:-unknown}"
+BY="${CLAIM_BY:-unknown}"
+OVERRIDE="${CLAIM_OVERRIDE:-0}"
+
+# Both reach the claim message, which the run-limits check reads line by
+# line, so each must be a single well-formed token.
+if [[ ! "$BY" =~ ^[A-Za-z0-9:_-]+$ ]]; then
+  echo "usage: CLAIM_BY '$BY' is not an identity handle" >&2
+  exit 2
+fi
+if [[ ! "$OVERRIDE" =~ ^[01]$ ]]; then
+  echo "usage: CLAIM_OVERRIDE '$OVERRIDE' is not 0 or 1" >&2
+  exit 2
+fi
 TAG="agentic-run/${ITEM_ID}-c${COMMENT_ID}"
 REF="refs/tags/${TAG}"
 
-if ! HEAD_SHA="$(git rev-parse --verify HEAD 2>/dev/null)"; then
-  echo "claim failed for ${TAG}: not inside a repository with a HEAD commit" >&2
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "claim failed for ${TAG}: not inside a repository" >&2
+  exit 1
+fi
+if ! EMPTY_TREE="$(git mktree </dev/null 2>/dev/null)" || [[ -z "$EMPTY_TREE" ]]; then
+  echo "claim failed for ${TAG}: could not write the empty tree" >&2
   exit 1
 fi
 
@@ -73,8 +97,13 @@ fi
 CLAIM_SHA="$(
   GIT_AUTHOR_NAME="agentic-core claim" GIT_AUTHOR_EMAIL="claim@agentic-core.invalid" \
   GIT_COMMITTER_NAME="agentic-core claim" GIT_COMMITTER_EMAIL="claim@agentic-core.invalid" \
-  git commit-tree "${HEAD_SHA}^{tree}" -p "$HEAD_SHA" \
-    -m "claim ${TAG}" -m "run: ${RUN_ID}" -m "at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" 2>/dev/null
+  git commit-tree "$EMPTY_TREE" \
+    -m "claim ${TAG}" \
+    -m "run: ${RUN_ID}
+at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+by: ${BY}
+override: ${OVERRIDE}
+nonce: ${RANDOM}${RANDOM}${RANDOM}" 2>/dev/null
 )"
 if [[ -z "$CLAIM_SHA" ]]; then
   echo "claim failed for ${TAG}: could not build the claim commit" >&2

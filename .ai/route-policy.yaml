@@ -1,0 +1,41 @@
+version: 1
+
+# Tool rules a headless route may never run, whatever the allow rules say.
+forbidden:
+  # A route ends at a pull request; review and merge stay human.
+  - "Bash(gh pr merge*)"
+  # No history rewrites on the remote.
+  - "Bash(git push --force*)"
+  - "Bash(git push * --force*)"
+  - "Bash(git push -f*)"
+  - "Bash(git push * -f)"
+  - "Bash(git push * -f *)"
+  # Never the default branch.
+  - "Bash(git push * main)"
+  - "Bash(git push * main *)"
+  - "Bash(git push * HEAD:main*)"
+  - "Bash(git push * *:main)"
+  - "Bash(git push * *:refs/heads/main*)"
+  # Claim tags belong to the trigger, not to a session.
+  - "Bash(git push --tags*)"
+  - "Bash(git push * --tags*)"
+  - "Bash(git push * refs/tags/*)"
+  # No deleting remote refs.
+  - "Bash(git push --delete*)"
+  - "Bash(git push * --delete*)"
+
+limits:
+  runs_per_identity_per_day: 10
+  runs_per_day: 30
+
+budget:
+  max_usd_per_run: 15
+
+caps:
+  max_turns: 200
+  timeout_minutes: 45
+
+break_glass:
+  word: "override"
+  approvers:
+    - "557058:7ae59138-4bd7-40b2-a4f6-06da356b86a4"
