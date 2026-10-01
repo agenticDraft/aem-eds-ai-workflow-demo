@@ -25,7 +25,7 @@ forbidden:
   - "Bash(git push * --delete*)"
 
 limits:
-  runs_per_identity_per_day: 10
+  runs_per_identity_per_day: 1
   runs_per_day: 30
 
 budget:
