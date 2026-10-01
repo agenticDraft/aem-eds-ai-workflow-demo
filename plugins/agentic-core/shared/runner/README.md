@@ -17,7 +17,11 @@ environment.
   it to the session's policy tier (`managedSettings`) with `strictAllowlist`,
   `allowUnsandboxedCommands: false`, `autoAllowBashIfSandboxed: false` and `failIfUnavailable`.
   The last but one keeps the allow rules binding: a sandboxed command is not approved just
-  because it is sandboxed. A sandboxed command that reaches an
+  because it is sandboxed.
+- **What it loads stays read-only.** The plugin directory, the committed settings file and the
+  route policy are denied to every write the session can make — the file tools and sandboxed
+  commands alike — so an allowed edit can never become an allowed command. The log names them
+  (`protected from writes:`). A sandboxed command that reaches an
   unlisted host is denied, never prompted for, and never retried with the sandbox off; a sandbox
   that cannot start ends the session. The committed file is the only list: the copy lives only
   in the running process. A missing file, invalid JSON, or an absent or empty list starts nothing

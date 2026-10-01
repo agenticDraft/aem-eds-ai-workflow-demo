@@ -110,11 +110,19 @@ try {
   allowlistRefused(err.message);
 }
 
+// What the runner loads can never be rewritten by the session it starts: the
+// plugins, the committed settings and the route policy. Otherwise an allowed
+// edit plus an allowed script call would let the session run anything. In the
+// policy tier, an Edit deny rule also denies the path to sandboxed commands.
+const protectedPaths = [pluginDir, resolve(settingsFile), resolve(policyFile)];
+const denyWrites = protectedPaths.map((p) => `Edit(/${p}${p === pluginDir ? "/**" : ""})`);
+log(`protected from writes: ${protectedPaths.join(", ")}`);
+
 // What the session will actually see, logged before it starts. An
 // administrator's managed tier on the machine drops a parent's policy tier by
 // default; a lock that did not survive the merge is refused, not run without.
 try {
-  const resolved = await resolveSettings({ settingSources: ["project"], managedSettings: { sandbox } });
+  const resolved = await resolveSettings({ settingSources: ["project"], managedSettings: { sandbox, permissions: { deny: denyWrites } } });
   const eff = resolved.effective.sandbox || {};
   const from = resolved.provenance.sandbox || {};
   log(`sandbox (effective, from ${from.source ?? "?"}/${from.policyOrigin ?? "-"}): ` +
@@ -124,7 +132,8 @@ try {
   log(`sandbox allowlist (copied from ${settingsFile}, ${sandbox.network.allowedDomains.length}): ${sandbox.network.allowedDomains.join(", ")}`);
   if (eff.enabled !== true || eff.failIfUnavailable !== true ||
       eff.allowUnsandboxedCommands !== false || eff.autoAllowBashIfSandboxed !== false ||
-      eff.network?.strictAllowlist !== true) {
+      eff.network?.strictAllowlist !== true ||
+      !denyWrites.every((r) => (resolved.effective.permissions?.deny || []).includes(r))) {
     allowlistRefused("the policy tier did not take the lock (an administrator's managed tier may have dropped it)");
   }
 } catch (err) {
@@ -191,7 +200,7 @@ const options = {
   // The locked sandbox, in the policy tier: the copied domain list with
   // strictAllowlist, no unsandboxed retry, no auto-approval of sandboxed
   // commands, and a sandbox that must start.
-  managedSettings: { sandbox },
+  managedSettings: { sandbox, permissions: { deny: denyWrites } },
   plugins,
   allowedTools,
   // Never bypass. A call the allow rules do not cover is denied, not asked.
