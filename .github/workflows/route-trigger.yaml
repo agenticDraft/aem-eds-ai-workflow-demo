@@ -350,6 +350,20 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           bash plugins/agentic-core/shared/lib/validate-result-envelope.sh "$FILE"
 
+      # A failed stage leaves its own logs and reports in the run context, and
+      # the runner's log shows only tool calls, never their output. Print the
+      # tail of each so a failure can be diagnosed from the run alone. Secret
+      # values are masked by the platform in everything printed here.
+      - name: Show the run context's logs
+        if: failure() && steps.runner.outcome != 'skipped'
+        run: |
+          for f in .ai/run-context/*.log .ai/run-context/*-report.md; do
+            [ -f "$f" ] || continue
+            echo "::group::$f (last 80 lines)"
+            tail -80 "$f"
+            echo "::endgroup::"
+          done
+
       # No secret value on disk, no .env-like file. Values are compared, never
       # printed: only match counts reach the log.
       - name: Check that no credential reached the disk
