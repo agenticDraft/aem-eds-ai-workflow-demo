@@ -340,15 +340,34 @@ jobs:
       # The verdict is the envelope, validated — not the runner's exit code
       # alone and never a regex over prose. Runs even when the runner failed,
       # so a non-conformant ending is reported as such.
+      # A whole route is judged by its terminal state, which the runner records
+      # from the driver's own formatter call — never by the session's last
+      # message, which can follow any stage (G121). A single-stage prompt has
+      # no terminal state and is judged by its envelope.
       - name: Validate the result envelope
         if: always() && steps.runner.outcome != 'skipped'
+        env:
+          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
         run: |
           FILE=.ai/run-context/runner-result.txt
+          TERMINAL=.ai/run-context/terminal-state.txt
           echo "### Result" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           { [ -f "$FILE" ] && tail -20 "$FILE" || echo "(no result file)"; } >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          bash plugins/agentic-core/shared/lib/validate-result-envelope.sh "$FILE"
+          case "$ROUTE_PROMPT_TEMPLATE" in
+            */agentic-core:run-route*)
+              echo "### Terminal state" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              set +e
+              bash plugins/agentic-core/shared/lib/check-terminal-state.sh "$TERMINAL" | tee -a "$GITHUB_STEP_SUMMARY"
+              STATUS=${PIPESTATUS[0]}
+              set -e
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              exit "$STATUS" ;;
+            *)
+              bash plugins/agentic-core/shared/lib/validate-result-envelope.sh "$FILE" ;;
+          esac
 
       # A failed stage leaves its own logs and reports in the run context, and
       # the runner's log shows only tool calls, never their output. Print the

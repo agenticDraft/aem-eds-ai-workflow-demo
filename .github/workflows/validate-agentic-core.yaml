@@ -57,6 +57,10 @@ jobs:
         run: |
           node --test plugins/agentic-core/shared/runner/network-allowlist.test.mjs
           node --input-type=module -e "import { readAllowedDomains } from './plugins/agentic-core/shared/runner/network-allowlist.mjs'; console.log(readAllowedDomains('.claude/settings.json').length + ' domain(s)')"
+      - name: a whole route is judged by its terminal state, not by the session's last message
+        run: |
+          node --test plugins/agentic-core/shared/runner/terminal-capture.test.mjs
+          bash plugins/agentic-core/shared/lib/check-terminal-state.test.sh
       - name: Validate result envelope
         run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
       - name: Validate subagent outcome

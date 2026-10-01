@@ -31,9 +31,15 @@ environment.
   no file. Nothing here prints, copies or stores a credential. What each pack reads is the pack's
   business — its own README names the variables — and the caller exports them in the shell or
   maps them from the CI product's secret store onto the step that runs this script.
-- **A verdict is read from an envelope, not guessed from prose.** The session's final text is
-  written to `ROUTE_RESULT_FILE`; the caller runs `shared/lib/validate-result-envelope.sh` over
-  it. A session that ends without a conformant envelope is a failure.
+- **A verdict is read from a recorded ending, not guessed from prose.** The session's final text
+  is written to `ROUTE_RESULT_FILE`. For a single-stage prompt the caller runs
+  `shared/lib/validate-result-envelope.sh` over it. A whole route is judged by its terminal state
+  instead: the runner keeps the output of the driver's own `resolve-terminal-state.sh` call
+  (`terminal-capture.mjs`) and writes it to `ROUTE_TERMINAL_FILE` (default
+  `.ai/run-context/terminal-state.txt`, removed at start); the caller runs
+  `shared/lib/check-terminal-state.sh` over it. Only `terminal: delivered` passes, and a missing
+  file — a session that stopped before any terminal state — fails. The last message is never the
+  verdict of a route: a session can stop after any stage and still end with a stage's envelope.
 - **Bounded by the route policy.** Before anything starts it reads `.ai/route-policy.yaml`
   (`ROUTE_POLICY_FILE`) through `shared/lib/check-route-policy.sh`; a missing or invalid policy
   starts nothing (exit `3`). The policy's forbidden rules are denied in every call, a forked

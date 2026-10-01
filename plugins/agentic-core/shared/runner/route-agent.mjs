@@ -20,6 +20,9 @@
 //   ROUTE_TIMEOUT_MINUTES  may only LOWER the policy's caps.timeout_minutes
 //   ROUTE_RESULT_FILE      where the session's final text is written
 //                          (default: .ai/run-context/runner-result.txt)
+//   ROUTE_TERMINAL_FILE    where the route's terminal state is written, when the
+//                          driver reached one (default: .ai/run-context/terminal-state.txt;
+//                          removed at start, so a missing file means no terminal state)
 //   ROUTE_PROJECT_CONFIG   project config to print the configured packs from
 //                          (default: .ai/project-config.yaml)
 //   ROUTE_MODEL            optional model override
@@ -43,11 +46,12 @@
 
 import { query, resolveSettings } from "@anthropic-ai/claude-agent-sdk";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { forbiddenBy, parseRule } from "./policy-match.mjs";
 import { lockedSandbox, readAllowedDomains } from "./network-allowlist.mjs";
+import { TerminalCapture } from "./terminal-capture.mjs";
 
 const prompt = process.argv[2];
 if (!prompt) {
@@ -65,6 +69,7 @@ const resultFile = env.ROUTE_RESULT_FILE || ".ai/run-context/runner-result.txt";
 const projectConfig = env.ROUTE_PROJECT_CONFIG || ".ai/project-config.yaml";
 const policyFile = env.ROUTE_POLICY_FILE || ".ai/route-policy.yaml";
 const settingsFile = env.ROUTE_SETTINGS_FILE || ".claude/settings.json";
+const terminalFile = env.ROUTE_TERMINAL_FILE || ".ai/run-context/terminal-state.txt";
 
 const log = (line) => process.stderr.write(`[runner] ${line}\n`);
 
@@ -242,9 +247,15 @@ function summarize(name, input) {
   return json.length > 140 ? `${json.slice(0, 140)}…` : json;
 }
 
+// The route's own ending, not the session's last message (G121). A file left
+// by an earlier run must not stand in for this one's.
+rmSync(terminalFile, { force: true });
+const capture = new TerminalCapture();
+
 let sawResult = false;
 try {
   for await (const m of query({ prompt, options })) {
+    capture.observe(m);
     if (m.type === "system" && m.subtype === "init") {
       log(`session: version=${m.claude_code_version ?? "?"} model=${m.model ?? "?"} mode=${m.permissionMode ?? "?"}`);
       log(`loaded plugins: ${(m.plugins || []).map((p) => p.name).join(", ") || "none"}`);
@@ -275,6 +286,13 @@ try {
       if (m.subtype === "error_max_turns") capReached("max_turns", maxTurns, 4);
       if (m.subtype === "error_max_budget_usd") capReached("max_usd_per_run", maxBudgetUsd, 5);
       writeResult(m.subtype === "success" ? m.result : (m.errors || []).join("\n"));
+      if (capture.terminal) {
+        mkdirSync(dirname(terminalFile), { recursive: true });
+        writeFileSync(terminalFile, `${capture.terminal}\n`);
+        log(`terminal state written: ${terminalFile} (${capture.terminal.split("\n")[0]})`);
+      } else {
+        log("no terminal state: the driver never ran the terminal-state formatter");
+      }
       process.exit(m.subtype === "success" ? 0 : 1);
     }
   }
