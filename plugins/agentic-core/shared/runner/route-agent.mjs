@@ -119,10 +119,12 @@ try {
   const from = resolved.provenance.sandbox || {};
   log(`sandbox (effective, from ${from.source ?? "?"}/${from.policyOrigin ?? "-"}): ` +
     `enabled=${eff.enabled} failIfUnavailable=${eff.failIfUnavailable} ` +
-    `allowUnsandboxedCommands=${eff.allowUnsandboxedCommands} strictAllowlist=${eff.network?.strictAllowlist}`);
+    `allowUnsandboxedCommands=${eff.allowUnsandboxedCommands} autoAllowBashIfSandboxed=${eff.autoAllowBashIfSandboxed} ` +
+    `strictAllowlist=${eff.network?.strictAllowlist}`);
   log(`sandbox allowlist (copied from ${settingsFile}, ${sandbox.network.allowedDomains.length}): ${sandbox.network.allowedDomains.join(", ")}`);
   if (eff.enabled !== true || eff.failIfUnavailable !== true ||
-      eff.allowUnsandboxedCommands !== false || eff.network?.strictAllowlist !== true) {
+      eff.allowUnsandboxedCommands !== false || eff.autoAllowBashIfSandboxed !== false ||
+      eff.network?.strictAllowlist !== true) {
     allowlistRefused("the policy tier did not take the lock (an administrator's managed tier may have dropped it)");
   }
 } catch (err) {
@@ -187,7 +189,8 @@ const options = {
   // "user": a runner has no user settings.
   settingSources: ["project"],
   // The locked sandbox, in the policy tier: the copied domain list with
-  // strictAllowlist, no unsandboxed retry, and a sandbox that must start.
+  // strictAllowlist, no unsandboxed retry, no auto-approval of sandboxed
+  // commands, and a sandbox that must start.
   managedSettings: { sandbox },
   plugins,
   allowedTools,

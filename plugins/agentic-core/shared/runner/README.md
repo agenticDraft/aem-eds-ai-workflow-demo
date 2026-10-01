@@ -15,7 +15,9 @@ environment.
 - **A locked network allowlist.** At launch the runner reads `sandbox.network.allowedDomains` from
   the project's committed settings (`.claude/settings.json`, or `ROUTE_SETTINGS_FILE`) and passes
   it to the session's policy tier (`managedSettings`) with `strictAllowlist`,
-  `allowUnsandboxedCommands: false` and `failIfUnavailable`. A sandboxed command that reaches an
+  `allowUnsandboxedCommands: false`, `autoAllowBashIfSandboxed: false` and `failIfUnavailable`.
+  The last but one keeps the allow rules binding: a sandboxed command is not approved just
+  because it is sandboxed. A sandboxed command that reaches an
   unlisted host is denied, never prompted for, and never retried with the sandbox off; a sandbox
   that cannot start ends the session. The committed file is the only list: the copy lives only
   in the running process. A missing file, invalid JSON, or an absent or empty list starts nothing

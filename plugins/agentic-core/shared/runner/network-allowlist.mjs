@@ -37,11 +37,13 @@ export function readAllowedDomains(path) {
 // The sandbox block for the policy tier. The lock alone would leave an empty
 // allowlist (the policy tier drops the project tier's domains), so the copied
 // list travels with it. No unsandboxed retry; a sandbox that cannot start
-// stops the session.
+// stops the session; and a sandboxed command is never approved just because
+// it is sandboxed, so every command still needs an allow rule.
 export function lockedSandbox(allowedDomains) {
   return {
     enabled: true,
     failIfUnavailable: true,
+    autoAllowBashIfSandboxed: false,
     allowUnsandboxedCommands: false,
     network: { strictAllowlist: true, allowedDomains: [...allowedDomains] },
   };
