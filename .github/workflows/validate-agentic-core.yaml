@@ -8,6 +8,7 @@ on:
       - '.github/workflows/validate-agentic-core.yaml'
       - '.ai/project-config.yaml'
       - 'triggers/jira/**'
+      - '.claude/settings.json'
   pull_request:
     # No branch filter on purpose. A pull request into a long-lived
     # integration branch changes these files just as much as one into the
@@ -19,6 +20,7 @@ on:
       - '.github/workflows/validate-agentic-core.yaml'
       - '.ai/project-config.yaml'
       - 'triggers/jira/**'
+      - '.claude/settings.json'
 
 jobs:
   validate:
@@ -51,6 +53,10 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/check-run-limits.test.sh
       - name: a forbidden tool rule matches what it names and nothing else
         run: node --test plugins/agentic-core/shared/runner/policy-match.test.mjs
+      - name: the network allowlist is read fail-closed, and this repository's list is usable
+        run: |
+          node --test plugins/agentic-core/shared/runner/network-allowlist.test.mjs
+          node --input-type=module -e "import { readAllowedDomains } from './plugins/agentic-core/shared/runner/network-allowlist.mjs'; console.log(readAllowedDomains('.claude/settings.json').length + ' domain(s)')"
       - name: Validate result envelope
         run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
       - name: Validate subagent outcome

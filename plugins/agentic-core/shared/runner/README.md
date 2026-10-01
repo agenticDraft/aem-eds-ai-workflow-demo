@@ -10,8 +10,17 @@ environment.
 - **Fail-closed permissions.** The session runs in `dontAsk` mode with the allow rules in
   `ROUTE_ALLOWED_TOOLS`. A call no rule covers is denied, never asked and never waved through.
   Bypass is never used. The project's committed settings load too (`settingSources: ["project"]`),
-  so their own allow rules and network domain list apply beside `ROUTE_ALLOWED_TOOLS`; the
-  effective allowlist is the union of the two.
+  so their own allow rules apply beside `ROUTE_ALLOWED_TOOLS`; the effective allowlist is the
+  union of the two.
+- **A locked network allowlist.** At launch the runner reads `sandbox.network.allowedDomains` from
+  the project's committed settings (`.claude/settings.json`, or `ROUTE_SETTINGS_FILE`) and passes
+  it to the session's policy tier (`managedSettings`) with `strictAllowlist`,
+  `allowUnsandboxedCommands: false` and `failIfUnavailable`. A sandboxed command that reaches an
+  unlisted host is denied, never prompted for, and never retried with the sandbox off; a sandbox
+  that cannot start ends the session. The committed file is the only list: the copy lives only
+  in the running process. A missing file, invalid JSON, or an absent or empty list starts nothing
+  (exit `6`), and so does a lock that did not survive the settings merge (an administrator's
+  managed tier on the machine drops a parent's policy tier by default).
 - **Credentials stay in the environment.** The SDK inherits this process's environment and loads
   no file. Nothing here prints, copies or stores a credential. What each pack reads is the pack's
   business — its own README names the variables — and the caller exports them in the shell or
@@ -53,9 +62,11 @@ bash plugins/agentic-core/shared/lib/validate-result-envelope.sh .ai/run-context
 ```
 
 A policy must exist for a local run too; point `ROUTE_POLICY_FILE` at a copy to try other values.
+The sandbox must be able to start on the machine: a runner launched from inside another
+sandboxed session cannot start its own, and the session ends with an error.
 
 The log on stderr shows, in order: the prompt, the configured packs, the plugins found, the allow
-rules, the policy, the caps; then the session's own init line (version, model, mode), the plugins the SDK
+rules, the policy, the effective sandbox block and the copied domain list, the caps; then the session's own init line (version, model, mode), the plugins the SDK
 loaded, the skills and commands it registered, every tool call, every tool error, and how the
 session ended.
 
@@ -70,6 +81,20 @@ session ended.
 - `denied <tool>: forbidden by route policy (…)` is the policy refusing a call; the same reason
   follows as a tool error.
 - `cap reached: <cap>=<n> (route policy)` names the cap that ended the run.
+- `sandbox (effective, from managed/parent): … strictAllowlist=true` is the lock as the session
+  will see it; `sandbox allowlist (copied from …)` lists every host a command may reach.
+- `network allowlist refused: <reason>` is exit `6`; nothing was started.
+- A tool error naming a host as denied is the lock refusing an undeclared host.
+
+## The migration cost of the lock
+
+A locked allowlist refuses per-command domain lists, so **every host every stage reaches must be
+declared up front** in the committed settings' `sandbox.network.allowedDomains`. A route that
+needs an undeclared host fails at the command that reaches it, with the host named in the tool
+error. Declare it through a reviewed change to the settings file, then re-run. The lock covers
+sandboxed commands only: in-process tools (web fetches, which follow their own allow rules), tool
+servers and the model's own traffic are outside it, and so is anything that ran before the
+session started.
 - `ended: subtype=…` is the SDK's own verdict on the session. Only `success` exits `0`.
 
 ## Exit codes
@@ -82,4 +107,5 @@ session ended.
 | `3`  | the route policy is missing or invalid; nothing was started |
 | `4`  | the turn cap was reached |
 | `5`  | the budget cap was reached |
+| `6`  | the network allowlist was refused; nothing was started |
 | `64` | usage: no prompt given |

@@ -58,24 +58,43 @@ it is missing or invalid, every run stops at *Check the route policy* and nothin
 - **Rate limited** in a run's summary means the daily limit stopped the event before it claimed
   anything. A later comment can run.
 
-## 5. Verifying the setup
+## 5. The network allowlist
+
+Every session the runner starts is locked to the hosts in `.claude/settings.json`'s
+`sandbox.network.allowedDomains`. That list is the only one; the runner copies it into the session
+at launch (`plugins/agentic-core/shared/runner/README.md`). The workflow installs the sandbox's
+Linux dependencies (`bubblewrap`, `socat`, and an AppArmor profile for `bwrap` when the kernel
+restricts user namespaces) in *Install the sandbox's dependencies*.
+
+- **A host failure** shows in *Run* as a tool error that names the denied host, after a command
+  that reached it. The session is not allowed to retry the command outside the sandbox.
+- **Declaring a host:** add it to `allowedDomains` through a pull request, then re-run. Every host
+  every stage reaches must be listed up front; a command cannot ask for one of its own.
+- **`network allowlist refused: <reason>`** (exit 6) means the list is missing, malformed or
+  empty, or the lock did not take; nothing was started.
+- **The sandbox cannot start** shows as an error at the start of *Run*; the session does not fall
+  back to running commands unsandboxed. The *Install the sandbox's dependencies* step logs whether
+  `bwrap` can create its namespaces.
+
+## 6. Verifying the setup
 
 Trigger the workflow by hand: *Actions → route-trigger → Run workflow* with a real work item id
 and any fresh integer as the comment id. A correct setup shows, in the run log:
 
 1. *Name what cannot authenticate headlessly* — lists the packs and their variables; the
    `design` role (figma) has no headless credential path and says so.
-2. *Point git at the route's token* — `gh auth status` reports the token from `GH_TOKEN`.
-3. *Claim the event* — `claimed agentic-run/<item>-c<comment>`.
-4. *Run* — the runner's log ends with `ended: subtype=success`.
-5. *Validate the result envelope* — `verdict: pass`.
-6. *Check that no credential reached the disk* — `found in 0 file(s)` for each secret.
+2. *Install the sandbox's dependencies* — `bwrap: can create a user and network namespace`.
+3. *Point git at the route's token* — `gh auth status` reports the token from `GH_TOKEN`.
+4. *Claim the event* — `claimed agentic-run/<item>-c<comment>`.
+5. *Run* — the runner logs `sandbox (effective, …) … strictAllowlist=true`, and its log ends with `ended: subtype=success`.
+6. *Validate the result envelope* — `verdict: pass`.
+7. *Check that no credential reached the disk* — `found in 0 file(s)` for each secret.
 
 Run it a second time with the same comment id: the duplicate check stops it. Run it a third time
 with *skip duplicate check* ticked: the claim stops it (`duplicate`, exit 3). Both end green with
 nothing started.
 
-## 6. What is not covered
+## 7. What is not covered
 
 - The `design` role (`plugins/figma`) authenticates through a session-bound login that has no
   environment-variable form. A work item whose design source is a URL fails at `extract` until
