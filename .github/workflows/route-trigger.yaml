@@ -319,7 +319,7 @@ jobs:
           JIRA_SITE: ${{ vars.JIRA_SITE }}
           JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
           GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
-          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
+          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || 'Network allowlist check for {item_id}. Run these two commands with the Bash tool, one call each, exactly as written, and report each one''s full output and any error text verbatim. Do not retry a failed command in any other form. 1) curl -sS -o /dev/null -w %{http_code} https://example.com 2) curl -sS -o /dev/null -w %{http_code} https://api.github.com' }}"
           ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Bash({workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *),Bash(bash {workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *)' }}"
           # Caps come from the route policy; these variables may only lower them.
           ROUTE_MAX_TURNS: ${{ vars.ROUTE_MAX_TURNS }}
