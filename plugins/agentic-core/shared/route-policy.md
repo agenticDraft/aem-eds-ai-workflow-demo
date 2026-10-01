@@ -74,7 +74,11 @@ sees every call, a forked stage's included, and refuses a match with the reason
 `forbidden by route policy (<path>): <rule>`.
 
 **Limit, stated:** a rule matches what the call says, not what it eventually executes. A command
-wrapped in another interpreter's string is not unwrapped.
+wrapped in another interpreter's string is not unwrapped. A command a script runs is not seen at
+all, and a push that does not name its branch matches no rule about that branch. So a forbidden rule
+is never the only guard against pushing the default branch: the `scm` operations refuse it
+themselves, and a policy also forbids the forms that push the current branch without naming it
+(`git push`, `git push origin`, `git push * HEAD`).
 
 ## Daily limits
 

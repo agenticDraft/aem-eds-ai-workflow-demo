@@ -65,13 +65,20 @@ fi
 # script checks the working tree out to the branch it creates, so basing on the
 # default branch here would discard that work mid-operation while still
 # reporting `pass` -- which is exactly what it did before this branch existed.
+DEFAULT_BRANCH="$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null)"
+if [[ -z "$DEFAULT_BRANCH" ]]; then
+  envelope_fail "could not determine the repository's default branch."
+fi
+
+# The default branch is never a working branch. Asked for it, the existing-
+# branch path below would push the local copy, whatever it carries.
+if [[ "$BRANCH" == "$DEFAULT_BRANCH" ]]; then
+  envelope_fail "refusing to use ${BRANCH} as the working branch: it is the repository's default branch."
+fi
+
 if [[ -n "$BASE" ]]; then
   BASE_REF="origin/${BASE}"
 else
-  DEFAULT_BRANCH="$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null)"
-  if [[ -z "$DEFAULT_BRANCH" ]]; then
-    envelope_fail "could not determine the repository's default branch."
-  fi
   CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
   if [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" ]]; then
     BASE="$DEFAULT_BRANCH"

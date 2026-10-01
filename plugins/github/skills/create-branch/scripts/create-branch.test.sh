@@ -218,6 +218,23 @@ else
   bad "the question envelope passes the real validator" "validator not found at $VALIDATOR"
 fi
 
+echo "[default] the default branch is refused as the working branch, nothing pushed"
+REPO="$(fresh default-refused)"
+(
+  cd "$REPO" || exit 1
+  echo local > local.txt && git add local.txt && git commit -q -m "local only"
+) >/dev/null 2>&1
+REMOTE_BEFORE="$(git --git-dir="$WORK/default-refused-remote.git" rev-parse main)"
+OUT="$(cd "$REPO" && bash "$SCRIPT" main 2>&1)"; ST=$?
+REMOTE_AFTER="$(git --git-dir="$WORK/default-refused-remote.git" rev-parse main)"
+if [[ "$OUT" == *"verdict: fail"* && "$OUT" == *"default branch"* && "$ST" == 0 && "$REMOTE_BEFORE" == "$REMOTE_AFTER" ]]; then
+  ok "main -> fail, exit 0, origin/main unmoved"
+else
+  bad "main -> fail, exit 0, origin/main unmoved" \
+      "exit $ST  remote moved: $([[ "$REMOTE_BEFORE" == "$REMOTE_AFTER" ]] && echo no || echo YES)" \
+      "output: $OUT"
+fi
+
 echo "[usage] no argument"
 OUT="$(bash "$SCRIPT" 2>&1)"; ST=$?
 if [[ "$ST" == 2 ]]; then ok "no arg -> exit 2"; else bad "no arg -> exit 2" "got exit $ST"; fi

@@ -16,6 +16,12 @@ forbidden:
   - "Bash(git push * HEAD:main*)"
   - "Bash(git push * *:main)"
   - "Bash(git push * *:refs/heads/main*)"
+  # Forms that push the current branch without naming it. The scm scripts
+  # refuse the default branch themselves; these rules cover a direct call.
+  - "Bash(git push)"
+  - "Bash(git push origin)"
+  - "Bash(git push * HEAD)"
+  - "Bash(git push * HEAD *)"
   # Claim tags belong to the trigger, not to a session.
   - "Bash(git push --tags*)"
   - "Bash(git push * --tags*)"
