@@ -31,7 +31,8 @@
         "api.github.com",
         "api.atlassian.com",
         "www.figma.com",
-        "zmarkoni.atlassian.net"
+        "zmarkoni.atlassian.net",
+        "example.com"
       ]
     }
   }
