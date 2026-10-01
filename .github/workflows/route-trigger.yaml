@@ -210,6 +210,38 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      # The session's sandbox (D108) needs bubblewrap and socat on Linux, and
+      # an AppArmor profile for bwrap where the kernel restricts unprivileged
+      # user namespaces. The runner starts the sandbox with failIfUnavailable,
+      # so a missing piece stops the run red instead of running unsandboxed.
+      - name: Install the sandbox's dependencies
+        if: steps.gate.outputs.proceed == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bubblewrap socat
+          RESTRICT=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)
+          echo "kernel.apparmor_restrict_unprivileged_userns: $RESTRICT"
+          if [ "$RESTRICT" = "1" ]; then
+            sudo tee /etc/apparmor.d/bwrap > /dev/null <<'EOF'
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+            include if exists <local/bwrap>
+          }
+          EOF
+            sudo systemctl reload apparmor
+            echo "apparmor: bwrap profile loaded"
+          fi
+          bwrap --version
+          socat -V | head -2
+          if bwrap --ro-bind / / --unshare-user --unshare-net true; then
+            echo "bwrap: can create a user and network namespace"
+          else
+            echo "bwrap: cannot create namespaces; the runner will refuse to start" >&2
+          fi
+
       # gh reads GH_TOKEN from the environment; setup-git points git's
       # credential helper at gh. Neither writes the token anywhere.
       - name: Point git at the route's token

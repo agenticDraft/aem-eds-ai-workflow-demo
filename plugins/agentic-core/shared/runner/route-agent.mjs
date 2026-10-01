@@ -23,6 +23,9 @@
 //   ROUTE_PROJECT_CONFIG   project config to print the configured packs from
 //                          (default: .ai/project-config.yaml)
 //   ROUTE_MODEL            optional model override
+//   ROUTE_SETTINGS_FILE    the committed settings whose sandbox.network.allowedDomains
+//                          is copied into the session's policy tier
+//                          (default: .claude/settings.json)
 //
 // Exit codes:
 //   0  the session ended with a result of subtype "success"
@@ -31,17 +34,20 @@
 //   3  the route policy is missing or invalid; nothing was started
 //   4  the turn cap was reached
 //   5  the budget cap was reached
+//   6  the network allowlist was refused (missing, malformed or empty list,
+//      or the policy tier did not take the lock); nothing was started
 //   64 usage: no prompt given
 //
 // Every cap that ends a run logs, and writes to the result file,
 // "cap reached: <cap>=<value> (route policy)".
 
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { query, resolveSettings } from "@anthropic-ai/claude-agent-sdk";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { forbiddenBy, parseRule } from "./policy-match.mjs";
+import { lockedSandbox, readAllowedDomains } from "./network-allowlist.mjs";
 
 const prompt = process.argv[2];
 if (!prompt) {
@@ -58,6 +64,7 @@ const pluginDir = resolve(env.ROUTE_PLUGIN_DIR || "plugins");
 const resultFile = env.ROUTE_RESULT_FILE || ".ai/run-context/runner-result.txt";
 const projectConfig = env.ROUTE_PROJECT_CONFIG || ".ai/project-config.yaml";
 const policyFile = env.ROUTE_POLICY_FILE || ".ai/route-policy.yaml";
+const settingsFile = env.ROUTE_SETTINGS_FILE || ".claude/settings.json";
 
 const log = (line) => process.stderr.write(`[runner] ${line}\n`);
 
@@ -86,6 +93,40 @@ for (const line of checked.stdout.split("\n")) {
   const value = line.slice(i + 1);
   if (key === "forbidden") policy.forbidden.push(parseRule(value));
   else policy[key] = value;
+}
+
+// The network lock. The committed list is the only list on disk; it is
+// copied into the policy tier, because under the lock the policy tier drops
+// the project tier's domains. Anything but a usable list starts nothing.
+function allowlistRefused(reason) {
+  log(`network allowlist refused: ${reason}`);
+  writeResult(`network allowlist refused: ${reason}`);
+  process.exit(6);
+}
+let sandbox;
+try {
+  sandbox = lockedSandbox(readAllowedDomains(settingsFile));
+} catch (err) {
+  allowlistRefused(err.message);
+}
+
+// What the session will actually see, logged before it starts. An
+// administrator's managed tier on the machine drops a parent's policy tier by
+// default; a lock that did not survive the merge is refused, not run without.
+try {
+  const resolved = await resolveSettings({ settingSources: ["project"], managedSettings: { sandbox } });
+  const eff = resolved.effective.sandbox || {};
+  const from = resolved.provenance.sandbox || {};
+  log(`sandbox (effective, from ${from.source ?? "?"}/${from.policyOrigin ?? "-"}): ` +
+    `enabled=${eff.enabled} failIfUnavailable=${eff.failIfUnavailable} ` +
+    `allowUnsandboxedCommands=${eff.allowUnsandboxedCommands} strictAllowlist=${eff.network?.strictAllowlist}`);
+  log(`sandbox allowlist (copied from ${settingsFile}, ${sandbox.network.allowedDomains.length}): ${sandbox.network.allowedDomains.join(", ")}`);
+  if (eff.enabled !== true || eff.failIfUnavailable !== true ||
+      eff.allowUnsandboxedCommands !== false || eff.network?.strictAllowlist !== true) {
+    allowlistRefused("the policy tier did not take the lock (an administrator's managed tier may have dropped it)");
+  }
+} catch (err) {
+  allowlistRefused(`effective settings could not be resolved (${err?.message || err})`);
 }
 
 // The variables may tighten a cap, never loosen it.
@@ -141,10 +182,13 @@ timer.unref();
 
 const options = {
   cwd: process.cwd(),
-  // "project" keeps the committed settings (the network domain list and the
-  // allow rules). No "user": a runner has no user settings. Never [] — that
-  // would drop the committed list silently.
+  // "project" keeps the committed allow rules. Its sandbox domains are
+  // ignored under the lock below, which is why the list is copied. No
+  // "user": a runner has no user settings.
   settingSources: ["project"],
+  // The locked sandbox, in the policy tier: the copied domain list with
+  // strictAllowlist, no unsandboxed retry, and a sandbox that must start.
+  managedSettings: { sandbox },
   plugins,
   allowedTools,
   // Never bypass. A call the allow rules do not cover is denied, not asked.
