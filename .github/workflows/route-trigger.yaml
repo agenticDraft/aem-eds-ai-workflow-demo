@@ -23,6 +23,11 @@ on:
         required: false
         type: boolean
         default: false
+      override:
+        description: "Break-glass: start this one run even over the route policy's daily limits"
+        required: false
+        type: boolean
+        default: false
 
 # What this repository must hold before a run can succeed — the secrets, the
 # variables and the fine-grained token's permissions — is the checklist in
@@ -45,6 +50,8 @@ jobs:
       AUTHOR_NAME: ${{ github.event.client_payload.author_name || github.actor }}
       ITEM_TYPE: ${{ github.event.client_payload.item_type || 'manual' }}
       RULE_VERSION: ${{ github.event.client_payload.rule_version || '0' }}
+      # A tracker-side rule older than rule_version 2 sends no override: 0.
+      OVERRIDE: ${{ github.event.client_payload.override || (inputs.override && '1') || '0' }}
     steps:
       # No persisted credentials: the workflow token is never the pusher.
       - uses: actions/checkout@v7
@@ -80,6 +87,7 @@ jobs:
           [[ "$RULE_VERSION" =~ ^[0-9]+$ ]] || fail_shape "RULE_VERSION" "$RULE_VERSION"
           [[ "$AUTHOR_ID" =~ ^[A-Za-z0-9:_-]+$ ]] || fail_shape "AUTHOR_ID" "$AUTHOR_ID"
           [[ "$ITEM_TYPE" =~ ^[A-Za-z][A-Za-z0-9\ _-]*$ ]] || fail_shape "ITEM_TYPE" "$ITEM_TYPE"
+          [[ "$OVERRIDE" =~ ^[01]$ ]] || fail_shape "OVERRIDE" "$OVERRIDE"
 
           echo "payload shape ok"
 
@@ -170,6 +178,14 @@ jobs:
       # credential path at all: a URL-sourced design item fails at extract
       # until Phase 10 lands; the line below says so in every run's log.
 
+      # The second rail (D107): a committed, fail-closed policy. A missing or
+      # invalid policy is a defect in this repository, so the run fails red
+      # and nothing is installed, claimed or started.
+      - name: Check the route policy
+        if: steps.gate.outputs.proceed == 'true'
+        run: |
+          bash plugins/agentic-core/shared/lib/check-route-policy.sh .ai/route-policy.yaml
+
       - name: Name what cannot authenticate headlessly
         if: steps.gate.outputs.proceed == 'true'
         run: |
@@ -204,14 +220,43 @@ jobs:
           gh auth setup-git
           gh auth status
 
+      # Daily limits, counted from the claims already on the remote, before
+      # this event claims: a limited event leaves no claim and ends green.
+      # A manual break-glass run skips the count, on the same ground the
+      # identity gate is skipped for a manual run; its claim still records it.
+      # Any failure to count stops the run red (fail-closed).
+      - name: Check run limits
+        id: limits
+        if: steps.gate.outputs.proceed == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.override)
+        env:
+          GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
+        run: |
+          set +e
+          OUT=$(bash plugins/agentic-core/shared/lib/check-run-limits.sh .ai/route-policy.yaml "$AUTHOR_ID" "$OVERRIDE")
+          STATUS=$?
+          set -e
+          echo "$OUT"
+          case "$STATUS" in
+            0) echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+            4) echo "allowed=false" >> "$GITHUB_OUTPUT"
+               {
+                 echo "### Rate limited"
+                 echo ""
+                 echo "Comment \`$COMMENT_ID\` on \`$ITEM_ID\` was not run: \`$OUT\` (route policy). Nothing was claimed; a later comment can run."
+               } >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo "run limits could not be checked (exit $STATUS)" >&2; exit 1 ;;
+          esac
+
       # The atomic claim. Exit 3 means this event already ran: end green,
       # start nothing. Exit 1 is a real failure.
       - name: Claim the event
         id: claim
-        if: steps.gate.outputs.proceed == 'true'
+        if: steps.gate.outputs.proceed == 'true' && (steps.limits.outcome == 'skipped' || steps.limits.outputs.allowed == 'true')
         env:
           GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
           CLAIM_RUN_ID: ${{ github.run_id }}
+          CLAIM_BY: ${{ github.event.client_payload.author_id || github.actor }}
+          CLAIM_OVERRIDE: ${{ github.event.client_payload.override || (inputs.override && '1') || '0' }}
         run: |
           set +e
           OUT=$(bash plugins/agentic-core/shared/lib/claim-run.sh "$ITEM_ID" "$COMMENT_ID")
@@ -244,8 +289,9 @@ jobs:
           GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
           ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
           ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Bash({workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *),Bash(bash {workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *)' }}"
-          ROUTE_MAX_TURNS: ${{ vars.ROUTE_MAX_TURNS || '200' }}
-          ROUTE_TIMEOUT_MINUTES: ${{ vars.ROUTE_TIMEOUT_MINUTES || '45' }}
+          # Caps come from the route policy; these variables may only lower them.
+          ROUTE_MAX_TURNS: ${{ vars.ROUTE_MAX_TURNS }}
+          ROUTE_TIMEOUT_MINUTES: ${{ vars.ROUTE_TIMEOUT_MINUTES }}
           ROUTE_RESULT_FILE: .ai/run-context/runner-result.txt
         run: |
           set -u

@@ -22,7 +22,7 @@ holds a credential value. This page is the checklist a person works through once
 | `JIRA_EMAIL` | the account the token in `JIRA_API_TOKEN` belongs to |
 | `ROUTE_PROMPT` *(optional)* | the prompt the runner executes; `{item_id}` is replaced with the work item id. Default when unset: `/jira:fetch-item item_id: {item_id}` — the single-stage check. The whole route is `/agentic-core:run-route {item_id} autonomous` (Phase 9 / Task 5 switches to it) |
 | `ROUTE_ALLOWED_TOOLS` *(optional)* | the allow rules the session runs under; `{workspace}` is replaced with the checkout path. Default: the tracker's `fetch-item` script only |
-| `ROUTE_MAX_TURNS`, `ROUTE_TIMEOUT_MINUTES` *(optional)* | caps; defaults `200` and `45` |
+| `ROUTE_MAX_TURNS`, `ROUTE_TIMEOUT_MINUTES` *(optional)* | may only **lower** the caps in `.ai/route-policy.yaml`; a larger value is ignored |
 
 ## 3. The fine-grained token behind `ROUTE_GH_TOKEN`
 
@@ -45,7 +45,20 @@ run, so a pull request it opened would get no CI, and `deliver` reads that CI.
 Set an expiry and put a reminder on it; a run after expiry fails at *Point git at the route's
 token* with `gh auth status` naming the problem.
 
-## 4. Verifying the setup
+## 4. The route policy
+
+`.ai/route-policy.yaml` is committed, and changed only through a pull request. Its shape and rules
+are `plugins/agentic-core/shared/route-policy.md`. It holds the tool rules a run may never execute,
+the daily run limits, the per-run budget, the turn and time caps, and the break-glass approvers. If
+it is missing or invalid, every run stops at *Check the route policy* and nothing is started.
+
+- **Break-glass:** an approver comments `@agentic-run override` to start one run over the daily
+  limits. The tracker rule turns that into the payload's `override` field (rule version 2,
+  `triggers/jira/README.md`). By hand: tick *override* in *Run workflow*.
+- **Rate limited** in a run's summary means the daily limit stopped the event before it claimed
+  anything. A later comment can run.
+
+## 5. Verifying the setup
 
 Trigger the workflow by hand: *Actions → route-trigger → Run workflow* with a real work item id
 and any fresh integer as the comment id. A correct setup shows, in the run log:
@@ -62,10 +75,10 @@ Run it a second time with the same comment id: the duplicate check stops it. Run
 with *skip duplicate check* ticked: the claim stops it (`duplicate`, exit 3). Both end green with
 nothing started.
 
-## 5. What is not covered
+## 6. What is not covered
 
 - The `design` role (`plugins/figma`) authenticates through a session-bound login that has no
   environment-variable form. A work item whose design source is a URL fails at `extract` until
   Phase 10 lands. An image attached to the item works.
-- Rate limits, a budget cap and a break-glass path are Phase 9 / Task 4; until then the caps
-  above are what bounds an unattended run.
+- The daily limits are soft: two events counted at the same moment can both start.
+- The budget stops a run once it is exceeded, so a run can overshoot it by about one turn's cost.

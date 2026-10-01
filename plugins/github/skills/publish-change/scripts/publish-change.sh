@@ -64,11 +64,20 @@ if [[ "$CURRENT" != "$BRANCH" ]]; then
   envelope_fail "not on branch ${BRANCH} (currently on ${CURRENT:-detached HEAD})."
 fi
 
-if [[ -z "$BASE" ]]; then
-  BASE="$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null)"
-  if [[ -z "$BASE" ]]; then
-    envelope_fail "could not determine the repository's default branch."
-  fi
+DEFAULT_BRANCH="$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null)"
+if [[ -z "$DEFAULT_BRANCH" ]]; then
+  envelope_fail "could not determine the repository's default branch."
+fi
+[[ -z "$BASE" ]] && BASE="$DEFAULT_BRANCH"
+
+# A change is published from a working branch, never from the branch it is
+# reviewed into. Refused before the push: a pull request with head = base
+# fails only after the push has already landed on that branch.
+if [[ "$BRANCH" == "$DEFAULT_BRANCH" ]]; then
+  envelope_fail "refusing to publish ${BRANCH}: it is the repository's default branch."
+fi
+if [[ "$BRANCH" == "$BASE" ]]; then
+  envelope_fail "refusing to publish ${BRANCH}: it is the base branch of the change."
 fi
 
 if ! git push -u origin "$BRANCH" --quiet 2>/dev/null; then

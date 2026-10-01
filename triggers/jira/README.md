@@ -27,12 +27,26 @@ unfilled-placeholder check, which rejects `{{` anywhere under a pack root.
 
 ## Payload
 
+*Rule version 2 (2026-10-01) adds `override`.* Until the rule in the Jira console is changed and
+re-exported, the export below is version 1 and the receiving side reads a missing `override` as
+`0`.
+
+The version-2 rule replaces the single webhook action with an **If/else block**:
+
+- **If** `{{comment.body}}` `CONTAINS` `@agentic-run override`: the webhook with `"override": "1"`.
+- **Else:** the same webhook with `"override": "0"`.
+
+Both branches use the comparator condition the rule already uses for the token. No smart-value
+function is involved, because the documented text functions have no `contains()`. Both bodies set
+`"rule_version": "2"`. The word after the token is `break_glass.word` in `.ai/route-policy.yaml`.
+Who may use it is that file's `break_glass.approvers`, checked on the receiving side, not here.
+
 The body's `client_payload` carries six fields: `item_id` (`{{issue.key}}`), `comment_id`
 (`{{comment.id}}`), `author_id` (`{{comment.author.accountId}}`), `author_name`
 (`{{comment.author.displayName}}`), `item_type` (`{{issue.issueType.name}}`) and `rule_version`
 (`"1"`). Their meanings and the order the receiving side gates them in are defined once, in
-`plugins/agentic-core/shared/trigger-contract.md`. Do not add a seventh — in particular, not the
-comment body, which carries the literal token.
+`plugins/agentic-core/shared/trigger-contract.md`, which from rule version 2 adds the seventh,
+`override`, as above. Do not add the comment body, which carries the literal token.
 
 **`item_type` is carried, never filtered on.** It rides along for the run title and for the
 readiness gate to report against. D98 declined an item-type allowlist by name: a platform pack
