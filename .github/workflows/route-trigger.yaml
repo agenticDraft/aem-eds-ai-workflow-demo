@@ -306,9 +306,9 @@ jobs:
             *) echo "claim failed (exit $STATUS)" >&2; exit 1 ;;
           esac
 
-      # The prompt is a repository variable so the whole route (Phase 9 /
-      # Task 5) is switched on in the settings, not here. Until then the
-      # default is the single credentialed stage this task verifies.
+      # The prompt is a repository variable so the whole route is switched on
+      # in the settings, not here ("/agentic-core:run-route {item_id}
+      # autonomous"). The default is the single credentialed stage.
       # Secrets are mapped onto THIS step only.
       - name: Run
         id: runner
@@ -320,7 +320,13 @@ jobs:
           JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
           GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
           ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
-          ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Bash({workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *),Bash(bash {workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *)' }}"
+          # The route's allow rules (D106, D109), never bare Bash. Taken from the
+          # commands a delivered route actually ran: the packs' own scripts, read and
+          # write within the checkout, the commit, lint, the preview server and the
+          # change's checks. Pushing happens only inside the scm scripts. The runner
+          # keeps the plugins, settings and policy unwritable, so an allowed edit can
+          # never become an allowed command.
+          ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Edit(./**),Bash(bash plugins/*),Bash(plugins/*),Bash(bash {workspace}/plugins/*),Bash({workspace}/plugins/*),Bash(python3 plugins/*),Bash(python3 {workspace}/plugins/*),Bash(node plugins/*),Bash(node {workspace}/plugins/*),Bash(cd {workspace}),Bash(echo *),Bash(cat *),Bash(mkdir -p .ai/*),Bash(touch .ai/*),Bash(sed -i *),Bash(git add -A),Bash(git commit *),Bash(git diff *),Bash(git log *),Bash(git merge-base *),Bash(git symbolic-ref *),Bash(git ls-files *),Bash(npm run lint*),Bash(npm run up*),Bash(gh pr checks *),Bash(gh pr view *),Bash(jq *)' }}"
           # Caps come from the route policy; these variables may only lower them.
           ROUTE_MAX_TURNS: ${{ vars.ROUTE_MAX_TURNS }}
           ROUTE_TIMEOUT_MINUTES: ${{ vars.ROUTE_TIMEOUT_MINUTES }}
