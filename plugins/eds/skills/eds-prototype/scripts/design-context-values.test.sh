@@ -75,7 +75,7 @@ has_row "py-[14px] is padding-block" "$D" "1:11" "padding-block" "14px"
 has_row "mt-[8px] is margin-top" "$D" "1:11" "margin-top" "8px"
 has_row "gap-x-[12px] is column-gap" "$D" "1:11" "column-gap" "12px"
 has_row "an underscore in the value is a space" "$D" "1:12" "padding" "10px 20px"
-row_count "one row per arbitrary-value class, none for flex" "$D" 7
+row_count "one row per property an arbitrary-value class sets, none for flex" "$D" 7
 
 echo "radius"
 D="$(case_dir radius '<a className="rounded-[1000px]" data-node-id="1:185"><span className="rounded-tl-[4px]" data-node-id="1:186">x</span></a>')"
@@ -84,28 +84,28 @@ has_row "rounded-[1000px] is border-radius" "$D" "1:185" "border-radius" "1000px
 has_row "rounded-tl-[4px] is border-top-left-radius" "$D" "1:186" "border-top-left-radius" "4px"
 
 echo "font size"
-D="$(case_dir size '<h1 className="text-[64px] leading-[1.4] tracking-[-0.35px]" data-node-id="2:1">A</h1><p className="text-[length:2rem] text-[clamp(1rem,2vw,3rem)]" data-node-id="2:2">B</p>')"
+D="$(case_dir size '<h1 className="text-[64px] leading-[1.4] tracking-[-0.35px]" data-node-id="2:1">A</h1><p className="text-[length:2rem]" data-node-id="2:2">B</p><p className="text-[clamp(1rem,2vw,3rem)]" data-node-id="2:3">C</p>')"
 run_table "$D"
 has_row "text-[64px] is font-size" "$D" "2:1" "font-size" "64px"
 has_row "leading-[1.4] is line-height" "$D" "2:1" "line-height" "1.4"
 has_row "tracking-[-0.35px] is letter-spacing" "$D" "2:1" "letter-spacing" "-0.35px"
 has_row "text-[length:2rem] is font-size, hint dropped" "$D" "2:2" "font-size" "2rem"
-has_row "text-[clamp(…)] is font-size" "$D" "2:2" "font-size" "clamp(1rem,2vw,3rem)"
+has_row "text-[clamp(…)] is font-size" "$D" "2:3" "font-size" "clamp(1rem,2vw,3rem)"
 no_row_for "text-[64px] is never a colour" "$D" "2:1" "color"
 
 echo "colour"
-D="$(case_dir colour '<p className="text-[#1a1a1a] bg-[#dfecc6]" data-node-id="3:1">A</p><p className="text-[rgba(0,0,0,0.5)] text-[color:var(--ink)] border-[#ccc] border-[2px]" data-node-id="3:2">B</p>')"
+D="$(case_dir colour '<p className="text-[#1a1a1a] bg-[#dfecc6]" data-node-id="3:1">A</p><p className="text-[rgba(0,0,0,0.5)]" data-node-id="3:3">B</p><p className="text-[color:var(--ink)] border-[#ccc] border-[2px]" data-node-id="3:2">C</p>')"
 run_table "$D"
 has_row "text-[#1a1a1a] is color" "$D" "3:1" "color" "#1a1a1a"
 has_row "bg-[#dfecc6] is background-color" "$D" "3:1" "background-color" "#dfecc6"
-has_row "text-[rgba(…)] is color" "$D" "3:2" "color" "rgba(0,0,0,0.5)"
+has_row "text-[rgba(…)] is color" "$D" "3:3" "color" "rgba(0,0,0,0.5)"
 has_row "text-[color:var(--ink)] is color, hint dropped" "$D" "3:2" "color" "var(--ink)"
 has_row "border-[#ccc] is border-color" "$D" "3:2" "border-color" "#ccc"
 has_row "border-[2px] is border-width" "$D" "3:2" "border-width" "2px"
 no_row_for "text-[#1a1a1a] is never a font size" "$D" "3:1" "font-size"
 
 echo "classes it does not recognise"
-D="$(case_dir unknown '<div className="foo-[12px] text-[var(--x)] text-[red] bg-[url(/a.png)] md:px-[10px] hover:text-[#fff] -mt-[4px] !p-[3px] size-[24px] text-[14px]/[1.4] rounded-t-[4px] font-[DM_Sans] flex" data-node-id="4:1"></div>')"
+D="$(case_dir unknown '<div className="foo-[12px] text-[var(--x)] text-[red] bg-[url(/a.png)] md:px-[10px] hover:text-[#fff] -mt-[4px] !p-[3px] text-[14px]/[1.4] rounded-t-[4px] font-[DM_Sans] flex" data-node-id="4:1"></div>')"
 run_table "$D"
 if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
 row_count "every one is ignored, no property guessed" "$D" 0
@@ -228,6 +228,55 @@ has_row "an image fill's gap is never approx" "$D" "8:2" "gap" "4px" false
 has_row "a vector asset is not an image fill" "$D" "I8:3;1:563" "width" "14px" false
 has_row "an image the assets list does not name decides nothing" "$D" "8:4" "height" "48px" false
 has_row "the parent of an image fill is not approx by it" "$D" "8:1" "padding" "24px" false
+
+echo "size: one class sets width and height"
+D="$(case_dir sizebox '<div className="relative shrink-0 size-[14px]" data-node-id="I1:199;1:563" data-name="Check icon"></div>
+<div className="size-[length:2rem]" data-node-id="10:2"></div>
+<div className="size-[calc(1rem_+_2px)]" data-node-id="10:3"></div>')"
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+has_row "size-[14px] is width" "$D" "I1:199;1:563" "width" "14px"
+has_row "size-[14px] is height" "$D" "I1:199;1:563" "height" "14px"
+has_row "size-[length:2rem] is width, hint dropped" "$D" "10:2" "width" "2rem"
+has_row "size-[length:2rem] is height, hint dropped" "$D" "10:2" "height" "2rem"
+has_row "size-[calc(…)] decodes underscores" "$D" "10:3" "width" "calc(1rem + 2px)"
+row_count "two rows per size class" "$D" 6
+first="$(head -1 "$D/stdout")"
+if [ "$first" = "I1:199;1:563${TAB}width${TAB}14px${TAB}false" ]; then ok "width row comes before height"; else bad "width row comes before height" "got: $first"; fi
+
+echo "size: forms that are ignored"
+D="$(case_dir sizeignored '<div className="md:size-[14px] hover:size-[15px] -size-[16px] !size-[17px] size-[18px]/[2] size-[var(--icon)] size-[#fff] size-[auto] size-full" data-node-id="10:4"></div>')"
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+row_count "variant, negative, important, modifier and non-length values give no row" "$D" 0
+
+echo "size: approx follows the node"
+D="$(case_dir sizeapprox '<div className="size-[14px]" data-node-id="I8:3;1:563" data-name="Check icon"><img alt="" src='"$OB"'imgIcon} /></div>
+<p className="size-[40px]" data-node-id="11:2">Copy</p>
+<div className="size-[64px]" data-node-id="11:3"></div>')"
+with_assets "$D" '[{"node_id":"I8:3;1:563","file":".ai/figma/assets/bb.svg","mime":"image/svg+xml"},
+  {"node_id":"11:3","file":".ai/figma/assets/cc.png","mime":"image/png"}]'
+run_table "$D"
+has_row "size on an SVG-asset node: width not approx" "$D" "I8:3;1:563" "width" "14px" false
+has_row "size on an SVG-asset node: height not approx" "$D" "I8:3;1:563" "height" "14px" false
+has_row "size on a text node: width approx" "$D" "11:2" "width" "40px" true
+has_row "size on a text node: height approx" "$D" "11:2" "height" "40px" true
+has_row "size on a raster image fill: width approx" "$D" "11:3" "width" "64px" true
+has_row "size on a raster image fill: height approx" "$D" "11:3" "height" "64px" true
+
+echo "a property set twice with different values on one element"
+D="$(case_dir conflict '<div className="w-[10px] size-[14px] p-[4px] p-[8px] gap-[2px]" data-node-id="12:1"></div>
+<div className="w-[14px] size-[14px]" data-node-id="12:2"></div>')"
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+no_row_for "a conflicting width gives no row" "$D" "12:1" "width"
+no_row_for "a conflicting padding gives no row" "$D" "12:1" "padding"
+has_row "the property the size class sets alone stays" "$D" "12:1" "height" "14px"
+has_row "an unrelated property stays" "$D" "12:1" "gap" "2px"
+has_row "the same value twice is not a conflict" "$D" "12:2" "width" "14px"
+row_count "nothing else" "$D" 4
+if grep -qxF "conflict: 12:1 width 10px 14px" "$D/stderr" && grep -qxF "conflict: 12:1 padding 4px 8px" "$D/stderr"; then ok "stderr names each conflict"; else bad "stderr names each conflict" "got: $(cat "$D/stderr")"; fi
+if grep -q "12:2" "$D/stderr"; then bad "an agreeing pair is not reported" "got: $(cat "$D/stderr")"; else ok "an agreeing pair is not reported"; fi
 
 echo "design_context: null, with a stale reference-code file present"
 D="$(case_dir null '<a className="px-[99px]" data-node-id="9:9">stale</a>')"

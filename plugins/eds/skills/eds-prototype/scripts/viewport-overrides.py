@@ -172,10 +172,11 @@ def variant_table(path):
         props = table.setdefault(key, (e[1], {}))[1]
         if key not in order:
             order.append(key)
-        for cls in (e[5] or "").split():
-            row = dcv.class_row(cls)
-            if row is not None and row[0] not in props:
-                props[row[0]] = row[1]
+        rows, conflicts = dcv.element_rows(e[5] or "")
+        dcv.report_conflicts(e[1], conflicts)
+        for prop, value in rows:
+            if prop not in props:
+                props[prop] = value
     return {k: table[k] for k in order}, elements[root][1]
 
 
