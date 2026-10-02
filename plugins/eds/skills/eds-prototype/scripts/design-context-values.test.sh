@@ -240,7 +240,8 @@ has_row "size-[14px] is height" "$D" "I1:199;1:563" "height" "14px"
 has_row "size-[length:2rem] is width, hint dropped" "$D" "10:2" "width" "2rem"
 has_row "size-[length:2rem] is height, hint dropped" "$D" "10:2" "height" "2rem"
 has_row "size-[calc(…)] decodes underscores" "$D" "10:3" "width" "calc(1rem + 2px)"
-row_count "two rows per size class" "$D" 6
+has_row "a sized node is border-box (D116)" "$D" "I1:199;1:563" "box-sizing" "border-box"
+row_count "two rows per size class, plus box-sizing per node" "$D" 9
 first="$(head -1 "$D/stdout")"
 if [ "$first" = "I1:199;1:563${TAB}width${TAB}14px${TAB}false" ]; then ok "width row comes before height"; else bad "width row comes before height" "got: $first"; fi
 
@@ -274,7 +275,7 @@ no_row_for "a conflicting padding gives no row" "$D" "12:1" "padding"
 has_row "the property the size class sets alone stays" "$D" "12:1" "height" "14px"
 has_row "an unrelated property stays" "$D" "12:1" "gap" "2px"
 has_row "the same value twice is not a conflict" "$D" "12:2" "width" "14px"
-row_count "nothing else" "$D" 4
+row_count "nothing else but one box-sizing row per sized node" "$D" 6
 if grep -qxF "conflict: 12:1 width 10px 14px" "$D/stderr" && grep -qxF "conflict: 12:1 padding 4px 8px" "$D/stderr"; then ok "stderr names each conflict"; else bad "stderr names each conflict" "got: $(cat "$D/stderr")"; fi
 if grep -q "12:2" "$D/stderr"; then bad "an agreeing pair is not reported" "got: $(cat "$D/stderr")"; else ok "an agreeing pair is not reported"; fi
 
@@ -297,6 +298,33 @@ if grep -qxF "conflict: 1:200 overflow-wrap anywhere normal" "$D/stderr"; then
 else
   bad "the clash is reported as a conflict" "got: $(cat "$D/stderr")"
 fi
+
+echo "D116: a leading-[0] wrapper in a fixed-height node becomes bottom padding the text fits in"
+D="$(case_dir spill '<div className="border-[#929292] border-b border-solid flex h-[96px] items-start px-[30px] py-[40px]" data-node-id="1:197">
+  <div className="flex flex-col leading-[0] text-[25.714px]" data-node-id="1:198"><p className="leading-[1.2]">Area</p></div>
+</div>
+<div className="border border-[#ccc] h-[50px] pt-[10px]" data-node-id="2:1"><div className="leading-[0] text-[16px]" data-node-id="2:2"><p className="leading-[24px]">B</p></div></div>
+<div className="h-[20px] py-[10px]" data-node-id="3:1"><div className="leading-[0] text-[16px]" data-node-id="3:2"><p className="leading-[1.5]">C</p></div></div>
+<div className="h-[96px] py-[40px]" data-node-id="4:1"><div className="leading-[0] text-[1rem]" data-node-id="4:2"><p className="leading-[1.2]">D</p></div></div>
+<div className="h-[96px] py-[40px]" data-node-id="5:1"><p className="leading-[1.2] text-[20px]" data-node-id="5:2">E</p></div>')"
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+has_row "top padding kept as designed" "$D" "1:197" "padding-top" "40px"
+has_row "bottom padding = 96 - 40 - 1 - 25.714 x 1.2" "$D" "1:197" "padding-bottom" "24.143px"
+no_row_for "the designed padding-block is not printed" "$D" "1:197" "padding-block"
+has_row "the height stays the design's" "$D" "1:197" "height" "96px" "true"
+has_row "the fixed-height node is border-box" "$D" "1:197" "box-sizing" "border-box"
+has_row "the wrapper's line-height is the inner text's, not 0" "$D" "1:198" "line-height" "1.2"
+if grep -qxF "spill: 1:197 padding-bottom 24.143px = 96px - 40px - 1px - 30.857px" "$D/stderr"; then
+  ok "stderr shows the arithmetic"
+else
+  bad "stderr shows the arithmetic" "got: $(cat "$D/stderr")"
+fi
+has_row "an all-sides border and a px leading: 50 - 10 - 2 - 24" "$D" "2:1" "padding-bottom" "14px"
+has_row "never below 0" "$D" "3:1" "padding-bottom" "0px"
+has_row "a non-px font size is printed as written" "$D" "4:1" "padding-block" "40px"
+has_row "and its wrapper keeps leading 0" "$D" "4:2" "line-height" "0"
+has_row "no leading-[0] wrapper: padding as written" "$D" "5:1" "padding-block" "40px"
 
 echo "design_context: null, with a stale reference-code file present"
 D="$(case_dir null '<a className="px-[99px]" data-node-id="9:9">stale</a>')"

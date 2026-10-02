@@ -52,6 +52,22 @@
 # on stderr names each replacement. The design source still writes the old
 # form; the project's lint rejects it.
 #
+# Every size in the reference code is a border-box size: its classes assume
+# `box-sizing: border-box` on every element. A node that gets a width, height,
+# min-/max- width/height or aspect-ratio row also gets a `box-sizing
+# border-box` row, so the size is written the way the design measures it.
+#
+# A text wrapper with `leading-[0]` inside a node with a fixed `h-[<px>]` is the
+# design letting its text spill over the node's bottom padding. It is not
+# printed as written. The wrapper's line-height row carries the line-height
+# its inner text element sets (`leading-[…]`), and the fixed-height node's
+# padding rows become `padding-top` (as designed) and `padding-bottom` = the
+# height minus the top padding, the top and bottom borders and the text's line
+# box, never below 0. One `spill: <node_id> padding-bottom <value> = …` line on
+# stderr shows the arithmetic. Only px values take part; a node whose height,
+# padding, border, font size or inner leading is not a px length (or a plain
+# number for the leading) is printed as written.
+#
 # A `length:` or `color:` type hint picks the form and is dropped from the
 # value. An underscore in the value is a space; `\_` is a literal underscore.
 # Every other class is ignored: an unlisted prefix, a value whose form does
@@ -185,6 +201,139 @@ def element_rows(classes):
     conflicts = [(prop, vals) for prop, vals in values.items() if len(vals) > 1]
     clashing = {prop for prop, _ in conflicts}
     return [pair for pair in pairs if pair[0] not in clashing], conflicts
+
+
+SIZE_PROPERTIES = {"width", "height", "min-width", "min-height", "max-width", "max-height", "aspect-ratio"}
+PX = re.compile(r"^(\d+\.?\d*|\.\d+)px$")
+NUMBER = re.compile(r"^(\d+\.?\d*|\.\d+)$")
+
+
+def px_value(value):
+    m = PX.match(value or "")
+    return float(m.group(1)) if m else None
+
+
+def fmt_px(value):
+    return f"{round(value, 3):g}px"
+
+
+def arbitrary(classes, prefix):
+    """The decoded value of the last `<prefix>-[…]` class, or None."""
+    found = None
+    for cls in classes.split():
+        m = ARBITRARY_VALUE.match(cls)
+        if m and m.group(1) == prefix:
+            found = decode(m.group(2))
+    return found
+
+
+def padding_top(classes):
+    """The px top padding the classes set, or None."""
+    top = None
+    for cls in classes.split():
+        m = ARBITRARY_VALUE.match(cls)
+        if not m or m.group(1) not in ("p", "py", "pt"):
+            continue
+        parts = decode(m.group(2)).split()
+        top = px_value(parts[0]) if parts else None
+    return top
+
+
+def border_block(classes):
+    """(top, bottom) border widths in px the classes set; None when one is not a px length."""
+    top = bottom = 0.0
+    for cls in classes.split():
+        m = re.match(r"^border(?:-([trblxy]))?(?:-\[([^\[\]]+)\]|-(\d+))?$", cls)
+        if not m:
+            continue
+        side, raw, steps = m.group(1), m.group(2), m.group(3)
+        if raw is not None:
+            if COLOR.match(decode(raw)) or decode(raw).startswith("color:"):
+                continue
+            width = px_value(decode(raw).removeprefix("length:"))
+            if width is None:
+                return None
+        else:
+            width = float(steps) if steps is not None else 1.0
+        if side in (None, "t", "y"):
+            top = width
+        if side in (None, "b", "y"):
+            bottom = width
+    return top, bottom
+
+
+def line_box(wrapper_classes, inner_classes):
+    """The px line box of the text a leading-[0] wrapper holds, or None."""
+    size = px_value(arbitrary(inner_classes, "text") or arbitrary(wrapper_classes, "text") or "")
+    leading = arbitrary(inner_classes, "leading")
+    if size is None or leading is None:
+        return None, None
+    if NUMBER.match(leading):
+        return size * float(leading), leading
+    lead_px = px_value(leading)
+    return (lead_px, leading) if lead_px is not None else (None, None)
+
+
+def spill(code):
+    """(node padding rows, wrapper line-heights, stderr lines) for every leading-[0] wrapper
+    inside a fixed-height node."""
+    stack = []  # (tag, attrs) per open element
+    wrappers = []  # (fixed-height ancestor attrs, wrapper attrs, [inner classes…])
+    i = 0
+    while i < len(code):
+        m = TAG_ANY.match(code, i)
+        if not m:
+            i += 1
+            continue
+        if m.group(1):
+            end = code.find(">", m.end())
+            i = len(code) if end < 0 else end + 1
+            close(stack, m.group(2))
+            continue
+        attrs, i, self_closing = read_tag(code, m.end())
+        classes = attrs.get("className") or attrs.get("class") or ""
+        for anc, wrap, inner in wrappers:
+            if any(a is wrap for _, a in stack):
+                inner.append(classes)
+        if "leading-[0]" in classes.split():
+            anc = next((a for _, a in reversed(stack)
+                        if a.get("data-node-id") and px_value(arbitrary(a.get("className") or "", "h") or "")),
+                       None)
+            if anc is not None:
+                wrappers.append((anc, attrs, []))
+        if not self_closing:
+            stack.append((m.group(2), attrs))
+    pads, leads, notes = {}, {}, []
+    for anc, wrap, inner in wrappers:
+        node, a_cls = anc["data-node-id"], anc.get("className") or ""
+        w_cls = wrap.get("className") or ""
+        box, leading = next(((b, l) for b, l in (line_box(w_cls, c) for c in inner) if b is not None),
+                            (None, None))
+        height, top, borders = px_value(arbitrary(a_cls, "h")), padding_top(a_cls), border_block(a_cls)
+        if box is None or top is None or borders is None:
+            continue
+        bottom = max(0.0, height - top - borders[0] - borders[1] - box)
+        if node in pads and pads[node][1] <= bottom:
+            continue
+        pads[node] = (top, bottom)
+        if wrap.get("data-node-id"):
+            leads[wrap["data-node-id"]] = leading
+        notes.append(f"spill: {node} padding-bottom {fmt_px(bottom)} = {fmt_px(height)} - {fmt_px(top)}"
+                     f" - {fmt_px(borders[0] + borders[1])} - {fmt_px(box)}")
+    return pads, leads, notes
+
+
+def apply_spill(node, rows, pads, leads):
+    """rows for one node with D116's spill translation applied."""
+    if node in leads:
+        rows = [(p, leads[node] if p == "line-height" else v) for p, v in rows]
+    if node in pads:
+        top, bottom = pads[node]
+        rows = [r for r in rows if r[0] not in ("padding", "padding-block", "padding-top", "padding-bottom")]
+        rows += [("padding-top", fmt_px(top)), ("padding-bottom", fmt_px(bottom))]
+    if any(p in SIZE_PROPERTIES for p, _ in rows) and not any(p == "box-sizing" for p, _ in rows):
+        rows.append(("box-sizing", "border-box"))
+    return rows
 
 
 def report_replacements(node, classes):
@@ -402,6 +551,9 @@ def main():
         code = f.read()
 
     content = text_nodes(code) | image_nodes(ref)
+    pads, leads, notes = spill(code)
+    for note in notes:
+        print(note, file=sys.stderr)
     seen = set()
     for attrs in elements(code):
         node = attrs.get("data-node-id")
@@ -409,6 +561,7 @@ def main():
         if not node or not classes:
             continue
         rows, conflicts = element_rows(classes)
+        rows = apply_spill(node, rows, pads, leads)
         report_replacements(node, classes)
         report_conflicts(node, conflicts)
         for prop, value in rows:
