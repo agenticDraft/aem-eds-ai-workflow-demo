@@ -84,21 +84,21 @@ has_row "rounded-[1000px] is border-radius" "$D" "1:185" "border-radius" "1000px
 has_row "rounded-tl-[4px] is border-top-left-radius" "$D" "1:186" "border-top-left-radius" "4px"
 
 echo "font size"
-D="$(case_dir size '<h1 className="text-[64px] leading-[1.4] tracking-[-0.35px]" data-node-id="2:1">A</h1><p className="text-[length:2rem] text-[clamp(1rem,2vw,3rem)]" data-node-id="2:2">B</p>')"
+D="$(case_dir size '<h1 className="text-[64px] leading-[1.4] tracking-[-0.35px]" data-node-id="2:1">A</h1><p className="text-[length:2rem]" data-node-id="2:2">B</p><p className="text-[clamp(1rem,2vw,3rem)]" data-node-id="2:3">C</p>')"
 run_table "$D"
 has_row "text-[64px] is font-size" "$D" "2:1" "font-size" "64px"
 has_row "leading-[1.4] is line-height" "$D" "2:1" "line-height" "1.4"
 has_row "tracking-[-0.35px] is letter-spacing" "$D" "2:1" "letter-spacing" "-0.35px"
 has_row "text-[length:2rem] is font-size, hint dropped" "$D" "2:2" "font-size" "2rem"
-has_row "text-[clamp(…)] is font-size" "$D" "2:2" "font-size" "clamp(1rem,2vw,3rem)"
+has_row "text-[clamp(…)] is font-size" "$D" "2:3" "font-size" "clamp(1rem,2vw,3rem)"
 no_row_for "text-[64px] is never a colour" "$D" "2:1" "color"
 
 echo "colour"
-D="$(case_dir colour '<p className="text-[#1a1a1a] bg-[#dfecc6]" data-node-id="3:1">A</p><p className="text-[rgba(0,0,0,0.5)] text-[color:var(--ink)] border-[#ccc] border-[2px]" data-node-id="3:2">B</p>')"
+D="$(case_dir colour '<p className="text-[#1a1a1a] bg-[#dfecc6]" data-node-id="3:1">A</p><p className="text-[rgba(0,0,0,0.5)]" data-node-id="3:3">B</p><p className="text-[color:var(--ink)] border-[#ccc] border-[2px]" data-node-id="3:2">C</p>')"
 run_table "$D"
 has_row "text-[#1a1a1a] is color" "$D" "3:1" "color" "#1a1a1a"
 has_row "bg-[#dfecc6] is background-color" "$D" "3:1" "background-color" "#dfecc6"
-has_row "text-[rgba(…)] is color" "$D" "3:2" "color" "rgba(0,0,0,0.5)"
+has_row "text-[rgba(…)] is color" "$D" "3:3" "color" "rgba(0,0,0,0.5)"
 has_row "text-[color:var(--ink)] is color, hint dropped" "$D" "3:2" "color" "var(--ink)"
 has_row "border-[#ccc] is border-color" "$D" "3:2" "border-color" "#ccc"
 has_row "border-[2px] is border-width" "$D" "3:2" "border-width" "2px"
@@ -263,6 +263,20 @@ has_row "size on a text node: width approx" "$D" "11:2" "width" "40px" true
 has_row "size on a text node: height approx" "$D" "11:2" "height" "40px" true
 has_row "size on a raster image fill: width approx" "$D" "11:3" "width" "64px" true
 has_row "size on a raster image fill: height approx" "$D" "11:3" "height" "64px" true
+
+echo "a property set twice with different values on one element"
+D="$(case_dir conflict '<div className="w-[10px] size-[14px] p-[4px] p-[8px] gap-[2px]" data-node-id="12:1"></div>
+<div className="w-[14px] size-[14px]" data-node-id="12:2"></div>')"
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+no_row_for "a conflicting width gives no row" "$D" "12:1" "width"
+no_row_for "a conflicting padding gives no row" "$D" "12:1" "padding"
+has_row "the property the size class sets alone stays" "$D" "12:1" "height" "14px"
+has_row "an unrelated property stays" "$D" "12:1" "gap" "2px"
+has_row "the same value twice is not a conflict" "$D" "12:2" "width" "14px"
+row_count "nothing else" "$D" 4
+if grep -qxF "conflict: 12:1 width 10px 14px" "$D/stderr" && grep -qxF "conflict: 12:1 padding 4px 8px" "$D/stderr"; then ok "stderr names each conflict"; else bad "stderr names each conflict" "got: $(cat "$D/stderr")"; fi
+if grep -q "12:2" "$D/stderr"; then bad "an agreeing pair is not reported" "got: $(cat "$D/stderr")"; else ok "an agreeing pair is not reported"; fi
 
 echo "design_context: null, with a stale reference-code file present"
 D="$(case_dir null '<a className="px-[99px]" data-node-id="9:9">stale</a>')"

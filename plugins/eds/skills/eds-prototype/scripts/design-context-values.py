@@ -42,6 +42,10 @@
 #   font                           font-weight for an integer
 #   [<property>:<value>]           the property it names
 #
+# A property one element's classes set to two different values is a conflict:
+# it gets no row, and one `conflict: <node_id> <property> <value> <value>…`
+# line on stderr names it. The same value set twice is one row, not a conflict.
+#
 # A `length:` or `color:` type hint picks the form and is dropped from the
 # value. An underscore in the value is a space; `\_` is a literal underscore.
 # Every other class is ignored: an unlisted prefix, a value whose form does
@@ -151,6 +155,27 @@ def class_rows(cls):
         if prop:
             return [(prop, raw)]
     return []
+
+
+def element_rows(classes):
+    """(rows, conflicts) for one element's class list: rows in class then property order,
+    without the conflicting properties; conflicts as (property, [values in class order])."""
+    pairs = []
+    for cls in classes.split():
+        for pair in class_rows(cls):
+            if pair not in pairs:
+                pairs.append(pair)
+    values = {}
+    for prop, value in pairs:
+        values.setdefault(prop, []).append(value)
+    conflicts = [(prop, vals) for prop, vals in values.items() if len(vals) > 1]
+    clashing = {prop for prop, _ in conflicts}
+    return [pair for pair in pairs if pair[0] not in clashing], conflicts
+
+
+def report_conflicts(node, conflicts):
+    for prop, vals in conflicts:
+        print(f"conflict: {node} {prop} {' '.join(vals)}", file=sys.stderr)
 
 
 def skip_string(code, i):
@@ -359,13 +384,14 @@ def main():
         classes = attrs.get("className") or attrs.get("class")
         if not node or not classes:
             continue
-        for cls in classes.split():
-            for prop, value in class_rows(cls):
-                approx = "true" if prop in APPROX_PROPERTIES and node in content else "false"
-                line = f"{node}\t{prop}\t{value}\t{approx}"
-                if line not in seen:
-                    seen.add(line)
-                    print(line)
+        rows, conflicts = element_rows(classes)
+        report_conflicts(node, conflicts)
+        for prop, value in rows:
+            approx = "true" if prop in APPROX_PROPERTIES and node in content else "false"
+            line = f"{node}\t{prop}\t{value}\t{approx}"
+            if line not in seen:
+                seen.add(line)
+                print(line)
     sys.exit(0)
 
 

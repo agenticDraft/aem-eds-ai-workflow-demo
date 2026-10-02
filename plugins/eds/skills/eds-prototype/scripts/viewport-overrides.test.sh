@@ -325,6 +325,22 @@ has_line "base carries the size class's height" "$D" value base 1:600 height 14p
 has_line "the override carries the wider width" "$D" value 900 1:600 width 20px 1:601 '/Check icon#1'
 has_line "the override carries the wider height" "$D" value 900 1:600 height 20px 1:601 '/Check icon#1'
 
+echo "a property set twice with different values is not carried"
+D="$(new_case conflict)"
+add_variant "$D" Desktop 1:118 1280 '<div className="p-[40px]" data-node-id="1:118" data-name="Desktop">
+  <div className="w-[30px] size-[20px]" data-node-id="1:701" data-name="Icon"></div>
+</div>'
+add_variant "$D" Mobile 1:430 375 '<div className="p-[16px]" data-node-id="1:430" data-name="Mobile">
+  <div className="w-[10px] size-[14px]" data-node-id="1:700" data-name="Icon"></div>
+</div>'
+write_ref "$D"
+run_overrides "$D" 900
+status_is "exits 0" "$D" 0
+no_match "no base width for a conflicting node" "$D" "^value${TAB}base${TAB}1:700${TAB}width${TAB}"
+no_match "no override width for a conflicting node" "$D" "^value${TAB}900${TAB}1:700${TAB}width${TAB}"
+has_line "the agreeing height is in the base" "$D" value base 1:700 height 14px 1:700 '/Icon#1'
+if grep -qxF "conflict: 1:700 width 10px 14px" "$D/stderr"; then ok "stderr names the conflict"; else bad "stderr names the conflict" "got: $(cat "$D/stderr")"; fi
+
 echo
 echo "passed: $PASS, failed: $FAIL"
 [ "$FAIL" -eq 0 ]
