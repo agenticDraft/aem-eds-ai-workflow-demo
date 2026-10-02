@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # validate-contracts.sh — Deterministic conformance check for shared/skill-authoring.md:
 # a branching skill's DOT digraph (## Flow) node labels must correspond, in both
-# directions, to the ### headings under its ## Node Details. No model involved.
+# directions, to the ### headings under its ## Node Details; and every prose node
+# reference — `go to **<name>**` or `Run **<name>**`, outside a fenced block — must
+# name a heading, at any level, in the same file. No model involved.
 #
 # A SKILL.md with neither a ## Flow digraph nor a ## Node Details section passes
 # trivially — that is a linear skill, which skill-authoring.md exempts from the
@@ -62,6 +64,27 @@ extract_node_headings() {
     | sort -u
 }
 
+# Every prose node reference outside a fenced block whose name is not a heading
+# (any level) in the same file, one "<line>\t<name>" per reference.
+extract_dangling_refs() {
+  local file="$1"
+  awk '
+    /^```/ { fence = !fence; next }
+    fence { next }
+    /^#+ / { h = $0; sub(/^#+ +/, "", h); sub(/ +$/, "", h); heads[h] = 1 }
+    {
+      line = $0
+      while (match(line, /([Rr]un|[Gg]o to) \*\*[^*]+\*\*/)) {
+        ref = substr(line, RSTART, RLENGTH)
+        sub(/^([Rr]un|[Gg]o to) \*\*/, "", ref); sub(/\*\*$/, "", ref)
+        n++; refs[n] = ref; lines[n] = NR
+        line = substr(line, RSTART + RLENGTH)
+      }
+    }
+    END { for (i = 1; i <= n; i++) if (!(refs[i] in heads)) print lines[i] "\t" refs[i] }
+  ' "$file"
+}
+
 # --- per-file check -------------------------------------------------------------
 # Prints one "invalid: ..." line per mismatch, in both directions. Returns via
 # global VIOLATIONS / FILES_SCANNED / FILES_BRANCHING rather than a return code,
@@ -95,6 +118,12 @@ check_one_file() {
     VIOLATIONS=$((VIOLATIONS + 1))
     echo "invalid: '$label' — $relpath: '### heading' in ## Node Details has no matching digraph node" >&2
   done < <(comm -13 "$nodes_f" "$headings_f")
+
+  while IFS=$'\t' read -r line label; do
+    [[ -z "$label" ]] && continue
+    VIOLATIONS=$((VIOLATIONS + 1))
+    echo "invalid: '$label' — $relpath:$line: node reference names no heading in this file" >&2
+  done < <(extract_dangling_refs "$file")
 
   rm -f "$nodes_f" "$headings_f"
 }

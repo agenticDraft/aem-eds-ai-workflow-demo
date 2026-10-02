@@ -65,8 +65,9 @@ Options beyond the two required: `--artifact <path>` (repeatable; none emits `ar
 `--question-id <id>`, `--option <label>` (repeatable), `--blocker <text>`, `--change-state <state>`,
 `--metrics <key=value …>`.
 
-A stage that has not yet adopted the emitter still ends its output with the block, and everything
-below still governs what that block must contain. Both paths are read the same way.
+Every stage writes its envelope this way; the runner never copies one out of a stage's message, and
+a stage that leaves its file empty ends the run as a contract violation. A provider operation still
+ends its output with the block, and everything below governs what that block must contain.
 
 ## Field rules
 

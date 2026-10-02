@@ -55,6 +55,9 @@ node with no heading is a step nobody wrote instructions for.
   prose without ever admitting how many ends the flow actually has.
 - A `### heading` under `## Node Details` with no matching digraph node, or a digraph node with no
   heading.
+- A prose node reference — `go to **<name>**` or `Run **<name>**` — whose `<name>` is not a heading
+  in the same file. A renamed or deleted node leaves every reference to it pointing nowhere, and the
+  reader either skips the step or invents one.
 - Restating a node's instruction elsewhere in the file instead of in its own `## Node Details`
   entry — the node text is the single source for what that step does.
 - A digraph edge out of a `diamond` node with no `label`, or a label on an edge out of a `box` — the
@@ -67,7 +70,8 @@ node with no heading is a step nobody wrote instructions for.
 match. `fixtures/skill-authoring/clean-linear/` — no `## Flow`/`## Node Details` at all, accepted
 trivially. `fixtures/skill-authoring/violation-missing-heading/` — a digraph node with no matching
 heading, must fail. `fixtures/skill-authoring/violation-orphan-heading/` — a heading with no
-matching digraph node, must fail.
+matching digraph node, must fail. `fixtures/skill-authoring/violation-dangling-reference/` — the
+clean fixture plus one `Run **<name>**` naming no heading, must fail.
 
 ## Verification
 
@@ -77,7 +81,9 @@ involved. Given a single file, it checks exactly that file; given a directory, i
 every `### heading` under its `## Node Details`, and exits `0` with `valid: skill-authoring (<n>
 SKILL.md files scanned, <b> branching)` when every file checked has full correspondence — including
 a file with neither section, which passes trivially. It exits `1` with one `invalid: '<label>' —
-<path>: <reason>` line per mismatch on stderr, in both directions, then a count; `2` for a usage
+<path>: <reason>` line per mismatch on stderr, in both directions, then a count. It also reads every
+`go to **<name>**` and `Run **<name>**` outside a fenced block and reports, with its line, each one
+whose `<name>` is not a heading at any level in the same file; `2` for a usage
 error (missing argument, or the given path does not exist).
 
 ```bash

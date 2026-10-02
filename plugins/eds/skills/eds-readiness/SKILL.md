@@ -10,16 +10,16 @@ fact record a prior stage wrote and this pack's own manifest.
 
 Read `../../../agentic-core/shared/readiness-criteria.md` for the criteria this stage checks and
 why this gate carries no reviewing-model half, `../../../agentic-core/shared/fact-record.md` for
-the record's shape, and `../../../agentic-core/shared/result-envelope.md` for the `## Result` block
-this stage must end with.
+the record's shape, and `../../../agentic-core/shared/result-envelope.md` for the envelope this stage writes with
+the emitter.
 
 ## Input
 
 None. This stage reads `.ai/run-context/fact-record.yaml` at its fixed path — the artifact `intake`
 always writes — and `${CLAUDE_PLUGIN_ROOT}/pack.yaml`, this platform pack's own manifest.
 
-**This stage writes nothing, anywhere.** It produces no artifact, and the pack manifest declares
-none for it. Its whole output is the verdict in its `## Result` block. Unlike `plan-gate` and
+**This stage writes one file, its own envelope, and nothing else.** It produces no artifact, and
+the pack manifest declares none for it. Its whole output is the verdict in that envelope. Unlike `plan-gate` and
 `publish-gate`, this stage does not run in an isolated worktree: it never reads project source,
 never reads a diff, and never reads anything outside `.ai/run-context/fact-record.yaml` and its own
 plugin's manifest, both of which are identical whether read from this checkout or any other. There
@@ -86,18 +86,34 @@ after it (`readiness-criteria.md`).
 
 ### Report fail
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-readiness.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-fact-record reason; or the checker's `invalid: <reason>`
   from stderr, verbatim, never reworded into something more general; or that the checker could not
   run to a verdict, naming its usage error.
-- `artifacts: []` — this stage writes nothing.
+- `artifacts: []` — this stage writes no artifact; the envelope file is not one.
 - `next_action: none`
 
 ### Report pass
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-readiness.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item's `item_type` and that its declared readiness criteria
