@@ -207,6 +207,29 @@ echo "[usage] a file that does not exist"
 OUT=$(bash "$EVAL" "$FULL" "$TMP/absent.yaml" 2>&1); ST=$?
 assert_exit "missing fact record -> usage error (exit 2)" 2 $ST "$OUT"
 
+# --- writing both run files ---------------------------------------------------
+# With two output paths the script writes the conditions file and the
+# progress list itself, so no caller has to transform its output by hand.
+
+echo "[files] both run files written"
+OUT=$(bash "$EVAL" "$FULL" "$FACTDIR/no-design-no-components.yaml" "$TMP/conditions.txt" "$TMP/progress.txt"); ST=$?
+assert_exit "evaluated with output paths (exit 0)" 0 $ST "$OUT"
+assert_eq "the conditions file holds exactly the printed lines" "$OUT" "$(cat "$TMP/conditions.txt" 2>/dev/null)"
+assert_eq "one progress line per stage" "$(wc -l <<< "$OUT" | tr -d ' ')" "$(wc -l < "$TMP/progress.txt" 2>/dev/null | tr -d ' ')"
+assert_eq "a run line becomes a bare stage id" "$(grep '^run: ' <<< "$OUT" | head -1 | sed 's/^run: //')" "$(grep -v ': skipped$' "$TMP/progress.txt" | head -1)"
+assert_eq "a skipped line becomes '<id>: skipped'" "$(grep -c '^skipped:' <<< "$OUT")" "$(grep -c ': skipped$' "$TMP/progress.txt")"
+
+echo "[files] a contract violation writes nothing"
+rm -f "$TMP/c2.txt" "$TMP/p2.txt"
+printf 'stages:\n  - id: intake\n    when:\n      - not_a_field: true\n' > "$TMP/bad-pack.yaml"
+OUT=$(bash "$EVAL" "$TMP/bad-pack.yaml" "$FACTDIR/no-design-no-components.yaml" "$TMP/c2.txt" "$TMP/p2.txt" 2>&1); ST=$?
+assert_eq "no conditions file after a failure" "absent" "$([[ -e "$TMP/c2.txt" ]] && echo present || echo absent)"
+assert_eq "no progress file after a failure" "absent" "$([[ -e "$TMP/p2.txt" ]] && echo present || echo absent)"
+
+echo "[usage] one output path without the other"
+OUT=$(bash "$EVAL" "$FULL" "$FACTDIR/no-design-no-components.yaml" "$TMP/only.txt" 2>&1); ST=$?
+assert_exit "three args -> usage error (exit 2)" 2 $ST "$OUT"
+
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
 exit $(( FAIL > 0 ? 1 : 0 ))

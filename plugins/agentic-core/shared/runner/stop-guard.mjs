@@ -18,6 +18,7 @@ export function stopDecision({ isRoute, terminal, stopHookActive }) {
     decision: "block",
     reason: "This route has no terminal state yet. Before ending, run the core's terminal-state formatter "
       + "(shared/lib/resolve-terminal-state.sh) with delivered, blocked or failed, the stage the route stopped at "
-      + "and its summary, exactly as the route's instructions say for that ending.",
+      + "and its summary, exactly as the route's instructions say for that ending. Run it as its own Bash call, "
+      + "not chained after another command: only a call that starts with the formatter is recorded.",
   };
 }
