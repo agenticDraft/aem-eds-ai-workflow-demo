@@ -50,10 +50,11 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { forbiddenBy, parseRule } from "./policy-match.mjs";
-import { lockedSandbox, readAllowedDomains, readPreviewHost, withHost } from "./network-allowlist.mjs";
+import { lockedSandbox, readAllowedDomains, readPreviewHost, sandboxLockHeld, withHost } from "./network-allowlist.mjs";
 import { TerminalCapture } from "./terminal-capture.mjs";
 import { denialLines } from "./denials.mjs";
 import { shapeProblem } from "./shell-shape.mjs";
+import { isRoutePrompt, stopDecision } from "./stop-guard.mjs";
 
 const prompt = process.argv[2];
 if (!prompt) {
@@ -142,9 +143,7 @@ try {
     `allowUnsandboxedCommands=${eff.allowUnsandboxedCommands} autoAllowBashIfSandboxed=${eff.autoAllowBashIfSandboxed} ` +
     `strictAllowlist=${eff.network?.strictAllowlist}`);
   log(`sandbox allowlist (copied from ${settingsFile}, plus the preview host; ${sandbox.network.allowedDomains.length}): ${sandbox.network.allowedDomains.join(", ")}`);
-  if (eff.enabled !== true || eff.failIfUnavailable !== true ||
-      eff.allowUnsandboxedCommands !== false || eff.autoAllowBashIfSandboxed !== false ||
-      eff.network?.strictAllowlist !== true ||
+  if (!sandboxLockHeld(eff) ||
       !denyWrites.every((r) => (resolved.effective.permissions?.deny || []).includes(r))) {
     allowlistRefused("the policy tier did not take the lock (an administrator's managed tier may have dropped it)");
   }
@@ -237,6 +236,19 @@ const options = {
             permissionDecisionReason: reason,
           },
         };
+      }],
+    }],
+    // A route may not end before its terminal state is recorded (G130).
+    Stop: [{
+      hooks: [async (input) => {
+        const verdict = stopDecision({
+          isRoute: isRoutePrompt(prompt),
+          terminal: capture.terminal,
+          stopHookActive: Boolean(input.stop_hook_active),
+        });
+        if (!verdict) return { continue: true };
+        log("stop refused: no terminal state yet; the driver is asked to run the formatter");
+        return verdict;
       }],
     }],
   },

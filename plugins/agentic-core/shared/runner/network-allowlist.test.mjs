@@ -12,6 +12,7 @@ import {
   parseAllowedDomains,
   parsePreviewHost,
   readAllowedDomains,
+  sandboxLockHeld,
   withHost,
 } from "./network-allowlist.mjs";
 
@@ -59,13 +60,13 @@ test("a blank, padded or non-string entry is refused", () => {
   refused(() => parseAllowedDomains(settings({ allowedDomains: [42] })), /not a plain host/);
 });
 
-test("the locked block carries the lock, the copy, no retry, no auto-approval and a hard start", () => {
+test("the locked block carries the lock, the copy, no retry, sandboxed auto-approval and a hard start", () => {
   const domains = ["github.com"];
   const block = lockedSandbox(domains);
   assert.deepEqual(block, {
     enabled: true,
     failIfUnavailable: true,
-    autoAllowBashIfSandboxed: false,
+    autoAllowBashIfSandboxed: true,
     allowUnsandboxedCommands: false,
     network: { strictAllowlist: true, allowedDomains: ["github.com"] },
   });
@@ -102,4 +103,21 @@ test("a host is appended once, and a list that has it is unchanged", () => {
   const list = ["github.com"];
   withHost(list, "localhost");
   assert.deepEqual(list, ["github.com"], "the input list is not modified");
+});
+
+// The two shapes resolveSettings returned for the locked block (SDK 0.3.285,
+// measured 2026-10-02): auto-approval on is omitted, off is reported.
+const EFF_ON = { network: { allowedDomains: ["github.com"], strictAllowlist: true }, enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false };
+const EFF_OFF = { ...EFF_ON, autoAllowBashIfSandboxed: false };
+
+test("the lock is held when auto-approval is reported absent, its default", () => {
+  assert.equal(sandboxLockHeld(EFF_ON), true);
+});
+
+test("the lock is not held when a tier turned auto-approval off, or dropped any other part", () => {
+  assert.equal(sandboxLockHeld(EFF_OFF), false);
+  assert.equal(sandboxLockHeld({ ...EFF_ON, allowUnsandboxedCommands: true }), false);
+  assert.equal(sandboxLockHeld({ ...EFF_ON, network: { strictAllowlist: false } }), false);
+  assert.equal(sandboxLockHeld({ ...EFF_ON, enabled: false }), false);
+  assert.equal(sandboxLockHeld(undefined), false);
 });

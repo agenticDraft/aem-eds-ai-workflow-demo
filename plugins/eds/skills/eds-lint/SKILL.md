@@ -81,13 +81,14 @@ minimally" section defines it — the same diff `publish-gate` reviews later, co
 this stage's own edits never grow it:
 
 ```
-BASE=$(git symbolic-ref refs/remotes/origin/HEAD)
-MERGE_BASE=$(git merge-base "${BASE#refs/remotes/}" HEAD)
-git diff "$MERGE_BASE" --name-only
-git ls-files --others --exclude-standard
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/list-changed-files.sh .
 ```
 
-**Both commands, unioned.** The second is not an extra precaution — without it this stage is at
+Run it as this one command; it prints the union, sorted. Exit `2` (no `origin/HEAD`, no merge base)
+— go to **Report fail**, naming its message verbatim.
+
+**Both sets, unioned:** the diff from the merge base, and the untracked files the ignore rules do
+not exclude. The second is not an extra precaution — without it this stage is at
 its blindest on exactly the work most likely to carry a lint violation. `git diff` reports changes
 to paths git already tracks, so a component created during this run and never committed appears in
 no diff, its violations read as out of scope, and this stage reports pass on a file set that

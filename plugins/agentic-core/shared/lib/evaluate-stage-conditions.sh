@@ -15,7 +15,12 @@
 # part way through a run.
 #
 # Usage:
-#   evaluate-stage-conditions.sh <path-to-pack.yaml> <path-to-fact-record.yaml>
+#   evaluate-stage-conditions.sh <path-to-pack.yaml> <path-to-fact-record.yaml> [<conditions-out> <progress-out>]
+#
+# With the two output paths it also writes, only after a successful
+# evaluation, the printed lines to <conditions-out> and the progress list to
+# <progress-out>: a bare stage id per `run:` line, `<stage id>: skipped` per
+# `skipped:` line.
 #
 # Output, one line per stage in list order:
 #   run: <stage id>
@@ -32,9 +37,11 @@ set -uo pipefail
 
 PACK="${1:-}"
 FACT="${2:-}"
+CONDITIONS_OUT="${3:-}"
+PROGRESS_OUT="${4:-}"
 
-if [[ -z "$PACK" || -z "$FACT" ]]; then
-  echo "usage: evaluate-stage-conditions.sh <path-to-pack.yaml> <path-to-fact-record.yaml>" >&2
+if [[ -z "$PACK" || -z "$FACT" || $# -gt 4 || ( $# -ge 3 && ( -z "$CONDITIONS_OUT" || -z "$PROGRESS_OUT" ) ) ]]; then
+  echo "usage: evaluate-stage-conditions.sh <path-to-pack.yaml> <path-to-fact-record.yaml> [<conditions-out> <progress-out>]" >&2
   exit 2
 fi
 for f in "$PACK" "$FACT"; do
@@ -140,6 +147,8 @@ done
 cursor=$((cursor + 1))
 
 emitted=0
+OUT_LINES=()
+PROGRESS_LINES=()
 
 while [[ "${LINES[cursor]:-}" =~ ^\ \ -\ id:\ (.+)$ ]]; do
   stage_id="${BASH_REMATCH[1]}"
@@ -218,13 +227,21 @@ while [[ "${LINES[cursor]:-}" =~ ^\ \ -\ id:\ (.+)$ ]]; do
   fi
 
   if (( has_when == 0 || any_block_matched )); then
-    echo "run: $stage_id"
+    OUT_LINES+=("run: $stage_id")
+    PROGRESS_LINES+=("$stage_id")
   else
-    echo "skipped: $stage_id — $rendered"
+    OUT_LINES+=("skipped: $stage_id — $rendered")
+    PROGRESS_LINES+=("$stage_id: skipped")
   fi
   emitted=$((emitted + 1))
 done
 
 (( emitted == 0 )) && fail "the stage list has no entries"
+
+printf '%s\n' "${OUT_LINES[@]}"
+if [[ -n "$CONDITIONS_OUT" ]]; then
+  printf '%s\n' "${OUT_LINES[@]}" > "$CONDITIONS_OUT" || { echo "invalid: cannot write $CONDITIONS_OUT" >&2; exit 2; }
+  printf '%s\n' "${PROGRESS_LINES[@]}" > "$PROGRESS_OUT" || { echo "invalid: cannot write $PROGRESS_OUT" >&2; exit 2; }
+fi
 
 exit 0

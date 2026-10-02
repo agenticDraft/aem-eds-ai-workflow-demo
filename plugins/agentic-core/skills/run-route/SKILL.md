@@ -197,13 +197,14 @@ You never decide a skip yourself, and you never read a skip out of an envelope �
 To evaluate the conditions, run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/shared/lib/evaluate-stage-conditions.sh <platform pack.yaml> .ai/run-context/fact-record.yaml
+${CLAUDE_PLUGIN_ROOT}/shared/lib/evaluate-stage-conditions.sh <platform pack.yaml> .ai/run-context/fact-record.yaml .ai/run-context/stage-conditions.txt .ai/route-progress.txt
 ```
 
 It prints one line per stage in list order — `run: <stage id>`, or
-`skipped: <stage id> — <condition>`. Capture its output to
-`.ai/run-context/stage-conditions.txt`, then write `.ai/route-progress.txt` from it: a bare stage id
-for each `run:` line, `<stage id>: skipped` for each `skipped:` one.
+`skipped: <stage id> — <condition>` — and writes both files itself: those lines to
+`.ai/run-context/stage-conditions.txt`, and `.ai/route-progress.txt` with a bare stage id for each
+`run:` line and `<stage id>: skipped` for each `skipped:` one. Run it as this one command; do not
+write or transform either file yourself.
 
 **Run it exactly once per run**, right after `intake` produces the fact record. Conditions name
 fact-record fields only, and that record is written once and never rewritten, so no stage can change
@@ -764,4 +765,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: d7700781fad2 -->
+<!-- instructions-stamp: a21a1f80c6de -->

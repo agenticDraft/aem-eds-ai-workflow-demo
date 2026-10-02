@@ -37,16 +37,27 @@ export function readAllowedDomains(path) {
 // The sandbox block for the policy tier. The lock alone would leave an empty
 // allowlist (the policy tier drops the project tier's domains), so the copied
 // list travels with it. No unsandboxed retry; a sandbox that cannot start
-// stops the session; and a sandboxed command is never approved just because
-// it is sandboxed, so every command still needs an allow rule.
+// stops the session; and a sandboxed command is approved because it is
+// sandboxed (D116): the sandbox's filesystem and network limits, and the
+// policy tier's write denials, are the boundary, not the command's shape.
 export function lockedSandbox(allowedDomains) {
   return {
     enabled: true,
     failIfUnavailable: true,
-    autoAllowBashIfSandboxed: false,
+    autoAllowBashIfSandboxed: true,
     allowUnsandboxedCommands: false,
     network: { strictAllowlist: true, allowedDomains: [...allowedDomains] },
   };
+}
+
+// Pure: whether the effective sandbox (as resolveSettings reports it) still
+// holds the lock. Auto-approval defaults to on and is reported only when it is
+// turned off, so an absent value is the approved state and an explicit false
+// is a tier that took it away (D116).
+export function sandboxLockHeld(eff) {
+  return Boolean(eff) && eff.enabled === true && eff.failIfUnavailable === true
+    && eff.allowUnsandboxedCommands === false && eff.autoAllowBashIfSandboxed !== false
+    && eff.network?.strictAllowlist === true;
 }
 
 // Pure: the project config's text in, the host of `paths.preview` out, or

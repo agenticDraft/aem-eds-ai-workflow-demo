@@ -109,6 +109,10 @@ FILE_RE = re.compile(r"\b[\w./-]+\.(?:js|css|html|json|md)\b")
 # eds-prototype, eds-verify) already assumes that root.
 BLOCK_DIR_RE = re.compile(r"\bblocks/[\w-]+/")
 FIGMA_HOSTS = ("figma.com", "www.figma.com")
+# The filenames an item uses to declare which attachment is the design
+# reference, matched whole and lowercased — the same list
+# eds-extract/scripts/resolve-design-source.py reads.
+RESERVED_IMAGE_NAMES = ("design-reference.png", "design-reference.jpg", "design-reference.jpeg")
 
 
 def any_design_url(text):
@@ -235,8 +239,13 @@ def main():
     reproduction_matches = find_matches(plain_text, conventions["reproduction_headings"])
     acceptance_matches = find_matches(plain_text, conventions["acceptance_criteria_headings"])
 
+    # Only a reserved-name image is a design reference, the rule the extract
+    # stage applies; any other image, a run's own attached captures included,
+    # is not one.
     has_image_attachment = any(
-        (a.get("mimeType") or "").startswith("image/") for a in attachments
+        (a.get("mimeType") or "").startswith("image/")
+        and (a.get("filename") or "").lower() in RESERVED_IMAGE_NAMES
+        for a in attachments
     )
     design_source = has_image_attachment or any_design_url(plain_text)
     design_mentioned = bool(design_matches)
