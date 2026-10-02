@@ -53,6 +53,7 @@ import { forbiddenBy, parseRule } from "./policy-match.mjs";
 import { lockedSandbox, readAllowedDomains, readPreviewHost, withHost } from "./network-allowlist.mjs";
 import { TerminalCapture } from "./terminal-capture.mjs";
 import { denialLines } from "./denials.mjs";
+import { shapeProblem } from "./shell-shape.mjs";
 
 const prompt = process.argv[2];
 if (!prompt) {
@@ -224,8 +225,10 @@ const options = {
     PreToolUse: [{
       hooks: [async (input) => {
         const rule = forbiddenBy(policy.forbidden, input.tool_name, input.tool_input);
-        if (!rule) return { continue: true };
-        const reason = `forbidden by route policy (${policyFile}): ${rule}`;
+        // A shape dontAsk would refuse anyway, refused first with what to write instead (G130).
+        const shape = !rule && input.tool_name === "Bash" ? shapeProblem(input.tool_input?.command) : null;
+        if (!rule && !shape) return { continue: true };
+        const reason = rule ? `forbidden by route policy (${policyFile}): ${rule}` : shape;
         log(`${input.agent_id ? "  (subagent) " : ""}denied ${input.tool_name}: ${reason}`);
         return {
           hookSpecificOutput: {

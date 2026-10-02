@@ -63,6 +63,8 @@ jobs:
           bash plugins/agentic-core/shared/lib/check-terminal-state.test.sh
       - name: every refused call is printed whole in the run's log
         run: node --test plugins/agentic-core/shared/runner/denials.test.mjs
+      - name: a command shape dontAsk refuses is refused first, with what to write instead
+        run: node --test plugins/agentic-core/shared/runner/shell-shape.test.mjs
       - name: Validate result envelope
         run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
       - name: Validate subagent outcome

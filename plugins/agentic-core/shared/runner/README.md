@@ -49,6 +49,11 @@ environment.
 - **A refused call is printed whole.** The live tool log shortens commands. At the end the runner
   prints the session's `permission_denials` uncut, one per line (`denials.mjs`), and the
   driver's final message, so the log alone says which call an allow rule did not cover.
+- **A refused shape comes with a reason.** `dontAsk` refuses some command shapes the model composes
+  (an unquoted `$?`, a redirect into `$VAR`, `head`/`ls`/`grep`/`wc` with a variable argument) with
+  a message that tells the model not to retry. The same hook that enforces the policy refuses those
+  shapes first (`shell-shape.mjs`), naming what to write instead. Only shapes measured as refused
+  are listed (G130).
 - **Bounded by the route policy.** Before anything starts it reads `.ai/route-policy.yaml`
   (`ROUTE_POLICY_FILE`) through `shared/lib/check-route-policy.sh`; a missing or invalid policy
   starts nothing (exit `3`). The policy's forbidden rules are denied in every call, a forked
