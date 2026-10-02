@@ -91,6 +91,10 @@ fi
 
 mkdir -p "$(dirname "$LOG_PATH")" "$(dirname "$PID_PATH")" 2>/dev/null
 
+# The server refuses to start on a folder that does not exist, and a fresh
+# checkout has none until the first fixture is written into it.
+mkdir -p drafts 2>/dev/null
+
 if ! : >"$LOG_PATH" 2>/dev/null; then
   echo "start-failed: cannot write the log at $LOG_PATH" >&2
   exit 1

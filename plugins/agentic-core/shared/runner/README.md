@@ -71,7 +71,7 @@ Then, from the project root, with the credentials **exported in the shell** — 
 file:
 
 ```
-export ANTHROPIC_API_KEY=…          # the model credential
+export CLAUDE_CODE_OAUTH_TOKEN=…    # the model credential (or ANTHROPIC_API_KEY)
 export <whatever the configured packs read>
 ROUTE_ALLOWED_TOOLS="Skill,Read,Glob,Grep,Bash(bash plugins/*)" \
 ROUTE_RESULT_FILE=.ai/run-context/runner-result.txt \
