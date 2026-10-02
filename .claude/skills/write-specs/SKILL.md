@@ -274,6 +274,13 @@ criterion has an id, stands alone and states something; it has no opinion about 
 stated is the thing that matters, whether the set is complete, or whether a criterion describes the
 outcome or quietly dictates the implementation.
 
+A criterion that rests on how the platform behaves — what a size includes, how a layout resolves —
+and that no project rule settles is checked against the platform's official reference first: the
+`reference_docs` URL in the configured platform pack's `pack.yaml`. Follow
+`plugins/agentic-core/shared/official-reference.md`, and put its `reference:` line under the
+criterion in the draft. A reference that does not answer is written down as not answered, never
+filled from memory.
+
 ### Does every criterion hold up?
 
 A criterion fails the checklist — go to **Revise the draft**, and say in your revision note which
