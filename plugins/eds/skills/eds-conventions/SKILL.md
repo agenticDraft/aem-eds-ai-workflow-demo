@@ -11,7 +11,7 @@ it needs was already written by `intake` (and, when dispatched, by `extract`).
 Read `../../../agentic-core/shared/fact-record.md` and `../../../agentic-core/shared/result-envelope.md`
 for the shapes referenced below, and `../../../agentic-core/shared/subagent-outcome.md` for the
 `## Outcome` block each of this stage's own three subagents ends with — a second, separate tier
-from the `## Result` block this stage itself ends with.
+from the envelope this stage itself writes with the emitter.
 
 ## Input
 
@@ -34,7 +34,7 @@ dispatch this stage itself, one tier further in:
 
 Issue the calls this stage is dispatching together, in the same turn, rather than one at a time —
 nothing about any of the three depends on another's result. Wait for every dispatched call to
-return before branching on **Any failure?**/**Any warning?** below; this stage's own `## Result`
+return before branching on **Any failure?**/**Any warning?** below; this stage's own envelope
 covers all of them, not the first to finish.
 
 **If `Skill()` reports a subagent unknown, that is a contract violation** — treat it exactly as a
@@ -124,7 +124,15 @@ is enough to carry the stage's own verdict to `warn`.
 
 ### Report fail
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-conventions.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-fact-record reason, or the failing subagent's own
@@ -134,7 +142,15 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-conventions.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming which subagent(s) reported a warning and why, drawn from their
@@ -145,7 +161,15 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report pass
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-conventions.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming that every dispatched subagent succeeded and, briefly, what each

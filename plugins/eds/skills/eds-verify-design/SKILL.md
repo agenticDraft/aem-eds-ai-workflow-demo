@@ -34,8 +34,7 @@ for the shapes referenced in **Resolve the browser pack** and **Start the draft 
 start/stop/sandbox contract its own dedicated one follows,
 `../../../agentic-core/shared/fix-loop.md` for the loop's unit and its edit discipline,
 `../../../agentic-core/shared/evidence-manifest.md` for the shape **Report warn** and **Report
-pass** write, and `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this
-stage must end with.
+pass** write, and `../../../agentic-core/shared/result-envelope.md` for the envelope this stage writes with the emitter.
 
 ## Input
 
@@ -482,10 +481,18 @@ None of these — go to **Report pass**.
 
 ### Report question
 
-Run **Teardown**. Write no report — this stage failed before any check ran, so
+Write no report — this stage failed before any check ran, so
 there is nothing to report on yet.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-verify-design.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: question`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap), naming the draft
@@ -502,7 +509,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report fail
 
-Run **Teardown**. Write `.ai/run-context/verify-design-report.md` when at least one check
+Write `.ai/run-context/verify-design-report.md` when at least one check
 completed: the target block name and new/existing state, then per check each comparison it made
 (capture width, variant name and node id or "the reference", the reference image path, and its
 resolution), then its mismatch list, and
@@ -514,7 +521,15 @@ section **Report warn** describes.
 Skip the report when this stage failed before any check (missing inputs, unresolved browser role,
 missing draft file, or a render failure) — there is nothing to report on yet.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-verify-design.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the specific reason — the missing input, the missing operation(s),
@@ -528,7 +543,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Run **Teardown**. Write `.ai/run-context/verify-design-report.md`: the target block name and
+Write `.ai/run-context/verify-design-report.md`: the target block name and
 new/existing state, per check each comparison it made (capture width, variant name and node id or
 "the reference", the reference image path, and its resolution — a `reduced` one stated as a
 comparison at reduced resolution), its mismatch list and the edit that followed it (each change, the
@@ -624,7 +639,15 @@ bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/validate-evidence-manifest
 The same shape `eds-verify`'s own **Report warn** writes (Phase 7 / Task 6) — the validator call's
 own exit code must be `0` before continuing.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-verify-design.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and which degradation applied.
@@ -634,7 +657,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report pass
 
-Run **Teardown**. Write `.ai/run-context/verify-design-report.md`, same content as **Report
+Write `.ai/run-context/verify-design-report.md`, same content as **Report
 warn**'s, with an empty degradation list.
 
 **Write the evidence manifest**, same procedure as **Report warn**'s, with one difference:
@@ -643,7 +666,15 @@ warn**'s, with an empty degradation list.
 `target_reachable_reason` and `attachments` are derived exactly as **Report warn** describes; the
 merge-if-exists behaviour and the validator call are identical.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-verify-design.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item id, the target block, and how many checks the

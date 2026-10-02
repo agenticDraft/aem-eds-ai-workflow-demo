@@ -5,7 +5,8 @@
 # No framework — exits 0 on success, 1 on first failure. Confirms: a branching
 # fixture with matching nodes/headings passes; a linear fixture with neither
 # section passes trivially; a missing heading and an orphan heading are each
-# caught and named; the real core (plugins/agentic-core) passes as built;
+# caught and named; a prose node reference with no heading is caught and named;
+# the real core (plugins/agentic-core) passes as built;
 # single-file mode and directory mode agree; and injecting a mismatch into a
 # real shipped skill, then reverting, makes that same check fail and pass
 # again.
@@ -72,6 +73,17 @@ OUT=$(bash "$VALIDATOR" "$FIXDIR/violation-orphan-heading" 2>&1); ST=$?
 assert_exit "orphan-heading fixture rejected (exit 1)" 1 $ST "$OUT"
 assert_contains "names the heading" "'Never reached'" "$OUT"
 assert_contains "names the direction" "no matching digraph node" "$OUT"
+
+echo "[reject] a prose node reference that names no heading"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/violation-dangling-reference" 2>&1); ST=$?
+assert_exit "dangling-reference fixture rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "names the reference" "'Teardown'" "$OUT"
+assert_contains "names the line" "SKILL.md:35:" "$OUT"
+assert_contains "names the reason" "names no heading in this file" "$OUT"
+
+echo "[accept] a resolving reference in the clean fixture is not flagged"
+OUT=$(bash "$VALIDATOR" "$FIXDIR/clean/SKILL.md" 2>&1); ST=$?
+assert_exit "go to **done** resolves (exit 0)" 0 $ST "$OUT"
 
 echo "[accept] the real core, as built"
 OUT=$(bash "$VALIDATOR" "$CORE_ROOT" 2>&1); ST=$?

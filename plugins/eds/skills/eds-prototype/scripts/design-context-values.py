@@ -46,6 +46,12 @@
 # it gets no row, and one `conflict: <node_id> <property> <value> <value>…`
 # line on stderr names it. The same value set twice is one row, not a conflict.
 #
+# A declaration the CSS specification deprecates is never printed as written:
+# DEPRECATED maps it to the declaration that specification gives in its place,
+# and one `replaced: <node_id> <property> <value> -> <property> <value>` line
+# on stderr names each replacement. The design source still writes the old
+# form; the project's lint rejects it.
+#
 # A `length:` or `color:` type hint picks the form and is dropped from the
 # value. An underscore in the value is a space; `\_` is a literal underscore.
 # Every other class is ignored: an unlisted prefix, a value whose form does
@@ -95,6 +101,13 @@ BY_FORM = {
 
 HINTS = {"length": "length", "color": "color"}
 
+# (property, value) -> the declarations the CSS specification gives in its place.
+# `word-break: break-word` is defined as `word-break: normal` (the initial value,
+# so no row) plus `overflow-wrap: anywhere`.
+DEPRECATED = {
+    ("word-break", "break-word"): [("overflow-wrap", "anywhere")],
+}
+
 ARBITRARY_VALUE = re.compile(r"^([a-z]+(?:-[a-z]+)*)-\[([^\[\]]+)\]$")
 ARBITRARY_PROPERTY = re.compile(r"^\[(-{0,2}[a-z][a-z0-9-]*):([^\[\]]+)\]$")
 LENGTH = re.compile(
@@ -134,7 +147,8 @@ def class_rows(cls):
     """The (property, value) pairs one class sets, in property order; [] when it is ignored."""
     m = ARBITRARY_PROPERTY.match(cls)
     if m:
-        return [(m.group(1), decode(m.group(2)))]
+        pair = (m.group(1), decode(m.group(2)))
+        return DEPRECATED.get(pair, [pair])
     m = ARBITRARY_VALUE.match(cls)
     if not m:
         return []
@@ -171,6 +185,16 @@ def element_rows(classes):
     conflicts = [(prop, vals) for prop, vals in values.items() if len(vals) > 1]
     clashing = {prop for prop, _ in conflicts}
     return [pair for pair in pairs if pair[0] not in clashing], conflicts
+
+
+def report_replacements(node, classes):
+    for cls in classes.split():
+        m = ARBITRARY_PROPERTY.match(cls)
+        if not m:
+            continue
+        pair = (m.group(1), decode(m.group(2)))
+        for prop, value in DEPRECATED.get(pair, []):
+            print(f"replaced: {node} {pair[0]} {pair[1]} -> {prop} {value}", file=sys.stderr)
 
 
 def report_conflicts(node, conflicts):
@@ -385,6 +409,7 @@ def main():
         if not node or not classes:
             continue
         rows, conflicts = element_rows(classes)
+        report_replacements(node, classes)
         report_conflicts(node, conflicts)
         for prop, value in rows:
             approx = "true" if prop in APPROX_PROPERTIES and node in content else "false"

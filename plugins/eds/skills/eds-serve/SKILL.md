@@ -14,7 +14,7 @@ subprocess. This stage invokes no role skill itself.
 Read `../../../agentic-core/shared/project-config.md` for the shape referenced in **Clean up
 earlier runs' drafts** and **Read the configured serve command and preview URL**,
 `../../shared/draft-server.md` for what the cleanup does, and `../../../agentic-core/shared/result-envelope.md`
-for the `## Result` block this stage must end with.
+for the envelope this stage writes with the emitter.
 
 ## Input
 
@@ -209,7 +209,15 @@ section. Otherwise it then carries, one field per line: the URL
 polled; the status that answered, or `none`; whether this stage started what is running; the
 process id, or `none`; the log path, or `none`; and the poll output that ended the attempt.
 
-Then emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Then write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-serve.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no preview URL is configured; or that nothing answered and
@@ -220,10 +228,6 @@ Then emit the `## Result` block as plain `key: value` lines per `../../../agenti
   plus `.ai/run-context/serve.log` when a command was started.
 - `next_action: none`
 
-The block above must be the last thing this stage emits — no trailing note, caveat, or explanation
-after it, even something genuinely useful for a human (a sandbox restriction hit, a manual step
-taken). Say it inside the block's own fields, or in `serve-report.md`, not after.
-
 ### Report pass
 
 Write `.ai/run-context/serve-report.md` with the same `## Cleanup` section and fields as
@@ -232,7 +236,15 @@ reached here from **Already answering?**, the started-by-this-stage field is fal
 id and log are `none` — this stage has no handle on a server it did not start, and recording one
 it guessed at would be worse than recording none.
 
-Then emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Then write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-serve.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the answering status and whether this stage started the server or
