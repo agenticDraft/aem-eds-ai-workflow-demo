@@ -133,6 +133,23 @@ assert_exit "unquoted pattern rejected" 1 $ST "$OUT"
 M=$(with_branch_name platform-valid unknown-sub "branch_name:" "  max_length: 23" "  min_length: 3")
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "unknown sub-key rejected" 1 $ST "$OUT"
+
+echo "[validator 23] reference_docs (D117)"
+M=$(with_branch_name platform-valid rd-after-branch "branch_name:" "  max_length: 23" 'reference_docs: "https://docs.example.org/en-US/"')
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "reference_docs after branch_name accepted" 0 $ST "$OUT"
+M=$(with_branch_name platform-valid rd-alone 'reference_docs: "https://docs.example.org/"')
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "reference_docs as the only optional key accepted" 0 $ST "$OUT"
+for bad in '"http://docs.example.org/"' 'https://docs.example.org/' '""' '"https://a b"'; do
+  M=$(with_branch_name platform-valid "rd-bad-$RANDOM" "reference_docs: $bad")
+  OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+  assert_exit "reference_docs $bad rejected" 1 $ST "$OUT"
+  assert_contains "reference_docs $bad → names the key" "reference_docs" "$OUT"
+done
+M=$(with_branch_name platform-valid rd-before-branch 'reference_docs: "https://docs.example.org/"' "branch_name:" "  max_length: 23")
+OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+assert_exit "a key after reference_docs rejected (it is last)" 1 $ST "$OUT"
 M=$(with_branch_name platform-valid-evidence-manifest wrong-order "branch_name:" "  max_length: 23" "evidence_manifest: change-summary")
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "a key after branch_name rejected (fixed order)" 1 $ST "$OUT"

@@ -430,6 +430,17 @@ if [[ "$kind" == "platform" ]]; then
     (( declared == 1 )) || fail "branch_name declares neither max_length nor pattern"
   fi
 
+  # --- reference_docs (validator 23, D117) ----------------------------------
+  # Optional, the last platform key. The platform's official reference, read by
+  # a stage or the authoring skill before deciding a question no project rule
+  # answers. One double-quoted https URL; the core never learns what it is.
+  if [[ "${LINES[cursor]:-}" =~ ^reference_docs:\ (.*)$ ]]; then
+    value="${BASH_REMATCH[1]}"
+    [[ "$value" =~ ^\"https://[^\"[:space:]]+\"$ ]] \
+      || fail "reference_docs must be one double-quoted https URL, got '$value'"
+    cursor=$((cursor + 1))
+  fi
+
   # `requires:` is a provider key (validator 18, D97). A platform pack binds
   # stages, never a role's operations, so it has no tool of its own to
   # declare. Checked before the trailing catch-all below, which would

@@ -21,6 +21,10 @@ minimally" section for how this stage resolves the same merge-base diff `publish
 later, and `../../../agentic-core/shared/result-envelope.md` for the envelope this stage writes
 with the emitter.
 
+Where no rule answers a decision this stage makes, read
+`../../../agentic-core/shared/official-reference.md` and follow it: the platform pack's
+`reference_docs` page is read before deciding, and each read is cited in this stage's report.
+
 ## Input
 
 None directly. This stage reads `.ai/project-config.yaml`'s `commands.lint` at its fixed path —
