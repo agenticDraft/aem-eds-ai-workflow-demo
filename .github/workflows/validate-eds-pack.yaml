@@ -35,5 +35,7 @@ jobs:
           done
           echo "failed suites: $failed"
           [ "$failed" -eq 0 ]
+      - name: every node reference in an eds skill names a heading
+        run: bash plugins/agentic-core/shared/lib/validate-contracts.sh plugins/eds
       - name: Validate eds pack manifest
         run: bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/eds/pack.yaml

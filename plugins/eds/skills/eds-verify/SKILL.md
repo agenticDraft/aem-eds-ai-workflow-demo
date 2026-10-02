@@ -457,8 +457,6 @@ None of these — go to **Report pass**.
 
 ### Report question
 
-Run **Teardown**.
-
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: question`
@@ -475,8 +473,6 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 - `next_action: none`
 
 ### Report fail
-
-Run **Teardown**.
 
 **Attach whatever this run wrote before the failure directly to the tracker item** — `deliver`
 never runs after this stage returns `fail` (a failing verdict is terminal, core contract §10), so
@@ -516,7 +512,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Run **Teardown**. Write `.ai/run-context/verify-report.md`: the target block name(s) and URL, the widths captured,
+Write `.ai/run-context/verify-report.md`: the target block name(s) and URL, the widths captured,
 each design comparison as the pairing named it (capture width, variant name and node id or "the
 reference", image, resolution, and every other width the same image was compared at — or "no
 variant covers <width>"), the selectors measured and their findings, each behaviour check attempted through `interact` with
@@ -686,7 +682,7 @@ the routes to **Report warn** instead (**Any check downgraded or skipped?**): a 
 proves decoration and behaviour but nothing about real copy or content shape, and a clean `pass`
 would claim more than the evidence supports.
 
-Run **Teardown**. Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
+Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
 
 **Write the evidence manifest**, same *write* procedure as **Report warn**'s (the fresh-write/merge
 `jq` block and the validator call, both identical), with one difference: `coverage_gaps` is `[]` —

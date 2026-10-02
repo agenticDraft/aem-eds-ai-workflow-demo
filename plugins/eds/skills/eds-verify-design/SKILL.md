@@ -482,7 +482,7 @@ None of these — go to **Report pass**.
 
 ### Report question
 
-Run **Teardown**. Write no report — this stage failed before any check ran, so
+Write no report — this stage failed before any check ran, so
 there is nothing to report on yet.
 
 Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
@@ -502,7 +502,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report fail
 
-Run **Teardown**. Write `.ai/run-context/verify-design-report.md` when at least one check
+Write `.ai/run-context/verify-design-report.md` when at least one check
 completed: the target block name and new/existing state, then per check each comparison it made
 (capture width, variant name and node id or "the reference", the reference image path, and its
 resolution), then its mismatch list, and
@@ -528,7 +528,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Run **Teardown**. Write `.ai/run-context/verify-design-report.md`: the target block name and
+Write `.ai/run-context/verify-design-report.md`: the target block name and
 new/existing state, per check each comparison it made (capture width, variant name and node id or
 "the reference", the reference image path, and its resolution — a `reduced` one stated as a
 comparison at reduced resolution), its mismatch list and the edit that followed it (each change, the
@@ -634,7 +634,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report pass
 
-Run **Teardown**. Write `.ai/run-context/verify-design-report.md`, same content as **Report
+Write `.ai/run-context/verify-design-report.md`, same content as **Report
 warn**'s, with an empty degradation list.
 
 **Write the evidence manifest**, same procedure as **Report warn**'s, with one difference:

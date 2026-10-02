@@ -370,7 +370,7 @@ Run `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-run-state.sh .ai/run-state.json`.
 Ask, with `AskUserQuestion`: *"Previous run found at stage {last_stage}/{total} — resume or start
 fresh?"* using the fields `check-run-state.sh` reported.
 
-- **resume** — go to **Resume: re-derive route**.
+- **resume** — go to **Resume: re-evaluate stage conditions**.
 - **start fresh** — treat exactly as `status: none`, and go to **Fresh start: write flag, run
   intake**. Nothing deletes the old `run-state.json` for you here; overwrite it there the same way
   a fresh run always does.
@@ -759,4 +759,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: 7276a139a24c -->
+<!-- instructions-stamp: 0230d4a3a0db -->
