@@ -1,0 +1,77 @@
+# Measures, without a model and without credentials, whether the serve
+# stage's dev server can start and answer inside the session sandbox on the
+# same runner image the route runs on (Phase 9 / Task 5). Temporary: it lives
+# only on its probe branch and runs on a push to it.
+name: serve-sandbox-probe
+
+on:
+  push:
+    branches: [phase-9-task-5-probe]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install the project and the sandbox's dependencies
+        run: |
+          npm ci
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bubblewrap socat ripgrep
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null)" = "1" ]; then
+            printf '%s\n' 'abi <abi/4.0>,' 'include <tunables/global>' \
+              'profile bwrap /usr/bin/bwrap flags=(unconfined) {' '  userns,' '}' \
+              | sudo tee /etc/apparmor.d/bwrap > /dev/null
+            sudo systemctl reload apparmor
+          fi
+          npm install -g @anthropic-ai/sandbox-runtime@0.0.78
+          srt --version || true
+
+      - name: Write the sandbox settings (the route's committed host list)
+        run: |
+          mkdir -p .ai/run-context
+          for binding in false true; do
+            jq --argjson b "$binding" '{
+              network: { allowedDomains: .sandbox.network.allowedDomains, deniedDomains: [], allowLocalBinding: $b },
+              filesystem: { denyRead: [], allowRead: [], allowWrite: [".", "/tmp"], denyWrite: [] }
+            }' .claude/settings.json > "$RUNNER_TEMP/srt-binding-$binding.json"
+          done
+          cat "$RUNNER_TEMP/srt-binding-false.json"
+
+      - name: Run the cases
+        run: |
+          set +e
+          START=plugins/eds/skills/eds-serve/scripts/start-serve.sh
+          POLL=plugins/eds/skills/eds-serve/scripts/poll-preview.sh
+          URL=http://localhost:3000/preview
+          stop() { pkill -f "aem up" || true; sleep 2; }
+          report() {
+            echo "::group::$1 — serve log"; cat ".ai/run-context/serve-$2.log" 2>/dev/null || echo "(no log)"; echo "::endgroup::"
+          }
+
+          echo "=== case 0: no sandbox — start, then poll, as two commands"
+          bash $START "npm run up" .ai/run-context/serve-c0.log .ai/run-context/serve-c0.pid; echo "start exit=$?"
+          bash $POLL $URL; echo "poll exit=$?"
+          report "case 0" c0; stop
+
+          for b in false true; do
+            S="$RUNNER_TEMP/srt-binding-$b.json"
+            echo "=== case allowLocalBinding=$b, two sandboxed commands (how the serve stage runs)"
+            srt --settings "$S" "bash $START 'npm run up' .ai/run-context/serve-sep-$b.log .ai/run-context/serve-sep-$b.pid"; echo "start exit=$?"
+            srt --settings "$S" "bash $POLL $URL"; echo "poll exit=$?"
+            echo "unsandboxed poll of the same server:"; bash $POLL $URL; echo "poll exit=$?"
+            report "two commands, binding=$b" sep-$b; stop
+
+            echo "=== case allowLocalBinding=$b, start and poll in one sandboxed command"
+            srt --settings "$S" "bash $START 'npm run up' .ai/run-context/serve-one-$b.log .ai/run-context/serve-one-$b.pid; bash $POLL $URL; echo poll exit=\$?"
+            report "one command, binding=$b" one-$b; stop
+          done
