@@ -86,6 +86,16 @@ else
       "expected $EXPECTED, got $ACTUAL" "output: $OUT"
 fi
 
+echo "[config] creating and pushing a branch writes nothing to the repository's config"
+# A sandboxed caller cannot write the repository's config: a checkout that
+# sets up tracking fails there, and only a branch based on HEAD survived it.
+TRACK="$(cd "$REPO" && git config --get-regexp '^branch\.feature-one\.' 2>/dev/null)"
+if [[ -z "$TRACK" ]]; then
+  ok "no tracking or upstream entry for the new branch"
+else
+  bad "no tracking or upstream entry for the new branch" "config: $TRACK"
+fi
+
 echo "[base] HEAD is NOT the default branch — the regression this test exists for"
 REPO="$(fresh feature-head)"
 commit_on "$REPO" my-work "unmerged work"
@@ -163,9 +173,15 @@ commit_on "$REPO" "task-3" "work"
 OUT="$(cd "$REPO" && bash "$SCRIPT" task-3 2>&1)"
 NOW="$(cd "$REPO" && git branch --show-current)"
 if [[ "$OUT" == *"verdict: pass"* && "$OUT" == *"branch_action=switched"* && "$NOW" == "task-3" ]]; then
-  ok "exists on origin only -> local tracking branch, switched onto it"
+  ok "exists on origin only -> local branch, switched onto it"
 else
-  bad "exists on origin only -> local tracking branch, switched onto it" "on: $NOW" "output: $OUT"
+  bad "exists on origin only -> local branch, switched onto it" "on: $NOW" "output: $OUT"
+fi
+TRACK="$(cd "$REPO" && git config --get-regexp '^branch\.task-3\.' 2>/dev/null)"
+if [[ -z "$TRACK" ]]; then
+  ok "exists on origin only -> no tracking entry written"
+else
+  bad "exists on origin only -> no tracking entry written" "config: $TRACK"
 fi
 
 # 4. does not exist anywhere
