@@ -66,12 +66,12 @@ jobs:
           for b in false true; do
             S="$RUNNER_TEMP/srt-binding-$b.json"
             echo "=== case allowLocalBinding=$b, two sandboxed commands (how the serve stage runs)"
-            srt --settings "$S" "bash $START 'npm run up' .ai/run-context/serve-sep-$b.log .ai/run-context/serve-sep-$b.pid"; echo "start exit=$?"
-            srt --settings "$S" "bash $POLL $URL"; echo "poll exit=$?"
+            srt --settings "$S" bash -c "bash $START 'npm run up' .ai/run-context/serve-sep-$b.log .ai/run-context/serve-sep-$b.pid"; echo "start exit=$?"
+            srt --settings "$S" bash -c "bash $POLL $URL"; echo "poll exit=$?"
             echo "unsandboxed poll of the same server:"; bash $POLL $URL; echo "poll exit=$?"
             report "two commands, binding=$b" sep-$b; stop
 
             echo "=== case allowLocalBinding=$b, start and poll in one sandboxed command"
-            srt --settings "$S" "bash $START 'npm run up' .ai/run-context/serve-one-$b.log .ai/run-context/serve-one-$b.pid; bash $POLL $URL; echo poll exit=\$?"
+            srt --settings "$S" bash -c "bash $START 'npm run up' .ai/run-context/serve-one-$b.log .ai/run-context/serve-one-$b.pid; bash $POLL $URL; echo poll exit=\$?"
             report "one command, binding=$b" one-$b; stop
           done
