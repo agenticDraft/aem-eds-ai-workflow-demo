@@ -18,8 +18,8 @@ compares the count against it itself.
 Read `../../../agentic-core/shared/project-config.md` for the shape referenced in **Read the
 configured lint command**, `../../../agentic-core/shared/fix-loop.md` for the loop's unit, `../../../agentic-core/shared/publish-criteria.md`'s "The change,
 minimally" section for how this stage resolves the same merge-base diff `publish-gate` reviews
-later, and `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage
-must end with.
+later, and `../../../agentic-core/shared/result-envelope.md` for the envelope this stage writes
+with the emitter.
 
 ## Input
 
@@ -159,7 +159,15 @@ each at its cause (`fix-loop.md`) — one rule's violation repeated across a fil
 
 ### Report fail
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-lint.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no lint command is configured, or that the lint edit budget was
@@ -179,7 +187,15 @@ files/issues remain and that each is outside the in-scope set resolved earlier, 
 and not introduced or touched by this run. Never omitted and never folded silently into a clean
 pass, the same convention other stages use for their own downgrade cases.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-lint.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many runs it took to exit

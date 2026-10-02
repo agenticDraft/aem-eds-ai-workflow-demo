@@ -28,8 +28,8 @@ shape, `../../../agentic-core/shared/project-config.md` and `../../../agentic-co
 for the shapes referenced in **Resolve the browser pack**, `../shared/draft-server.md` for why a
 located `drafts/` fixture needs this stage's own dedicated server rather than the regular preview
 origin, `../../../agentic-core/shared/evidence-manifest.md` for the shape **Report warn** and
-**Report pass** write, and `../../../agentic-core/shared/result-envelope.md` for the `## Result`
-block this stage must end with.
+**Report pass** write, and `../../../agentic-core/shared/result-envelope.md` for the envelope
+this stage writes with the emitter.
 
 ## Input
 
@@ -457,7 +457,15 @@ None of these — go to **Report pass**.
 
 ### Report question
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-verify.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: question`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap), naming the draft
@@ -495,7 +503,15 @@ escalates or changes the verdict — the route is already `failed` regardless of
 attachment also succeeds, and this step exists to preserve evidence a human can still read, not to
 add a second way for this stage to fail.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-verify.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized
@@ -661,7 +677,15 @@ A failed attach here is recorded in the summary below but never changes the verd
 `warn` — the same "the route already published (or here, already ran) regardless" reasoning D86
 gives `deliver`'s own attach step.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-verify.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized
@@ -696,7 +720,15 @@ pass this stage stays silent and `eds-deliver` does the attaching (Phase 7 / Tas
 attaches twice. Reaching this node and then attaching anyway would be exactly the double-attach both
 decisions exist to forbid.
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Write the envelope with the emitter, never by hand:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  .ai/run-context/envelope-verify.txt \
+  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
+```
+
+See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized
