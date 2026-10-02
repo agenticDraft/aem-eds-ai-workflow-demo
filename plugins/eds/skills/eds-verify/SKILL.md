@@ -33,9 +33,10 @@ block this stage must end with.
 
 ## Input
 
-None. This stage reads three fixed paths: `.ai/project-config.yaml` (for `packs.browser`),
-`.ai/run-context/fact-record.yaml` (for `components`, `files_named`, `design_source`,
-`design_mentioned`), and `.ai/run-context/plan.yaml` when present (for its requirements and any
+None. This stage reads four fixed paths: `.ai/project-config.yaml` (for `packs.browser`,
+`packs.tracker` and `paths.preview`), `.ai/run-context/fact-record.yaml` (for `components`,
+`files_named`, `design_source`, `design_mentioned`), `.ai/run-context/sanitized-spec.md` (only
+through the target script below), and `.ai/run-context/plan.yaml` when present (for its requirements and any
 per-step `# verification:` note). It does not receive a file list from `implement` directly — the
 runner never forwards one stage's artifacts to another (`stage-runner.md`); this stage re-derives
 what changed from the same fact record `implement` itself read, the same way `implement` re-derived
@@ -76,8 +77,9 @@ digraph eds_verify {
     "Browser role resolved?" -> "Read the fact record and plan" [label="operations resolved"];
     "Browser role resolved?" -> "Report fail" [label="render/capture/measure missing or unsupported"];
     "Read the fact record and plan" -> "Target block identified?";
-    "Target block identified?" -> "Locate existing content for the block" [label="yes"];
-    "Target block identified?" -> "Report fail" [label="no"];
+    "Target block identified?" -> "Locate existing content for the block" [label="blocks"];
+    "Target block identified?" -> "Located path a drafts/ fixture?" [label="page"];
+    "Target block identified?" -> "Report fail" [label="none"];
     "Locate existing content for the block" -> "Renderable content found?";
     "Renderable content found?" -> "Located path a drafts/ fixture?" [label="yes"];
     "Renderable content found?" -> "Generate a fixture" [label="no"];
@@ -154,10 +156,29 @@ against.
 
 ### Target block identified?
 
-Take `fact-record.yaml`'s `components` list if non-empty. Otherwise, take every path in
-`files_named` matching `blocks/<name>/…` and use each distinct `<name>`. One or more block names
-resolved — continue to **Locate existing content for the block**. Neither field yields a name — go
-to **Report fail**: this stage has nothing to point a browser at.
+Run:
+
+```
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify/scripts/resolve-verify-target.py \
+  .ai/run-context/fact-record.yaml \
+  .ai/run-context/sanitized-spec.md \
+  ${CLAUDE_PLUGIN_ROOT}/../<packs.tracker>/pack.yaml \
+  <paths.preview value>
+```
+
+The script alone decides the target; do not second-guess it. It prints one line:
+
+- `target=blocks names=<a,b>` (exit `0`) — the fact record's `components`, else every distinct
+  `<name>` in a `files_named` path `blocks/<name>/…`. Continue to **Locate existing content for the
+  block** with those names.
+- `target=page path=<path> source=<url>` (exit `0`) — no block was named, and the item's
+  reproduction steps name a page on this project's own hosts. A change outside any block (a
+  project-wide stylesheet or script) is checked on the page the item itself says shows the problem.
+  Take `<path>` as this stage's located page path and continue to **Located path a drafts/
+  fixture?** with it; there is no block to search content for and no fixture to generate. From here
+  on, this run is in **page mode**.
+- `target=none reason=<why>` (exit `1`) — go to **Report fail**, naming the reason verbatim: this
+  stage has nothing to point a browser at.
 
 ### Locate existing content for the block
 
@@ -296,6 +317,7 @@ Read the captured envelope's `verdict`.
 2. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and one selector
    per target block, `.<block name>` (the block wrapper's own convention), plus any additional
    selector a plan step's `# verification:` note names explicitly when `plan.yaml` was read above.
+   In page mode there is no block wrapper: measure `main`, plus those plan-named selectors.
    Record the resulting measurements, including any selector reported `found: false`.
 
 ### Check behaviour through interact, where supported
@@ -306,6 +328,10 @@ not support `interact`, naming the pack. Continue to **Compare against baseline 
 reference where available**. This is a downgrade (**Any check downgraded or skipped?**), never a
 failure and never silently omitted — an unsupported operation is a correct, expected outcome for a
 pack that cannot drive a real input device (§6, D69), not a defect this stage found.
+
+`interact_available: true` in page mode — there is no block source to read for interactive
+elements. Record plainly that no behaviour check ran because the target is a page, not a block, and
+continue to **Compare...**. A downgrade, like the cases below.
 
 `interact_available: true` — read the target block's own source
 (`blocks/<block name>/<block name>.js`, the same file `eds-implement` wrote or edited) for elements
