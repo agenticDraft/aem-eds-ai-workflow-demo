@@ -54,6 +54,7 @@ import { lockedSandbox, readAllowedDomains, readPreviewHost, withHost } from "./
 import { TerminalCapture } from "./terminal-capture.mjs";
 import { denialLines } from "./denials.mjs";
 import { shapeProblem } from "./shell-shape.mjs";
+import { isRoutePrompt, stopDecision } from "./stop-guard.mjs";
 
 const prompt = process.argv[2];
 if (!prompt) {
@@ -237,6 +238,19 @@ const options = {
             permissionDecisionReason: reason,
           },
         };
+      }],
+    }],
+    // A route may not end before its terminal state is recorded (G130).
+    Stop: [{
+      hooks: [async (input) => {
+        const verdict = stopDecision({
+          isRoute: isRoutePrompt(prompt),
+          terminal: capture.terminal,
+          stopHookActive: Boolean(input.stop_hook_active),
+        });
+        if (!verdict) return { continue: true };
+        log("stop refused: no terminal state yet; the driver is asked to run the formatter");
+        return verdict;
       }],
     }],
   },

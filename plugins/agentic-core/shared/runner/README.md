@@ -54,6 +54,10 @@ environment.
   a message that tells the model not to retry. The same hook that enforces the policy refuses those
   shapes first (`shell-shape.mjs`), naming what to write instead. Only shapes measured as refused
   are listed (G130).
+- **A route does not end without its terminal state.** When the driver tries to end a route session
+  before the terminal-state formatter has run, the runner's Stop hook refuses once and names the
+  formatter (`stop-guard.mjs`). A second stop is let through; the workflow still fails a run with no
+  terminal state.
 - **Bounded by the route policy.** Before anything starts it reads `.ai/route-policy.yaml`
   (`ROUTE_POLICY_FILE`) through `shared/lib/check-route-policy.sh`; a missing or invalid policy
   starts nothing (exit `3`). The policy's forbidden rules are denied in every call, a forked

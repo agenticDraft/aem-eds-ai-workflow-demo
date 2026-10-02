@@ -10,8 +10,8 @@ import { shapeProblem } from "./shell-shape.mjs";
 
 const refused = [
   "echo exit=$?",
-  "python3 plugins/eds/x.py; echo exit=$?",
-  "mkdir -p .ai/run-context && python3 plugins/eds/x.py .ai/a.json; echo exit=$?",
+  "python3 plugins/pack/x.py; echo exit=$?",
+  "mkdir -p .ai/run-context && python3 plugins/pack/x.py .ai/a.json; echo exit=$?",
   "E=.ai/run-context/e.txt; wc -c $E",
   "E=.ai/run-context/e.txt; head -1 $E",
   "E=.ai/run-context/e.txt; ls $E",
@@ -20,11 +20,11 @@ const refused = [
 ];
 
 const passes = [
-  "mkdir -p .ai/run-context && python3 plugins/eds/x.py",
-  "python3 plugins/eds/x.py; echo done",
+  "mkdir -p .ai/run-context && python3 plugins/pack/x.py",
+  "python3 plugins/pack/x.py; echo done",
   "printf '## Result\\nverdict: fail\\n' > .ai/run-context/e.txt",
   "L=/w/plugins/agentic-core/shared/lib; $L/capture-envelope.sh .ai/run-context/e.txt",
-  "P=/w/plugins; /w/plugins/agentic-core/shared/lib/run-stage.sh $P/eds/pack.yaml intake x",
+  "P=/w/plugins; /w/plugins/agentic-core/shared/lib/run-stage.sh $P/pack/pack.yaml intake x",
   "L=/w/plugins/agentic-core/shared/lib; E=.ai/run-context/e.txt; $L/capture-envelope.sh $E",
   "E=.ai/run-context/e.txt; cat $E",
   "E=.ai/run-context/e.txt; echo $E",
