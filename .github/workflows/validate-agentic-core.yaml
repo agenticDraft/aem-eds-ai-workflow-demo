@@ -67,6 +67,8 @@ jobs:
         run: node --test plugins/agentic-core/shared/runner/shell-shape.test.mjs
       - name: a route session may not end before its terminal state is recorded
         run: node --test plugins/agentic-core/shared/runner/stop-guard.test.mjs
+      - name: the change set is the merge-base diff plus untracked files
+        run: bash plugins/agentic-core/shared/lib/list-changed-files.test.sh
       - name: Validate result envelope
         run: bash plugins/agentic-core/shared/lib/validate-result-envelope.test.sh
       - name: Validate subagent outcome

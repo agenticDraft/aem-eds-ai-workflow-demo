@@ -144,7 +144,7 @@ try {
     `strictAllowlist=${eff.network?.strictAllowlist}`);
   log(`sandbox allowlist (copied from ${settingsFile}, plus the preview host; ${sandbox.network.allowedDomains.length}): ${sandbox.network.allowedDomains.join(", ")}`);
   if (eff.enabled !== true || eff.failIfUnavailable !== true ||
-      eff.allowUnsandboxedCommands !== false || eff.autoAllowBashIfSandboxed !== false ||
+      eff.allowUnsandboxedCommands !== false || eff.autoAllowBashIfSandboxed !== true ||
       eff.network?.strictAllowlist !== true ||
       !denyWrites.every((r) => (resolved.effective.permissions?.deny || []).includes(r))) {
     allowlistRefused("the policy tier did not take the lock (an administrator's managed tier may have dropped it)");

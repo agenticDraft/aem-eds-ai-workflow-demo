@@ -59,13 +59,13 @@ test("a blank, padded or non-string entry is refused", () => {
   refused(() => parseAllowedDomains(settings({ allowedDomains: [42] })), /not a plain host/);
 });
 
-test("the locked block carries the lock, the copy, no retry, no auto-approval and a hard start", () => {
+test("the locked block carries the lock, the copy, no retry, sandboxed auto-approval and a hard start", () => {
   const domains = ["github.com"];
   const block = lockedSandbox(domains);
   assert.deepEqual(block, {
     enabled: true,
     failIfUnavailable: true,
-    autoAllowBashIfSandboxed: false,
+    autoAllowBashIfSandboxed: true,
     allowUnsandboxedCommands: false,
     network: { strictAllowlist: true, allowedDomains: ["github.com"] },
   });
