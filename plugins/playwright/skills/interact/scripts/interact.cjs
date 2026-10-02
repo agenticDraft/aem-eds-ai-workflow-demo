@@ -33,6 +33,7 @@ const { execSync } = require('child_process');
 const { missingToolSummary } = require('../../../scripts/requires.cjs');
 // Every call writes a new file; an earlier call's artifact is never replaced.
 const { nextArtifactPath } = require('../../../scripts/next-artifact-path.cjs');
+const { launchOptions } = require('../../../scripts/launch-options.cjs');
 
 const PROPERTIES = ['color', 'background-color', 'font-family', 'font-size', 'font-weight', 'line-height'];
 
@@ -177,7 +178,7 @@ async function main() {
 
   let browser;
   try {
-    browser = await playwright.chromium.launch({ headless: true });
+    browser = await playwright.chromium.launch(launchOptions(process.env));
   } catch (e) {
     if (/Executable doesn't exist/.test(e.message)) {
       fail(missingToolSummary('chromium'));

@@ -37,12 +37,45 @@ export function readAllowedDomains(path) {
 // The sandbox block for the policy tier. The lock alone would leave an empty
 // allowlist (the policy tier drops the project tier's domains), so the copied
 // list travels with it. No unsandboxed retry; a sandbox that cannot start
-// stops the session.
+// stops the session; and a sandboxed command is never approved just because
+// it is sandboxed, so every command still needs an allow rule.
 export function lockedSandbox(allowedDomains) {
   return {
     enabled: true,
     failIfUnavailable: true,
+    autoAllowBashIfSandboxed: false,
     allowUnsandboxedCommands: false,
     network: { strictAllowlist: true, allowedDomains: [...allowedDomains] },
   };
+}
+
+// Pure: the project config's text in, the host of `paths.preview` out, or
+// null when there is no usable preview. The preview servers run outside the
+// session; a sandboxed command reaches them only through the sandbox's proxy,
+// and the proxy only lets through a listed host.
+export function parsePreviewHost(text) {
+  const lines = text.split("\n");
+  const start = lines.findIndex((l) => /^paths:\s*$/.test(l));
+  if (start < 0) return null;
+  for (const l of lines.slice(start + 1)) {
+    if (!/^\s+\S/.test(l)) break;
+    const m = /^\s+preview:\s*(.*?)\s*$/.exec(l);
+    if (!m) continue;
+    const value = m[1].replace(/^(["'])(.*)\1$/, "$2");
+    try {
+      return new URL(value).hostname || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function readPreviewHost(path) {
+  return existsSync(path) ? parsePreviewHost(readFileSync(path, "utf8")) : null;
+}
+
+// A new list with `host` appended unless it is already there or absent.
+export function withHost(domains, host) {
+  return !host || domains.includes(host) ? [...domains] : [...domains, host];
 }

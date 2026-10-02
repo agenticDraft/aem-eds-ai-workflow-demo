@@ -15,7 +15,19 @@ environment.
 - **A locked network allowlist.** At launch the runner reads `sandbox.network.allowedDomains` from
   the project's committed settings (`.claude/settings.json`, or `ROUTE_SETTINGS_FILE`) and passes
   it to the session's policy tier (`managedSettings`) with `strictAllowlist`,
-  `allowUnsandboxedCommands: false` and `failIfUnavailable`. A sandboxed command that reaches an
+  `allowUnsandboxedCommands: false`, `autoAllowBashIfSandboxed: false` and `failIfUnavailable`.
+  The last but one keeps the allow rules binding: a sandboxed command is not approved just
+  because it is sandboxed.
+- **The preview's host travels with the copy.** The host of the project config's `paths.preview`
+  is appended to the copied list (never to the committed file), and the log names it
+  (`preview host:`). The preview servers are started before the session, outside its sandbox: a
+  sandboxed command's processes end when it exits and its port is unreachable from any other
+  command. A sandboxed command reaches those servers only through the sandbox's proxy, so a
+  client that polls or renders them sends local requests through the proxy when one is set.
+- **What it loads stays read-only.** The plugin directory, the committed settings file and the
+  route policy are denied to every write the session can make — the file tools and sandboxed
+  commands alike — so an allowed edit can never become an allowed command. The log names them
+  (`protected from writes:`). A sandboxed command that reaches an
   unlisted host is denied, never prompted for, and never retried with the sandbox off; a sandbox
   that cannot start ends the session. The committed file is the only list: the copy lives only
   in the running process. A missing file, invalid JSON, or an absent or empty list starts nothing
@@ -25,9 +37,15 @@ environment.
   no file. Nothing here prints, copies or stores a credential. What each pack reads is the pack's
   business — its own README names the variables — and the caller exports them in the shell or
   maps them from the CI product's secret store onto the step that runs this script.
-- **A verdict is read from an envelope, not guessed from prose.** The session's final text is
-  written to `ROUTE_RESULT_FILE`; the caller runs `shared/lib/validate-result-envelope.sh` over
-  it. A session that ends without a conformant envelope is a failure.
+- **A verdict is read from a recorded ending, not guessed from prose.** The session's final text
+  is written to `ROUTE_RESULT_FILE`. For a single-stage prompt the caller runs
+  `shared/lib/validate-result-envelope.sh` over it. A whole route is judged by its terminal state
+  instead: the runner keeps the output of the driver's own `resolve-terminal-state.sh` call
+  (`terminal-capture.mjs`) and writes it to `ROUTE_TERMINAL_FILE` (default
+  `.ai/run-context/terminal-state.txt`, removed at start); the caller runs
+  `shared/lib/check-terminal-state.sh` over it. Only `terminal: delivered` passes, and a missing
+  file — a session that stopped before any terminal state — fails. The last message is never the
+  verdict of a route: a session can stop after any stage and still end with a stage's envelope.
 - **Bounded by the route policy.** Before anything starts it reads `.ai/route-policy.yaml`
   (`ROUTE_POLICY_FILE`) through `shared/lib/check-route-policy.sh`; a missing or invalid policy
   starts nothing (exit `3`). The policy's forbidden rules are denied in every call, a forked

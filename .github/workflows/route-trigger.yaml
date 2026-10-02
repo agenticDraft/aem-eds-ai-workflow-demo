@@ -306,9 +306,45 @@ jobs:
             *) echo "claim failed (exit $STATUS)" >&2; exit 1 ;;
           esac
 
-      # The prompt is a repository variable so the whole route (Phase 9 /
-      # Task 5) is switched on in the settings, not here. Until then the
-      # default is the single credentialed stage this task verifies.
+      # The preview servers belong to the runner, not the session (D111): a
+      # sandboxed command's processes end when it exits, and its port is
+      # invisible to every other command. Started here, outside any sandbox,
+      # from the project config; the session reaches them through its proxy.
+      # Pid and log files live outside the checkout, so the serve stage's
+      # draft cleanup never finds a pid to stop. The job's end stops them.
+      - name: Start the preview servers
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          set -u
+          cfg() {
+            awk -v block="$1:" -v key="$2:" '
+              $0 == block { inside = 1; next }
+              /^[^ ]/ { inside = 0 }
+              inside && $1 == key { sub(/^[^:]*:[ ]*/, ""); gsub(/^"|"$/, ""); print; exit }
+            ' .ai/project-config.yaml
+          }
+          SERVE=$(cfg commands serve)
+          PREVIEW=$(cfg paths preview)
+          echo "serve command: '${SERVE}'  preview: ${PREVIEW}"
+          if [ -z "$SERVE" ] || [ -z "$PREVIEW" ]; then
+            echo "commands.serve or paths.preview is empty; no server started" >&2
+            exit 1
+          fi
+          bash plugins/eds/skills/eds-serve/scripts/start-serve.sh "$SERVE" \
+            "$RUNNER_TEMP/preview-server.log" "$RUNNER_TEMP/preview-server.pid"
+          if ! bash plugins/eds/skills/eds-serve/scripts/poll-preview.sh "$PREVIEW"; then
+            tail -40 "$RUNNER_TEMP/preview-server.log"
+            exit 1
+          fi
+          if ! bash plugins/eds/shared/scripts/start-draft-server.sh "$PREVIEW" \
+                 "$RUNNER_TEMP/draft-server.log" "$RUNNER_TEMP/draft-server.pid"; then
+            tail -40 "$RUNNER_TEMP/draft-server.log" 2>/dev/null
+            exit 1
+          fi
+
+      # The prompt is a repository variable so the whole route is switched on
+      # in the settings, not here ("/agentic-core:run-route {item_id}
+      # autonomous"). The default is the single credentialed stage.
       # Secrets are mapped onto THIS step only.
       - name: Run
         id: runner
@@ -320,7 +356,13 @@ jobs:
           JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
           GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
           ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
-          ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Bash({workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *),Bash(bash {workspace}/plugins/jira/skills/fetch-item/scripts/fetch-item.sh *)' }}"
+          # The route's allow rules (D106, D109), never bare Bash. Taken from the
+          # commands a delivered route actually ran: the packs' own scripts, read and
+          # write within the checkout, the commit, lint, the preview server and the
+          # change's checks. Pushing happens only inside the scm scripts. The runner
+          # keeps the plugins, settings and policy unwritable, so an allowed edit can
+          # never become an allowed command.
+          ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Edit(./**),Bash(bash plugins/*),Bash(plugins/*),Bash(bash {workspace}/plugins/*),Bash({workspace}/plugins/*),Bash(python3 plugins/*),Bash(python3 {workspace}/plugins/*),Bash(node plugins/*),Bash(node {workspace}/plugins/*),Bash(cd {workspace}),Bash(echo *),Bash(cat *),Bash(mkdir -p .ai/*),Bash(touch .ai/*),Bash(sed -i *),Bash(git add -A),Bash(git commit *),Bash(git diff *),Bash(git log *),Bash(git merge-base *),Bash(git symbolic-ref *),Bash(git ls-files *),Bash(npm run lint*),Bash(npm run up*),Bash(gh pr checks *),Bash(gh pr view *),Bash(jq *)' }}"
           # Caps come from the route policy; these variables may only lower them.
           ROUTE_MAX_TURNS: ${{ vars.ROUTE_MAX_TURNS }}
           ROUTE_TIMEOUT_MINUTES: ${{ vars.ROUTE_TIMEOUT_MINUTES }}
@@ -334,15 +376,48 @@ jobs:
       # The verdict is the envelope, validated — not the runner's exit code
       # alone and never a regex over prose. Runs even when the runner failed,
       # so a non-conformant ending is reported as such.
+      # A whole route is judged by its terminal state, which the runner records
+      # from the driver's own formatter call — never by the session's last
+      # message, which can follow any stage (G121). A single-stage prompt has
+      # no terminal state and is judged by its envelope.
       - name: Validate the result envelope
         if: always() && steps.runner.outcome != 'skipped'
+        env:
+          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
         run: |
           FILE=.ai/run-context/runner-result.txt
+          TERMINAL=.ai/run-context/terminal-state.txt
           echo "### Result" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           { [ -f "$FILE" ] && tail -20 "$FILE" || echo "(no result file)"; } >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          bash plugins/agentic-core/shared/lib/validate-result-envelope.sh "$FILE"
+          case "$ROUTE_PROMPT_TEMPLATE" in
+            */agentic-core:run-route*)
+              echo "### Terminal state" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              set +e
+              bash plugins/agentic-core/shared/lib/check-terminal-state.sh "$TERMINAL" | tee -a "$GITHUB_STEP_SUMMARY"
+              STATUS=${PIPESTATUS[0]}
+              set -e
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              exit "$STATUS" ;;
+            *)
+              bash plugins/agentic-core/shared/lib/validate-result-envelope.sh "$FILE" ;;
+          esac
+
+      # A failed stage leaves its own logs and reports in the run context, and
+      # the runner's log shows only tool calls, never their output. Print the
+      # tail of each so a failure can be diagnosed from the run alone. Secret
+      # values are masked by the platform in everything printed here.
+      - name: Show the run context's logs
+        if: failure() && steps.runner.outcome != 'skipped'
+        run: |
+          for f in .ai/run-context/*.log .ai/run-context/*-report.md; do
+            [ -f "$f" ] || continue
+            echo "::group::$f (last 80 lines)"
+            tail -80 "$f"
+            echo "::endgroup::"
+          done
 
       # No secret value on disk, no .env-like file. Values are compared, never
       # printed: only match counts reach the log.

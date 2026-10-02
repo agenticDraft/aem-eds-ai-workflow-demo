@@ -30,7 +30,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 # Stubs: curl answers 200 (a server is already up); npx records and exits.
 mkdir -p "$WORK/bin"
-printf '#!/usr/bin/env bash\necho "$*" >> "%s/curl-calls"\nprintf 200\n' "$WORK" > "$WORK/bin/curl"
+printf '#!/usr/bin/env bash\nprintf "[%%s]" "$@" >> "%s/curl-calls"; echo >> "%s/curl-calls"\nprintf 200\n' "$WORK" "$WORK" > "$WORK/bin/curl"
 printf '#!/usr/bin/env bash\necho "$*" >> "%s/npx-calls"\nexit 1\n' "$WORK" > "$WORK/bin/npx"
 chmod +x "$WORK/bin/curl" "$WORK/bin/npx"
 export PATH="$WORK/bin:$PATH"
@@ -87,6 +87,20 @@ mkdir -p "$WORK/plain"
 run_in "$WORK/plain"
 assert_eq "exit 0" "0" "$CODE"
 assert_lacks "no branch-length failure" "branch name too long" "$OUT"
+
+echo "[proxy] with a proxy in the environment, the poll goes through it, local address included"
+DIR=$(repo_on "bbbbbbbbbbbbbbbbbbbbbbb")
+rm -f "$WORK/curl-calls"
+OUT=$(cd "$DIR" && HTTP_PROXY="http://localhost:3128" bash "$START" "http://localhost:3000/preview" "$DIR/.ai/logs/d.log" "$DIR/.ai/logs/d.pid" 2>&1); CODE=$?
+assert_eq "exit 0" "0" "$CODE"
+assert_has "curl told to proxy every host" "[--noproxy][]" "$(cat "$WORK/curl-calls" 2>/dev/null)"
+
+echo "[proxy] with no proxy in the environment, nothing changes"
+DIR=$(repo_on "bbbbbbbbbbbbbbbbbbbbbbb")
+rm -f "$WORK/curl-calls"
+OUT=$(cd "$DIR" && env -u HTTP_PROXY -u http_proxy bash "$START" "http://localhost:3000/preview" "$DIR/.ai/logs/d.log" "$DIR/.ai/logs/d.pid" 2>&1); CODE=$?
+assert_eq "exit 0" "0" "$CODE"
+assert_lacks "no --noproxy" "--noproxy" "$(cat "$WORK/curl-calls" 2>/dev/null)"
 
 echo "[usage] a missing argument is still exit 2, before any check"
 OUT=$(bash "$START" "http://localhost:3000/preview" 2>&1); CODE=$?

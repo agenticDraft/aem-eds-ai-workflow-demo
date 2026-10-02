@@ -46,6 +46,15 @@ inventing a fourth one:
   formatter. Both are the caller's responsibility, using the scripts `run-state.md` and core
   contract §9 already define.
 
+## Unattended runs
+
+An unattended runner judges a whole route by this formatter's output, never by the session's last
+message. `runner/terminal-capture.mjs` keeps the output of the driver's own call (not a
+subagent's, not an errored one), the runner writes it to a file, and
+`lib/check-terminal-state.sh` turns that file into the run's verdict: `delivered` passes,
+`blocked` and `failed` fail, and no file fails as a route that ended without a terminal state.
+The formatter itself stays free of side effects.
+
 ## Reference, not restatement
 
 A skill or script that reports a run's end references this file with one line rather than

@@ -10,7 +10,7 @@ holds a credential value. This page is the checklist a person works through once
 
 | name | what it is | where it comes from |
 | ---- | ---------- | ------------------- |
-| `ANTHROPIC_API_KEY` | the model credential the runner's SDK session uses | an API key from the Anthropic Console (the runner authenticates with a key; a claude.ai login has no headless form) |
+| `ANTHROPIC_API_KEY` | the model credential the runner's SDK session uses | an API key from the Anthropic Console. A subscription can authenticate headlessly too, through a token from `claude setup-token` set as `CLAUDE_CODE_OAUTH_TOKEN`; this workflow does not use one yet |
 | `JIRA_API_TOKEN` | the tracker pack's credential (`plugins/jira`) | an Atlassian API token for the account in `JIRA_EMAIL` |
 | `ROUTE_GH_TOKEN` | the SCM pack's credential (`plugins/github`), used as `GH_TOKEN` by `gh` and, through `gh auth setup-git`, by `git push` | a **fine-grained personal access token** — see §3 |
 
