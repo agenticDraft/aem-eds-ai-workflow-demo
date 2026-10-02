@@ -192,7 +192,21 @@ jobs:
           echo "design role (figma): no headless credential path; URL-sourced design items fail at extract (Phase 10)"
           echo "tracker (jira): JIRA_SITE, JIRA_EMAIL as variables, JIRA_API_TOKEN as a secret"
           echo "scm (github): ROUTE_GH_TOKEN, a repository-scoped fine-grained token, as GH_TOKEN"
-          echo "core: ANTHROPIC_API_KEY as a secret"
+          echo "core: CLAUDE_CODE_OAUTH_TOKEN as a secret (a subscription token from claude setup-token)"
+
+      # The session authenticates with a subscription token (D112). Checked
+      # before anything is claimed, so a missing secret costs no claim. Only
+      # whether it is set reaches this step, never its value.
+      - name: Check the model credential
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          TOKEN_SET: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+        run: |
+          if [ "$TOKEN_SET" != "true" ]; then
+            echo "the secret CLAUDE_CODE_OAUTH_TOKEN is not set; see .github/route-runner-setup.md" >&2
+            exit 1
+          fi
+          echo "model credential: CLAUDE_CODE_OAUTH_TOKEN is set"
 
       - name: Use Node.js 24
         if: steps.gate.outputs.proceed == 'true'
@@ -350,7 +364,7 @@ jobs:
         id: runner
         if: steps.claim.outputs.claimed == 'true'
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_SITE: ${{ vars.JIRA_SITE }}
           JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
@@ -424,7 +438,7 @@ jobs:
       - name: Check that no credential reached the disk
         if: always() && steps.runner.outcome != 'skipped'
         env:
-          S1: ${{ secrets.ANTHROPIC_API_KEY }}
+          S1: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           S2: ${{ secrets.JIRA_API_TOKEN }}
           S3: ${{ secrets.ROUTE_GH_TOKEN }}
         run: |
