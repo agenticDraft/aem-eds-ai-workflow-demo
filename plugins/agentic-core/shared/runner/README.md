@@ -46,6 +46,9 @@ environment.
   `shared/lib/check-terminal-state.sh` over it. Only `terminal: delivered` passes, and a missing
   file — a session that stopped before any terminal state — fails. The last message is never the
   verdict of a route: a session can stop after any stage and still end with a stage's envelope.
+- **A refused call is printed whole.** The live tool log shortens commands. At the end the runner
+  prints the session's `permission_denials` uncut, one per line (`denials.mjs`), and the
+  driver's final message, so the log alone says which call an allow rule did not cover.
 - **Bounded by the route policy.** Before anything starts it reads `.ai/route-policy.yaml`
   (`ROUTE_POLICY_FILE`) through `shared/lib/check-route-policy.sh`; a missing or invalid policy
   starts nothing (exit `3`). The policy's forbidden rules are denied in every call, a forked

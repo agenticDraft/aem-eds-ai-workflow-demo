@@ -52,6 +52,7 @@ import { fileURLToPath } from "node:url";
 import { forbiddenBy, parseRule } from "./policy-match.mjs";
 import { lockedSandbox, readAllowedDomains, readPreviewHost, withHost } from "./network-allowlist.mjs";
 import { TerminalCapture } from "./terminal-capture.mjs";
+import { denialLines } from "./denials.mjs";
 
 const prompt = process.argv[2];
 if (!prompt) {
@@ -288,6 +289,9 @@ try {
       clearTimeout(timer);
       const cost = m.total_cost_usd != null ? `$${m.total_cost_usd.toFixed(4)}` : "n/a";
       log(`ended: subtype=${m.subtype} turns=${m.num_turns ?? "?"} cost=${cost}`);
+      for (const line of denialLines(m.permission_denials)) log(line);
+      // The driver's last words, whole: why it stopped is otherwise only in the job summary.
+      if (m.subtype === "success" && m.result) log(`final message:\n${m.result}`);
       if (m.subtype === "error_max_turns") capReached("max_turns", maxTurns, 4);
       if (m.subtype === "error_max_budget_usd") capReached("max_usd_per_run", maxBudgetUsd, 5);
       writeResult(m.subtype === "success" ? m.result : (m.errors || []).join("\n"));
