@@ -59,6 +59,14 @@ fi
 DRAFT_PORT=$((PORT + 1))
 ORIGIN="http://localhost:${DRAFT_PORT}"
 
+# A sandboxed caller reaches a local address only through its proxy, and the
+# sandbox lists local addresses as never proxied; so with a proxy in the
+# environment every address goes through it. With none, nothing changes.
+PROXY_ARGS=()
+if [[ -n "${HTTP_PROXY:-${http_proxy:-}}" ]]; then
+  PROXY_ARGS=(--noproxy '')
+fi
+
 poll() {
   local url="$1"
   local n=0
@@ -68,7 +76,7 @@ poll() {
       sleep "$DELAY"
     fi
     n=$(( n + 1 ))
-    status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$url" 2>/dev/null)
+    status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 ${PROXY_ARGS[@]+"${PROXY_ARGS[@]}"} "$url" 2>/dev/null)
     if [[ -n "$status" && "$status" != "000" ]]; then
       return 0
     fi

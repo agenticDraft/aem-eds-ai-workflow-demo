@@ -18,6 +18,12 @@ environment.
   `allowUnsandboxedCommands: false`, `autoAllowBashIfSandboxed: false` and `failIfUnavailable`.
   The last but one keeps the allow rules binding: a sandboxed command is not approved just
   because it is sandboxed.
+- **The preview's host travels with the copy.** The host of the project config's `paths.preview`
+  is appended to the copied list (never to the committed file), and the log names it
+  (`preview host:`). The preview servers are started before the session, outside its sandbox: a
+  sandboxed command's processes end when it exits and its port is unreachable from any other
+  command. A sandboxed command reaches those servers only through the sandbox's proxy, so a
+  client that polls or renders them sends local requests through the proxy when one is set.
 - **What it loads stays read-only.** The plugin directory, the committed settings file and the
   route policy are denied to every write the session can make — the file tools and sandboxed
   commands alike — so an allowed edit can never become an allowed command. The log names them

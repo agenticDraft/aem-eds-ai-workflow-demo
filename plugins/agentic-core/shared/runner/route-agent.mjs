@@ -50,7 +50,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { forbiddenBy, parseRule } from "./policy-match.mjs";
-import { lockedSandbox, readAllowedDomains } from "./network-allowlist.mjs";
+import { lockedSandbox, readAllowedDomains, readPreviewHost, withHost } from "./network-allowlist.mjs";
 import { TerminalCapture } from "./terminal-capture.mjs";
 
 const prompt = process.argv[2];
@@ -108,12 +108,17 @@ function allowlistRefused(reason) {
   writeResult(`network allowlist refused: ${reason}`);
   process.exit(6);
 }
+// The preview servers are started before the session, outside its sandbox;
+// a sandboxed command reaches them only through the proxy, so the preview's
+// host travels with the copy. The committed list is not changed.
+const previewHost = readPreviewHost(projectConfig);
 let sandbox;
 try {
-  sandbox = lockedSandbox(readAllowedDomains(settingsFile));
+  sandbox = lockedSandbox(withHost(readAllowedDomains(settingsFile), previewHost));
 } catch (err) {
   allowlistRefused(err.message);
 }
+log(`preview host: ${previewHost ?? "none (no paths.preview)"}`);
 
 // What the runner loads can never be rewritten by the session it starts: the
 // plugins, the committed settings and the route policy. Otherwise an allowed
@@ -134,7 +139,7 @@ try {
     `enabled=${eff.enabled} failIfUnavailable=${eff.failIfUnavailable} ` +
     `allowUnsandboxedCommands=${eff.allowUnsandboxedCommands} autoAllowBashIfSandboxed=${eff.autoAllowBashIfSandboxed} ` +
     `strictAllowlist=${eff.network?.strictAllowlist}`);
-  log(`sandbox allowlist (copied from ${settingsFile}, ${sandbox.network.allowedDomains.length}): ${sandbox.network.allowedDomains.join(", ")}`);
+  log(`sandbox allowlist (copied from ${settingsFile}, plus the preview host; ${sandbox.network.allowedDomains.length}): ${sandbox.network.allowedDomains.join(", ")}`);
   if (eff.enabled !== true || eff.failIfUnavailable !== true ||
       eff.allowUnsandboxedCommands !== false || eff.autoAllowBashIfSandboxed !== false ||
       eff.network?.strictAllowlist !== true ||

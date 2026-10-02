@@ -306,6 +306,42 @@ jobs:
             *) echo "claim failed (exit $STATUS)" >&2; exit 1 ;;
           esac
 
+      # The preview servers belong to the runner, not the session (D111): a
+      # sandboxed command's processes end when it exits, and its port is
+      # invisible to every other command. Started here, outside any sandbox,
+      # from the project config; the session reaches them through its proxy.
+      # Pid and log files live outside the checkout, so the serve stage's
+      # draft cleanup never finds a pid to stop. The job's end stops them.
+      - name: Start the preview servers
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          set -u
+          cfg() {
+            awk -v block="$1:" -v key="$2:" '
+              $0 == block { inside = 1; next }
+              /^[^ ]/ { inside = 0 }
+              inside && $1 == key { sub(/^[^:]*:[ ]*/, ""); gsub(/^"|"$/, ""); print; exit }
+            ' .ai/project-config.yaml
+          }
+          SERVE=$(cfg commands serve)
+          PREVIEW=$(cfg paths preview)
+          echo "serve command: '${SERVE}'  preview: ${PREVIEW}"
+          if [ -z "$SERVE" ] || [ -z "$PREVIEW" ]; then
+            echo "commands.serve or paths.preview is empty; no server started" >&2
+            exit 1
+          fi
+          bash plugins/eds/skills/eds-serve/scripts/start-serve.sh "$SERVE" \
+            "$RUNNER_TEMP/preview-server.log" "$RUNNER_TEMP/preview-server.pid"
+          if ! bash plugins/eds/skills/eds-serve/scripts/poll-preview.sh "$PREVIEW"; then
+            tail -40 "$RUNNER_TEMP/preview-server.log"
+            exit 1
+          fi
+          if ! bash plugins/eds/shared/scripts/start-draft-server.sh "$PREVIEW" \
+                 "$RUNNER_TEMP/draft-server.log" "$RUNNER_TEMP/draft-server.pid"; then
+            tail -40 "$RUNNER_TEMP/draft-server.log" 2>/dev/null
+            exit 1
+          fi
+
       # The prompt is a repository variable so the whole route is switched on
       # in the settings, not here ("/agentic-core:run-route {item_id}
       # autonomous"). The default is the single credentialed stage.

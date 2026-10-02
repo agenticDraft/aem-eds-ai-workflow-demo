@@ -41,6 +41,14 @@ if [[ -z "$URL" ]]; then
   exit 2
 fi
 
+# A sandboxed caller reaches a local address only through its proxy, and the
+# sandbox lists local addresses as never proxied; so with a proxy in the
+# environment every address goes through it. With none, nothing changes.
+PROXY_ARGS=()
+if [[ -n "${HTTP_PROXY:-${http_proxy:-}}" ]]; then
+  PROXY_ARGS=(--noproxy '')
+fi
+
 STARTED=$(date +%s)
 POLL=0
 
@@ -49,7 +57,7 @@ for DELAY in 0 2 4 8 16; do
     sleep "$DELAY"
   fi
   POLL=$(( POLL + 1 ))
-  STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$URL" 2>/dev/null)
+  STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 ${PROXY_ARGS[@]+"${PROXY_ARGS[@]}"} "$URL" 2>/dev/null)
   if [[ -n "$STATUS" && "$STATUS" != "000" ]]; then
     echo "answered: status=$STATUS poll=$POLL elapsed=$(( $(date +%s) - STARTED ))s"
     exit 0

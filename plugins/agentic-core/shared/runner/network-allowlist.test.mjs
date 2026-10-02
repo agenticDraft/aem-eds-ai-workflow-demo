@@ -10,7 +10,9 @@ import {
   AllowlistRefused,
   lockedSandbox,
   parseAllowedDomains,
+  parsePreviewHost,
   readAllowedDomains,
+  withHost,
 } from "./network-allowlist.mjs";
 
 const settings = (network) => JSON.stringify({ sandbox: { enabled: true, network } });
@@ -69,4 +71,35 @@ test("the locked block carries the lock, the copy, no retry, no auto-approval an
   });
   domains.push("example.com");
   assert.deepEqual(block.network.allowedDomains, ["github.com"], "the block holds its own copy");
+});
+
+const config = (preview) =>
+  ["version: 1", "", "commands:", '  serve: "start"', "", "paths:", '  spec_dir: ".ai/specs"',
+   ...(preview === undefined ? [] : [`  preview: ${preview}`]), "", "limits:", "  x: 1", ""].join("\n");
+
+test("the preview's host is read from the paths block", () => {
+  assert.equal(parsePreviewHost(config('"http://localhost:3000/preview"')), "localhost");
+  assert.equal(parsePreviewHost(config("http://127.0.0.1:8080/")), "127.0.0.1");
+  assert.equal(parsePreviewHost(config("'https://preview.example.org/x'")), "preview.example.org");
+});
+
+test("no preview, an empty one or one that is not a URL gives no host", () => {
+  assert.equal(parsePreviewHost(config(undefined)), null);
+  assert.equal(parsePreviewHost(config('""')), null);
+  assert.equal(parsePreviewHost(config('"not a url"')), null);
+  assert.equal(parsePreviewHost("version: 1\n"), null);
+});
+
+test("a preview key outside the paths block is not read", () => {
+  const text = ["other:", '  preview: "http://elsewhere.example/"', "paths:", '  spec_dir: "x"', ""].join("\n");
+  assert.equal(parsePreviewHost(text), null);
+});
+
+test("a host is appended once, and a list that has it is unchanged", () => {
+  assert.deepEqual(withHost(["github.com"], "localhost"), ["github.com", "localhost"]);
+  assert.deepEqual(withHost(["github.com", "localhost"], "localhost"), ["github.com", "localhost"]);
+  assert.deepEqual(withHost(["github.com"], null), ["github.com"]);
+  const list = ["github.com"];
+  withHost(list, "localhost");
+  assert.deepEqual(list, ["github.com"], "the input list is not modified");
 });
