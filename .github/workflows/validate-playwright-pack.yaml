@@ -1,0 +1,39 @@
+name: Validate playwright pack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/playwright/**'
+      - '.github/workflows/validate-playwright-pack.yaml'
+  pull_request:
+    paths:
+      - 'plugins/playwright/**'
+      - '.github/workflows/validate-playwright-pack.yaml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install project devDependencies
+        run: npm ci
+      - name: every playwright suite
+        run: |
+          failed=0
+          for t in $(find plugins/playwright -name '*.test.sh' | sort); do
+            echo "::group::$t"
+            if ! bash "$t"; then
+              failed=$((failed + 1))
+              echo "::error file=$t::suite failed"
+            fi
+            echo "::endgroup::"
+          done
+          echo "failed suites: $failed"
+          [ "$failed" -eq 0 ]
+      - name: Validate playwright pack manifest
+        run: bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/playwright/pack.yaml
