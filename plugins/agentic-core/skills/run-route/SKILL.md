@@ -163,10 +163,15 @@ a file this stage wrote from one that was already sitting there.
 - **Non-empty** — the stage wrote its own envelope with the emitter
   (`shared/result-envelope.md`, "How a stage writes it"). Leave it exactly as it is. Do not
   transcribe anything over it; the stage's own message is not the envelope and never was.
-- **Empty** — the stage has not adopted the emitter. Its output ends with a `## Result` block.
-  Capture everything from that block onward into the file. Never parse anything above that block.
+- **Empty, after a stage** — the stage did not write its envelope. Write nothing into the file and
+  copy nothing out of the stage's message, even when that message ends with a `## Result` block:
+  every stage writes its own envelope, so an empty file is the stage's failure, not a gap for you to
+  fill. Step 3 then exits `1`, and the run ends `failed` as a contract violation.
+- **Empty, after a provider operation you invoked yourself** (`create_branch`) — an operation ends
+  its output with a `## Result` block instead of writing a file. Capture everything from that block
+  onward into the file. Never parse anything above that block.
 
-**3. Then run, every time and on both paths, before anything judges that file:**
+**3. Then run, every time and whichever case applied, before anything judges that file:**
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-<stage id>.txt
@@ -176,11 +181,11 @@ It reduces the file to the block alone and removes blank lines between the headi
 `verdict:` line — transcription artifacts, not anything a stage said. It repairs nothing else: any
 other first line is left exactly as found, for the validator to reject. Print whatever it reports,
 so a normalization stays visible in the run's own record rather than becoming invisible. On an
-emitted envelope it reports `unchanged`, which is the point of running it on both paths rather than
-remembering which one you took.
+emitted envelope it reports `unchanged`.
 
-Exit `1` means no `## Result` heading reached the file at all — a stage that produced no envelope,
-which is not a shape to repair. Treat it exactly as an envelope that fails validation.
+Exit `1` means no `## Result` heading reached the file at all — a stage that did not write its
+envelope, or an operation that produced none, which is not a shape to repair. Treat it exactly as an
+envelope that fails validation.
 
 ## Skipped stages
 
@@ -521,7 +526,7 @@ Invoke it (see "How a stage adapter is invoked" above) — with no argument text
 `plan-gate` and `publish-gate`, which each take the single `project_root:` line named there.
 Get its envelope onto disk by the three steps in "Getting a stage's envelope onto disk" — reset the
 file first (a gate's was already reset in **Snapshot the tree (gates only)**), then take it as
-written or capture from the output, then run `capture-envelope.sh`. Go to **Tree unchanged? (gates
+written — never copied from the stage's message — then run `capture-envelope.sh`. Go to **Tree unchanged? (gates
 only)**.
 
 ### Tree unchanged? (gates only)
@@ -759,4 +764,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: 0230d4a3a0db -->
+<!-- instructions-stamp: d7700781fad2 -->
