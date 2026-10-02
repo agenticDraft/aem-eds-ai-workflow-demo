@@ -37,5 +37,7 @@ jobs:
           [ "$failed" -eq 0 ]
       - name: every node reference in an eds skill names a heading
         run: bash plugins/agentic-core/shared/lib/validate-contracts.sh plugins/eds
+      - name: every route stage writes its envelope with the emitter
+        run: bash plugins/eds/shared/scripts/check-stage-envelopes.sh plugins/eds/pack.yaml plugins/eds/skills
       - name: Validate eds pack manifest
         run: bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/eds/pack.yaml
