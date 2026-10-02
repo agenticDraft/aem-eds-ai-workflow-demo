@@ -111,9 +111,9 @@ if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "st
 row_count "every one is ignored, no property guessed" "$D" 0
 
 echo "arbitrary property and font weight"
-D="$(case_dir property '<p className="[word-break:break-word] font-[700] font-['"'"'DM_Sans:Bold'"'"']" data-node-id="5:1">A</p>')"
+D="$(case_dir property '<p className="[word-break:break-all] font-[700] font-['"'"'DM_Sans:Bold'"'"']" data-node-id="5:1">A</p>')"
 run_table "$D"
-has_row "[word-break:break-word] names its own property" "$D" "5:1" "word-break" "break-word"
+has_row "[word-break:break-all] names its own property" "$D" "5:1" "word-break" "break-all"
 has_row "font-[700] is font-weight" "$D" "5:1" "font-weight" "700"
 row_count "font-['DM_Sans:Bold'] is ignored" "$D" 2
 
@@ -277,6 +277,26 @@ has_row "the same value twice is not a conflict" "$D" "12:2" "width" "14px"
 row_count "nothing else" "$D" 4
 if grep -qxF "conflict: 12:1 width 10px 14px" "$D/stderr" && grep -qxF "conflict: 12:1 padding 4px 8px" "$D/stderr"; then ok "stderr names each conflict"; else bad "stderr names each conflict" "got: $(cat "$D/stderr")"; fi
 if grep -q "12:2" "$D/stderr"; then bad "an agreeing pair is not reported" "got: $(cat "$D/stderr")"; else ok "an agreeing pair is not reported"; fi
+
+echo "a deprecated declaration is replaced, never printed as written"
+D="$(case_dir deprecated '<p className="[word-break:break-word] text-[12px]" data-node-id="1:198">A</p><p className="[word-break:break-all]" data-node-id="1:199">B</p><p className="[word-break:break-word] [overflow-wrap:normal]" data-node-id="1:200">C</p>')"
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+has_row "word-break: break-word becomes overflow-wrap: anywhere" "$D" "1:198" "overflow-wrap" "anywhere"
+no_row_for "the deprecated declaration gets no row" "$D" "1:198" "word-break"
+has_row "the element's other classes are unaffected" "$D" "1:198" "font-size" "12px"
+has_row "a word-break value that is not deprecated is kept" "$D" "1:199" "word-break" "break-all"
+if grep -qxF "replaced: 1:198 word-break break-word -> overflow-wrap anywhere" "$D/stderr"; then
+  ok "stderr names the replacement"
+else
+  bad "stderr names the replacement" "got: $(cat "$D/stderr")"
+fi
+no_row_for "a replacement that clashes with an explicit value is a conflict, no row" "$D" "1:200" "overflow-wrap"
+if grep -qxF "conflict: 1:200 overflow-wrap anywhere normal" "$D/stderr"; then
+  ok "the clash is reported as a conflict"
+else
+  bad "the clash is reported as a conflict" "got: $(cat "$D/stderr")"
+fi
 
 echo "design_context: null, with a stale reference-code file present"
 D="$(case_dir null '<a className="px-[99px]" data-node-id="9:9">stale</a>')"
