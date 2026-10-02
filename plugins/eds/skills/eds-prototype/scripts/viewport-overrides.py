@@ -173,9 +173,9 @@ def variant_table(path):
         if key not in order:
             order.append(key)
         for cls in (e[5] or "").split():
-            row = dcv.class_row(cls)
-            if row is not None and row[0] not in props:
-                props[row[0]] = row[1]
+            for prop, value in dcv.class_rows(cls):
+                if prop not in props:
+                    props[prop] = value
     return {k: table[k] for k in order}, elements[root][1]
 
 

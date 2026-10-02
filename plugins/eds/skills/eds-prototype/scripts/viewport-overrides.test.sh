@@ -309,6 +309,22 @@ run_overrides "$D" 900
 status_is "reference code with no exported function uses its first element" "$D" 0
 has_line "and matches it as the root" "$D" value 900 1:430 padding 40px 1:118 /
 
+echo "a size class sets width and height in every variant"
+D="$(new_case size-class)"
+add_variant "$D" Desktop 1:118 1280 '<div className="p-[40px]" data-node-id="1:118" data-name="Desktop">
+  <div className="shrink-0 size-[20px]" data-node-id="1:601" data-name="Check icon"></div>
+</div>'
+add_variant "$D" Mobile 1:430 375 '<div className="p-[16px]" data-node-id="1:430" data-name="Mobile">
+  <div className="shrink-0 size-[14px]" data-node-id="1:600" data-name="Check icon"></div>
+</div>'
+write_ref "$D"
+run_overrides "$D" 900
+status_is "exits 0" "$D" 0
+has_line "base carries the size class's width" "$D" value base 1:600 width 14px 1:600 '/Check icon#1'
+has_line "base carries the size class's height" "$D" value base 1:600 height 14px 1:600 '/Check icon#1'
+has_line "the override carries the wider width" "$D" value 900 1:600 width 20px 1:601 '/Check icon#1'
+has_line "the override carries the wider height" "$D" value 900 1:600 height 20px 1:601 '/Check icon#1'
+
 echo
 echo "passed: $PASS, failed: $FAIL"
 [ "$FAIL" -eq 0 ]

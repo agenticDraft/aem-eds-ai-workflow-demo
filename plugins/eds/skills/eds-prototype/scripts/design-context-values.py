@@ -4,8 +4,8 @@
 # design-context-values.py <design-reference.json>
 #
 # Deterministic. Reads the reference code that `design-reference.json`'s
-# `design_context.code_file` names and prints one row per arbitrary-value
-# class on an element carrying a `data-node-id`:
+# `design_context.code_file` names and prints one row per property an
+# arbitrary-value class sets, on an element carrying a `data-node-id`:
 #
 #   <node_id> TAB <css-property> TAB <value> TAB <approx>
 #
@@ -22,17 +22,18 @@
 # with a raster image type (any `image/` type but `image/svg+xml`, which is a
 # vector export). Rendered text is never read, only whether there is any.
 #
-# Rows follow document order, then class order within an element; an
-# identical row is printed once. The code file is resolved against the
+# Rows follow document order, then class order within an element, then the
+# class's property order; an identical row is printed once. The code file is resolved against the
 # working directory (the project root).
 #
-# A class is read only when its prefix names exactly one CSS property:
+# A class is read only when its prefix names its CSS properties:
 #
 #   p px py pt pr pb pl ps pe      padding, padding-inline, padding-block, ...
 #   m mx my mt mr mb ml ms me      margin, margin-inline, margin-block, ...
 #   gap gap-x gap-y                gap, column-gap, row-gap
 #   rounded rounded-tl/tr/br/bl    border-radius, border-<corner>-radius
 #   w h min-w min-h max-w max-h    width, height, min-/max- width/height
+#   size                           width and height, two rows, for a length only
 #   aspect                         aspect-ratio
 #   leading tracking opacity       line-height, letter-spacing, opacity
 #   text                           font-size for a length, color for a colour
@@ -72,6 +73,9 @@ FIXED = {
     "aspect": "aspect-ratio",
     "leading": "line-height", "tracking": "letter-spacing", "opacity": "opacity",
 }
+
+# prefix -> the properties one length value sets; a value of any other form is ignored
+BOTH = {"size": ("width", "height")}
 
 # the properties whose value may follow the content; never padding, gap or margin
 APPROX_PROPERTIES = {"width", "height", "min-height", "aspect-ratio"}
@@ -122,26 +126,31 @@ def form_of(value):
     return None
 
 
-def class_row(cls):
+def class_rows(cls):
+    """The (property, value) pairs one class sets, in property order; [] when it is ignored."""
     m = ARBITRARY_PROPERTY.match(cls)
     if m:
-        return m.group(1), decode(m.group(2))
+        return [(m.group(1), decode(m.group(2)))]
     m = ARBITRARY_VALUE.match(cls)
     if not m:
-        return None
+        return []
     prefix, raw = m.group(1), decode(m.group(2))
     hint = None
     head, sep, rest = raw.partition(":")
     if sep and head in HINTS:
         hint, raw = HINTS[head], rest
     if prefix in FIXED:
-        return FIXED[prefix], raw
+        return [(FIXED[prefix], raw)]
+    if prefix in BOTH:
+        if (hint or form_of(raw)) == "length":
+            return [(prop, raw) for prop in BOTH[prefix]]
+        return []
     if prefix in BY_FORM:
         form = hint or form_of(raw)
         prop = BY_FORM[prefix].get(form)
         if prop:
-            return prop, raw
-    return None
+            return [(prop, raw)]
+    return []
 
 
 def skip_string(code, i):
@@ -351,14 +360,12 @@ def main():
         if not node or not classes:
             continue
         for cls in classes.split():
-            row = class_row(cls)
-            if row is None:
-                continue
-            approx = "true" if row[0] in APPROX_PROPERTIES and node in content else "false"
-            line = f"{node}\t{row[0]}\t{row[1]}\t{approx}"
-            if line not in seen:
-                seen.add(line)
-                print(line)
+            for prop, value in class_rows(cls):
+                approx = "true" if prop in APPROX_PROPERTIES and node in content else "false"
+                line = f"{node}\t{prop}\t{value}\t{approx}"
+                if line not in seen:
+                    seen.add(line)
+                    print(line)
     sys.exit(0)
 
 
