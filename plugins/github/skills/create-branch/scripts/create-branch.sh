@@ -143,7 +143,7 @@ RESULT
       git checkout "$BRANCH" --quiet 2>/dev/null && CHECKOUT_OK=1
     else
       CHECKOUT_OK=0
-      git checkout -b "$BRANCH" "$EXISTING_REF" --quiet 2>/dev/null && CHECKOUT_OK=1
+      git checkout --no-track -b "$BRANCH" "$EXISTING_REF" --quiet 2>/dev/null && CHECKOUT_OK=1
     fi
     if [[ "$CHECKOUT_OK" -ne 1 ]]; then
       envelope_fail "branch ${BRANCH} exists but could not be checked out."
@@ -151,13 +151,15 @@ RESULT
     BRANCH_ACTION="switched"
   fi
 else
-  if ! git checkout -b "$BRANCH" "$BASE_REF" --quiet 2>/dev/null; then
+  if ! git checkout --no-track -b "$BRANCH" "$BASE_REF" --quiet 2>/dev/null; then
     envelope_fail "could not create local branch ${BRANCH} from ${BASE_REF}."
   fi
   BRANCH_ACTION="created"
 fi
 
-if ! git push -u origin "$BRANCH" --quiet 2>/dev/null; then
+# No tracking and no upstream: both are written to the repository's config,
+# which a sandboxed caller cannot write, and nothing downstream reads them.
+if ! git push origin "$BRANCH" --quiet 2>/dev/null; then
   envelope_fail "have ${BRANCH} locally but could not push it to origin."
 fi
 

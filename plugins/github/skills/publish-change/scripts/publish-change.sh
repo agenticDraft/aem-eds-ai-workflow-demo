@@ -80,7 +80,9 @@ if [[ "$BRANCH" == "$BASE" ]]; then
   envelope_fail "refusing to publish ${BRANCH}: it is the base branch of the change."
 fi
 
-if ! git push -u origin "$BRANCH" --quiet 2>/dev/null; then
+# No upstream: it is written to the repository's config, which a sandboxed
+# caller cannot write, and nothing downstream reads it.
+if ! git push origin "$BRANCH" --quiet 2>/dev/null; then
   envelope_fail "could not push ${BRANCH} to origin."
 fi
 
