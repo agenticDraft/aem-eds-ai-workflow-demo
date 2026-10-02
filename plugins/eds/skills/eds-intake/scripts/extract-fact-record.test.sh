@@ -152,6 +152,47 @@ OUT="$(field_case "no component named" ITEM-1 "" "Nothing to compare.")"
 check "no phrase -> not mentioned" "before_state_mentioned: false" "$OUT"
 check "no component -> not available" "before_state_available: false" "$OUT"
 
+# --- design_source from attachments -----------------------------------------
+# Only an image under a reserved name is a design reference: the same rule the
+# extract stage applies. Any other image (a run's own captures included) is not.
+
+# attach_case <label> <filenames csv> — prints design_source
+attach_case() {
+  local label="$1" names="$2"
+  echo "[$label]" >&2
+  python3 -c "
+import json, sys
+item = {
+    'key': 'ITEM-1',
+    'fields': {
+        'issuetype': {'name': 'Bug'},
+        'summary': 'Test item',
+        'description': {'type': 'doc', 'content': [
+            {'type': 'paragraph', 'content': [{'type': 'text', 'text': 'Labels are cut off.'}]}]},
+        'labels': [], 'components': [],
+        'attachment': [{'filename': n, 'mimeType': 'image/png'} for n in sys.argv[1].split(',') if n],
+    },
+}
+json.dump(item, open(sys.argv[2], 'w'))
+" "$names" "$PROJECT/item.json"
+  (cd "$PROJECT" && python3 "$SCRIPT" item.json "$PACK_YAML" fact-record.yaml spec.md >/dev/null 2>&1)
+  grep '^design_source:' "$PROJECT/fact-record.yaml"
+}
+
+echo "=== design_source from attachments ==="
+
+OUT="$(attach_case "a run's own captures" "capture-localhost-3000-buttons-test-375-1.png,capture-localhost-3000-buttons-test-1440-1.png")"
+check "captures are not a design reference" "design_source: false" "$OUT"
+
+OUT="$(attach_case "a lone screenshot under any other name" "screenshot.png")"
+check "a non-reserved image is not a design reference" "design_source: false" "$OUT"
+
+OUT="$(attach_case "the reserved name, any case" "Design-Reference.PNG")"
+check "a reserved-name image is a design reference" "design_source: true" "$OUT"
+
+OUT="$(attach_case "the reserved name among captures" "capture-a-375-1.png,design-reference.jpg")"
+check "one reserved image among others still counts" "design_source: true" "$OUT"
+
 echo
 echo "=== $PASS passed, $FAIL failed ==="
 [[ $FAIL -eq 0 ]]
