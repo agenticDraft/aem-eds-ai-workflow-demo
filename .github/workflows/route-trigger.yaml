@@ -266,6 +266,19 @@ jobs:
           gh auth setup-git
           gh auth status
 
+      # The checkout is shallow and holds one branch, with no origin/HEAD.
+      # The publish criteria take their base from origin/HEAD and diff from
+      # its merge base, so the default branch and its history come too (G132).
+      - name: Give the checkout its default branch
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch --no-tags --unshallow origin "+refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+          git remote set-head origin "$DEFAULT_BRANCH"
+          git symbolic-ref refs/remotes/origin/HEAD
+          git merge-base "origin/${DEFAULT_BRANCH}" HEAD
+
       # Daily limits, counted from the claims already on the remote, before
       # this event claims: a limited event leaves no claim and ends green.
       # A manual break-glass run skips the count, on the same ground the
