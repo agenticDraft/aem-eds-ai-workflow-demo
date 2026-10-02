@@ -69,13 +69,13 @@ assert_contains "reports status: fresh" "status: fresh" "$OUT"
 [[ -f "$FRESH" ]] && { PASS=$((PASS + 1)); echo "  ok: a fresh marker is not deleted"; } \
   || { FAIL=$((FAIL + 1)); echo "  FAIL: a fresh marker must survive the check"; }
 
-echo "[fresh] just under the 2-hour boundary (7199s)"
+echo "[fresh] just under the 2-hour boundary (7195s, leaving the seconds the test itself takes)"
 BOUNDARY="$TMPDIR_TEST/boundary-fresh.flag"
 bash "$WRITER" "$BOUNDARY" >/dev/null
-backdate "$BOUNDARY" 7199
+backdate "$BOUNDARY" 7195
 OUT=$(bash "$CHECKER" "$BOUNDARY" 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"
-assert_contains "7199s old still fresh" "status: fresh" "$OUT"
+assert_contains "7195s old still fresh" "status: fresh" "$OUT"
 
 echo "[stale] a marker at or past the 2-hour window is deleted"
 STALE="$TMPDIR_TEST/stale.flag"
