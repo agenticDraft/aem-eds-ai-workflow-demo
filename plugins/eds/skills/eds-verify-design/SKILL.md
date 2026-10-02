@@ -36,6 +36,10 @@ start/stop/sandbox contract its own dedicated one follows,
 `../../../agentic-core/shared/evidence-manifest.md` for the shape **Report warn** and **Report
 pass** write, and `../../../agentic-core/shared/result-envelope.md` for the envelope this stage writes with the emitter.
 
+Where no rule answers a decision this stage makes, read
+`../../../agentic-core/shared/official-reference.md` and follow it: the platform pack's
+`reference_docs` page is read before deciding, and each read is cited in this stage's report.
+
 ## Input
 
 None. This stage reads three fixed paths: `.ai/run-context/fact-record.yaml`,

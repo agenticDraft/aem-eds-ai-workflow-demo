@@ -34,9 +34,10 @@ artifacts:
 onboarding_state_path: "<relative path>"   # optional
 audit_findings_path: "<relative path>"     # optional
 audit_digest_path: "<relative path>"       # optional
-branch_name:                               # optional; last
+branch_name:                               # optional
   max_length: <positive int>               # optional
   pattern: "<expression>"                  # optional
+reference_docs: "<https url>"              # optional; last
 ```
 
 ## Format — provider pack
@@ -121,13 +122,18 @@ open class.
   file it judged hashed to when it judged it: one `<sha256>  <relative path>` line per file. The
   core never learns what any listed path is for; it re-hashes the paths the digest itself names,
   which is how a freshness check stays platform-neutral (D28). Declared here, read only at runtime.
-- `branch_name` (D544) — optional, the last platform key. It declares the rule a branch name must
+- `branch_name` (D544) — optional. It declares the rule a branch name must
   meet on this platform: `max_length` (a positive integer), `pattern` (a double-quoted extended
   regular expression the whole name must match, so anchor it), or both, in that order. The key with
   neither is invalid. `lib/check-branch-name.sh <branch>` reads it from the configured platform pack
   and answers `ok`, `too-long` or `bad-chars`. The core plugin's hook runs that check on every
   branch-creating command an agent issues and blocks the command when the name fails. A pack that
   declares nothing is unconstrained.
+- `reference_docs` (D117) — optional, the last platform key: one double-quoted `https` URL, the
+  platform's official reference. Every stage that writes code, and the item-authoring skill, read it
+  before deciding a question no project rule answers, and cite what they read
+  (`official-reference.md`). A pack that declares none has no reference to consult; nothing
+  substitutes a search.
 - Every skill named in `stages` must resolve to `<pack root>/skills/<skill name>/SKILL.md`. A skill
   name with no matching directory is a **dangling skill reference**.
 - Every skill named in `stages` must declare isolated execution in its own frontmatter — the literal
@@ -258,7 +264,8 @@ digraph route {
 - `onboarding_state_path`, `audit_findings_path` or `audit_digest_path` present but empty, absolute
   (a leading `/`), or containing a `..` path segment.
 - `branch_name` declaring neither sub-key, a `max_length` that is not a positive integer, an
-  unquoted or empty `pattern`, a `pattern` that does not compile, or any key after it.
+  unquoted or empty `pattern`, or a `pattern` that does not compile.
+- `reference_docs` that is not one double-quoted `https` URL, or any key after it.
 - Any file under the pack root containing the literal sequence `{{`, the reserved marker for an
   unfilled template placeholder. A generated pack that still carries one is a failed setup, not a
   pack with a hole in it.

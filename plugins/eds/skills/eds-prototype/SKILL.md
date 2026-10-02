@@ -32,6 +32,10 @@ Read `../../../agentic-core/shared/fact-record.md` for the fact record's shape,
 `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage must end
 with.
 
+Where no rule answers a decision this stage makes, read
+`../../../agentic-core/shared/official-reference.md` and follow it: the platform pack's
+`reference_docs` page is read before deciding, and each read is cited in this stage's report.
+
 ## Input
 
 None. This stage reads four fixed paths: `.ai/run-context/fact-record.yaml`,
