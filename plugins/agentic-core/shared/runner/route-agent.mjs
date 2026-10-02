@@ -50,7 +50,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { forbiddenBy, parseRule } from "./policy-match.mjs";
-import { lockedSandbox, readAllowedDomains, readPreviewHost, withHost } from "./network-allowlist.mjs";
+import { lockedSandbox, readAllowedDomains, readPreviewHost, sandboxLockHeld, withHost } from "./network-allowlist.mjs";
 import { TerminalCapture } from "./terminal-capture.mjs";
 import { denialLines } from "./denials.mjs";
 import { shapeProblem } from "./shell-shape.mjs";
@@ -143,9 +143,7 @@ try {
     `allowUnsandboxedCommands=${eff.allowUnsandboxedCommands} autoAllowBashIfSandboxed=${eff.autoAllowBashIfSandboxed} ` +
     `strictAllowlist=${eff.network?.strictAllowlist}`);
   log(`sandbox allowlist (copied from ${settingsFile}, plus the preview host; ${sandbox.network.allowedDomains.length}): ${sandbox.network.allowedDomains.join(", ")}`);
-  if (eff.enabled !== true || eff.failIfUnavailable !== true ||
-      eff.allowUnsandboxedCommands !== false || eff.autoAllowBashIfSandboxed !== true ||
-      eff.network?.strictAllowlist !== true ||
+  if (!sandboxLockHeld(eff) ||
       !denyWrites.every((r) => (resolved.effective.permissions?.deny || []).includes(r))) {
     allowlistRefused("the policy tier did not take the lock (an administrator's managed tier may have dropped it)");
   }

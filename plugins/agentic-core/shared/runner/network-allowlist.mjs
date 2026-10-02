@@ -50,6 +50,16 @@ export function lockedSandbox(allowedDomains) {
   };
 }
 
+// Pure: whether the effective sandbox (as resolveSettings reports it) still
+// holds the lock. Auto-approval defaults to on and is reported only when it is
+// turned off, so an absent value is the approved state and an explicit false
+// is a tier that took it away (D116).
+export function sandboxLockHeld(eff) {
+  return Boolean(eff) && eff.enabled === true && eff.failIfUnavailable === true
+    && eff.allowUnsandboxedCommands === false && eff.autoAllowBashIfSandboxed !== false
+    && eff.network?.strictAllowlist === true;
+}
+
 // Pure: the project config's text in, the host of `paths.preview` out, or
 // null when there is no usable preview. The preview servers run outside the
 // session; a sandboxed command reaches them only through the sandbox's proxy,
