@@ -93,13 +93,13 @@ assert_contains "reports the skipped stage and its condition" \
   'skipped: [ { "stage": "extract", "condition": "design_source=true OR design_mentioned=true" } ]' "$OUT"
 rm -f "$SKIP_COND"
 
-echo "[resume] just under the 2-hour boundary (7199s)"
+echo "[resume] just under the 2-hour boundary (7195s, leaving the seconds the test itself takes)"
 BOUNDARY="$TMPDIR_TEST/boundary-fresh.json"
 bash "$WRITER" "$BOUNDARY" implement 6 interactive 0 "2026-09-04T10:00:00Z" "$COND" >/dev/null
-backdate "$BOUNDARY" 7199
+backdate "$BOUNDARY" 7195
 OUT=$(bash "$CHECKER" "$BOUNDARY" 2>&1); ST=$?
 assert_exit "exits 0" 0 $ST "$OUT"
-assert_contains "7199s old still resumes" "status: resume" "$OUT"
+assert_contains "7195s old still resumes" "status: resume" "$OUT"
 
 echo "[stale] a state file at or past the 2-hour window is deleted"
 STALE="$TMPDIR_TEST/stale.json"
