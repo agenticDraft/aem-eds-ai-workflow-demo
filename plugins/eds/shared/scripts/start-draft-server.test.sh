@@ -102,6 +102,22 @@ OUT=$(cd "$DIR" && env -u HTTP_PROXY -u http_proxy bash "$START" "http://localho
 assert_eq "exit 0" "0" "$CODE"
 assert_lacks "no --noproxy" "--noproxy" "$(cat "$WORK/curl-calls" 2>/dev/null)"
 
+echo "[start] a checkout with no drafts folder gets one before the server starts"
+# This case's own stubs: nothing answers until npx has started the server
+# (so the first poll ladder runs out, about 30s); npx stays alive long
+# enough to count as started.
+mkdir -p "$WORK/bin-start"
+printf '#!/usr/bin/env bash\nif [ -s "%s/npx-calls" ]; then printf 200; else printf 000; fi\n' "$WORK" > "$WORK/bin-start/curl"
+printf '#!/usr/bin/env bash\necho "$*" >> "%s/npx-calls"\nsleep 5\n' "$WORK" > "$WORK/bin-start/npx"
+chmod +x "$WORK/bin-start/curl" "$WORK/bin-start/npx"
+DIR=$(repo_on "bbbbbbbbbbbbbbbbbbbbbbb")
+rm -f "$WORK/npx-calls"
+OUT=$(cd "$DIR" && PATH="$WORK/bin-start:$PATH" bash "$START" "http://localhost:3000/preview" "$DIR/.ai/logs/d.log" "$DIR/.ai/logs/d.pid" 2>&1); CODE=$?
+assert_eq "exit 0" "0" "$CODE"
+assert_has "started" "started=yes" "$OUT"
+if [ -d "$DIR/drafts" ]; then ok "drafts folder created"; else bad "drafts folder created" "absent: $DIR/drafts"; fi
+[ -s "$DIR/.ai/logs/d.pid" ] && kill "$(cat "$DIR/.ai/logs/d.pid")" 2>/dev/null
+
 echo "[usage] a missing argument is still exit 2, before any check"
 OUT=$(bash "$START" "http://localhost:3000/preview" 2>&1); CODE=$?
 assert_eq "exit 2" "2" "$CODE"
