@@ -13,10 +13,12 @@
 #
 # `compare` reads the value table (`<node_id> TAB <property> TAB <value> TAB
 # <approx>`) and compares each row against the measurement file the browser
-# role's `measure` wrote. A row is compared on the selectors of the report lines that name its
-# node and its property (a trailing `(qualifier)` on the line's property is
-# ignored); when no line names the property, on every selector the report names
-# for the node.
+# role's `measure` wrote. A row is compared on the selectors of the report lines
+# that name both its node and its property (a trailing `(qualifier)` on the
+# line's property is ignored). A row whose property no line names for its node
+# is `unmeasured`, naming the missing selector: a selector the report recorded
+# for another property of the same node styles that other property, and a value
+# measured there is a value measured on the wrong element.
 #
 # A value split across elements (D529) is compared as applied: a line whose
 # value differs from the node's is a split when every component of it is `0` or
@@ -313,12 +315,13 @@ def box(result):
 
 def list_approx(node, prop, value, lines, by_node, results):
     """The `approx` lines for one content-dependent row; nothing is graded."""
-    selectors = by_node.get(node)
-    if not selectors:
+    if not by_node.get(node):
         return [("approx", node, "-", prop, f"{value}: no selector recorded for this node")]
     named = [sel for sel, lprop, _, lnode in lines if lnode == node and lprop == prop]
+    if not named:
+        return [("approx", node, "-", prop, f"{value}: no selector recorded for this property")]
     out = []
-    for selector in named or selectors:
+    for selector in named:
         result = results.get(selector)
         if not isinstance(result, dict) or not result.get("found"):
             out.append(("approx", node, selector, prop, f"{value}: selector not found on the page"))
@@ -361,14 +364,15 @@ def compare(table_path, report_path, measure_path):
         if not longhands or any(p not in MEASURED for p, _ in longhands):
             out.append(("unmeasured", node, "-", prop, f"{value}: not in measure's property set"))
             continue
-        selectors = by_node.get(node)
-        if not selectors:
+        if not by_node.get(node):
             out.append(("unmeasured", node, "-", prop, f"{value}: no selector recorded for this node"))
             continue
         expanded = (prop, value) != longhands[0] or len(longhands) > 1
         named = [(sel, lval) for sel, lprop, lval, lnode in lines if lnode == node and lprop == prop]
-        targets = named or [(sel, None) for sel in selectors]
-        for selector, line_value in targets:
+        if not named:
+            out.append(("unmeasured", node, "-", prop, f"{value}: no selector recorded for this property"))
+            continue
+        for selector, line_value in named:
             kind = classify_line(prop, value, line_value)
             wants = longhands
             note = f"table: {prop} {value}" if expanded else None
