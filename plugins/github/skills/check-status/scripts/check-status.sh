@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-status.sh <branch>
+# check-status.sh [--envelope <file>] <branch>
 #
 # scm.check_status — find the branch's pull request in any state, report its
 # state as `change_state` (open | merged | closed | none, D534) and the
@@ -19,29 +19,76 @@
 # change_state at all — an unknown state is never `none`, because a caller
 # cleans up after a change that is gone.
 #
+# Every envelope this script reports is spelled by the agentic-core plugin's
+# emitter (shared/lib/emit-envelope.sh), resolved as the sibling plugin of
+# this pack's root. With `--envelope <file>` the same block is left in that
+# file, so a caller that names the file (the route driver) reads the
+# operation's own envelope and never transcribes it.
+#
 # Exit codes: 0 with an envelope on stdout for every operational outcome
-# (pass or fail); 2 for a usage error (missing argument).
+# (pass or fail); 2 for a usage error (missing argument, `--envelope` without
+# a value, the emitter not installed beside this pack, or an envelope that
+# could not be written).
 
 set -uo pipefail
 
-BRANCH="${1:-}"
-if [[ -z "$BRANCH" ]]; then
-  echo "usage: check-status.sh <branch-name>" >&2
-  exit 2
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EMITTER="$SCRIPT_DIR/../../../../agentic-core/shared/lib/emit-envelope.sh"
 
-# envelope_fail <summary> [change_state] — the state line only when the
-# lookup succeeded, so a failure before it can never read as a state.
-envelope_fail() {
-  cat <<RESULT
-## Result
-verdict: fail
-summary: $1
-artifacts: []
-next_action: none
-RESULT
-  [[ -n "${2:-}" ]] && echo "change_state: $2"
+usage() {
+  echo "usage: check-status.sh [--envelope <file>] <branch-name>" >&2
+  if [[ $# -gt 0 ]]; then echo "$1" >&2; fi
+  exit 2
+}
+
+ENVELOPE_FILE=""
+BRANCH=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --envelope)
+      [[ $# -ge 2 ]] || usage "--envelope needs a value"
+      ENVELOPE_FILE="$2"; shift 2 ;;
+    --envelope=*)
+      ENVELOPE_FILE="${1#--envelope=}"; shift ;;
+    *)
+      if [[ -z "$BRANCH" ]]; then BRANCH="$1"
+      else usage "unexpected argument '$1'"
+      fi
+      shift ;;
+  esac
+done
+[[ -n "$BRANCH" ]] || usage
+[[ -f "$EMITTER" ]] || usage "the agentic-core plugin's emit-envelope.sh was not found beside this pack: $EMITTER"
+
+# emit <emitter options...> — spells the block with the core emitter, prints
+# it as this script's final output and, when the caller named an envelope
+# file, leaves the same block there. The emitter refuses a malformed request
+# whole, so a block that reaches stdout or the file is always conformant.
+emit() {
+  local out
+  if [[ -n "$ENVELOPE_FILE" ]]; then
+    out="$ENVELOPE_FILE"
+  else
+    out="$(mktemp "${TMPDIR:-/tmp}/check-status-envelope.XXXXXX")" || usage "could not create a temporary file"
+  fi
+  bash "$EMITTER" "$out" "$@" >/dev/null 2>&1
+  if [[ ! -s "$out" ]]; then
+    [[ -n "$ENVELOPE_FILE" ]] || rm -f "$out"
+    usage "could not write the result envelope to '$out'"
+  fi
+  cat "$out"
+  [[ -n "$ENVELOPE_FILE" ]] || rm -f "$out"
   exit 0
+}
+
+# envelope_fail <summary> [change_state] — the state only when the lookup
+# succeeded, so a failure before it can never read as a state.
+envelope_fail() {
+  if [[ -n "${2:-}" ]]; then
+    emit --verdict fail --summary "$1" --change-state "$2"
+  else
+    emit --verdict fail --summary "$1"
+  fi
 }
 
 # See create-branch.sh for why git's own ref-name checker is used here
@@ -86,15 +133,9 @@ print(pr["state"].lower(), pr["number"])
 CHANGE_STATE="${PICK%% *}"
 case "$CHANGE_STATE" in
   none)
-    cat <<RESULT
-## Result
-verdict: pass
-summary: No pull request exists for branch ${BRANCH}, so there are no checks to report.
-artifacts: []
-next_action: none
-change_state: none
-RESULT
-    exit 0 ;;
+    emit --verdict pass \
+      --summary "No pull request exists for branch ${BRANCH}, so there are no checks to report." \
+      --change-state none ;;
   open|merged|closed) PR_NUMBER="${PICK##* }" ;;
   *) envelope_fail "could not read the pull request lookup for branch ${BRANCH}." ;;
 esac
@@ -121,19 +162,14 @@ for c in checks:
 total = len(checks)
 parts = ", ".join(f"{buckets[b]} {b}" for b in order if buckets[b])
 print(parts if parts else "no checks configured")
-print("metrics: total=" + str(total) + " " + " ".join(f"{b}={buckets[b]}" for b in order))
+print("total=" + str(total) + " " + " ".join(f"{b}={buckets[b]}" for b in order))
 ' "$OUT_FILE")"
 
 CHECK_SUMMARY="$(printf '%s\n' "$PY_OUT" | head -n 1)"
-METRICS_LINE="$(printf '%s\n' "$PY_OUT" | tail -n 1)"
+METRICS="$(printf '%s\n' "$PY_OUT" | tail -n 1)"
 
-cat <<RESULT
-## Result
-verdict: pass
-summary: Retrieved checks for ${BRANCH} (#${PR_NUMBER}: ${CHECK_SUMMARY}).
-artifacts:
-  - ${OUT_FILE}
-next_action: none
-change_state: ${CHANGE_STATE}
-${METRICS_LINE}
-RESULT
+emit --verdict pass \
+  --summary "Retrieved checks for ${BRANCH} (#${PR_NUMBER}: ${CHECK_SUMMARY})." \
+  --artifact "$OUT_FILE" \
+  --change-state "$CHANGE_STATE" \
+  --metrics "$METRICS"

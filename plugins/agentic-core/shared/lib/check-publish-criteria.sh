@@ -30,8 +30,14 @@
 # Exit codes:
 #   0 — both structural criteria hold; "valid: publish (<n> files
 #       changed)" on stdout
-#   1 — a criterion fails; "invalid: <reason>" on stderr, naming why
-#       there is nothing to review or which path is never-tracked
+#   1 — a criterion fails; "invalid: <reason>" on stderr, naming which
+#       path is never-tracked
+#   3 — there is nothing to review: the working tree equals the merge base
+#       with the remote's default branch, so the item's work is already on
+#       the base; "satisfied: <reason>" on stdout. Not a failed criterion
+#       and not an error — the gate ends the run with a question for a
+#       person (close the item, or name what is missing) rather than a
+#       failure, since nothing the run did was wrong
 #   2 — usage error (no argument, path not found, not a git checkout,
 #       origin/HEAD unresolvable, detached HEAD)
 
@@ -106,8 +112,8 @@ done < <(git_root ls-files --others --exclude-standard 2>/dev/null)
 ALL_FILES=("${CHANGED_FILES[@]+"${CHANGED_FILES[@]}"}" "${UNTRACKED_FILES[@]+"${UNTRACKED_FILES[@]}"}")
 
 if (( ${#ALL_FILES[@]} == 0 )); then
-  echo "invalid: no change to review — working tree matches '$BASE_REF' at the merge base" >&2
-  exit 1
+  echo "satisfied: no change to review — working tree matches '$BASE_REF' at the merge base"
+  exit 3
 fi
 
 # Only CHANGED_FILES needs the .gitignore check, not UNTRACKED_FILES:

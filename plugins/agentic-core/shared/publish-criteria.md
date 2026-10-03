@@ -15,7 +15,12 @@ answered yes or no does not belong here — see `gate-contract.md`'s reject cond
 
 Criteria 1 and 2 are structural: whether the working tree differs from the merge base, and
 whether any of the paths that differ match a `.gitignore` rule, are both checkable by running git
-and comparing lists — no interpretation involved. Criteria 3 and 4 are not: whether the diff's
+and comparing lists — no interpretation involved. **Criterion 1 answered "no" is not a failed
+change.** A working tree equal to the merge base means the item's requirements are already met on
+the base branch — delivered under this item earlier, or under another one — and nothing the run did
+was wrong. The gate therefore does not fail; it asks a person whether to close the item or what is
+still missing (a `question`, per the question protocol), which ends an unattended run `blocked`
+with that question posted on the item. Criterion 2 answered "no" is a failed change, as before. Criteria 3 and 4 are not: whether the diff's
 content actually satisfies what `plan.yaml` proposed, and whether anything in it should stop
 publication, requires reading what changed, not just which paths changed. Per `gate-contract.md`'s
 fixed order, 1 and 2 are a deterministic check that runs first; 3 and 4 are what the gate's
@@ -117,8 +122,10 @@ tears down a throwaway git checkout per case instead.
 `lib/check-publish-criteria.sh <project-root>` is the deterministic checker for criteria 1 and 2 —
 no model involved. It exits `0` and prints `valid: publish (<n> files changed)` when the working
 tree differs from the merge base and nothing in that diff matches `.gitignore`, `1` with
-`invalid: <reason>` on stderr naming the empty diff or the offending path, `2` for a usage or
-environment error (missing project root, not a git checkout, no `origin/HEAD`, detached `HEAD`).
+`invalid: <reason>` on stderr naming the offending path, `3` with `satisfied: no change to review —
+working tree matches '<base>' at the merge base` on stdout when the tree equals the merge base, `2`
+for a usage or environment error (missing project root, not a git checkout, no `origin/HEAD`,
+detached `HEAD`).
 
 ```bash
 bash plugins/agentic-core/shared/lib/check-publish-criteria.test.sh
