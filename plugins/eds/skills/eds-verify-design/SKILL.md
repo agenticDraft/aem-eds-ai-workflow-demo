@@ -297,14 +297,24 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
 2. **Value comparison, when `has_values` is `true`.** `measure`'s own fixed property list is
    `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `line-height`,
    `padding-top`, `padding-right`, `padding-bottom`, `padding-left`, `gap`, `border-radius` —
-   geometry (a bounding box) is separate. Compare no property outside this list. For each entry in
-   `variables` that names one of these properties (by the same "prefer the project's own token,
-   judge the semantic match" reasoning `eds-prototype` used to write it), compare the reference's
-   value against this check's own measured computed value on `.<block name>`. An exact mismatch is
-   a named mismatch (`<property>: expected <value>, measured <value>`). A variable naming anything
-   else (margin, width, a spacing token with no measured counterpart) cannot be checked
-   quantitatively — note it as judged visually only, in the same step as 1, never as a numeric
-   mismatch.
+   geometry (a bounding box) is separate. Compare no property outside this list. A variable is
+   compared on the element `eds-prototype` wrote it on — the `## Design values` line carrying its
+   token — never on `.<block name>`, which only inherits and has no design node of its own. Run:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
+     variables .ai/run-context/design-reference.json .ai/run-context/prototype-report.md \
+     <the measurement file step 5 of **Capture and measure the draft page** recorded>
+   ```
+
+   Each line is `<status> TAB <variable> TAB <selector> TAB <property> TAB <detail>`; take them as
+   given.
+   - Exit `0` or `1` — every `mismatch` line is a named mismatch, tagged `[fixable]`, written as
+     `<selector> <property>: <detail>`. `match` lines are recorded as confirmed. Every `unmeasured`
+     line is a variable judged visually only, recorded with its reason: a property outside
+     `measure`'s list (margin, width, a spacing token with no measured counterpart), a composite
+     value, or a variable no line carries.
+   - Exit `2` — go to **Report fail**, naming the script's stderr reason.
 3. **Design-context values, when `design-context-values.tsv` exists and is non-empty.** Run:
 
    ```
@@ -326,9 +336,23 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
      decides which values are approx; never move a line between `approx` and `mismatch` here.
    - Exit `2` — go to **Report fail**, naming the script's stderr reason.
 
-   In step 1, a difference in the width or height of an element whose selector an `approx` line
-   names is `[content-dependent]` too, naming that line; any other size difference keeps step 1's
-   rule.
+   For each difference in the width or height of an element that step 1 saw, ask the script
+   whether that size follows the design's content, once per element and dimension:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
+     size .ai/run-context/design-context-values.tsv .ai/run-context/prototype-report.md \
+     <the same measurement file> "<selector>" <width|height>
+   ```
+
+   - Exit `0` (`content-dependent`) — the difference is `[content-dependent]`, written as step 1
+     saw it followed by the script's `follows approx line: …` text.
+   - Exit `1` (`fixable`) — the difference keeps step 1's own tag. An `approx` line on the same
+     element for the *other* dimension does not cover it: a header whose height follows its copy
+     can still have a width the design fixes by layout.
+   - Exit `2` — go to **Report fail**, naming the script's stderr reason.
+
+   A size difference on an element no `approx` line names needs no call; it keeps step 1's tag.
 4. **Size origin, always.** A fixed width or height on an element that holds text comes only from
    that element's own node in the design, because text that grows past a fixed box overflows it
    while the box's own geometry still looks right (D541). Run:
@@ -471,9 +495,8 @@ Any of the following — go to **Report warn**:
   script printed at least one `grown` line on it.
 - `design-reference.json`'s `has_values` is `false` (an image-only source), so the whole comparison
   was visual-only; no value could be checked quantitatively at all.
-- At least one `variables` entry named a property outside `measure`'s own list, or the
-  comparison script printed at least one `unmeasured` line, so that value could only be judged
-  visually, never confirmed numerically.
+- The comparison script printed at least one `unmeasured` line, in `variables` or `compare` mode,
+  so that value could only be judged visually, never confirmed numerically.
 - At least one comparison line's resolution was `reduced`, so that width was compared against a
   scaled-down reference image.
 - `prototype-report.md` named the target block as already existing, and **Edit the block's CSS and
@@ -581,10 +604,10 @@ the first check found no mismatch. Then a section headed `## Content-dependent, 
     combined string
   - `has_values: false` on the design reference → `"design comparison was visual-only: the design
     reference has no resolved token values to check quantitatively (image-only source)"`
-  - a `variables` entry naming a property outside `measure`'s list → `"design variable '<name>'
-    was judged visually only, not confirmed numerically — no corresponding measured property"`
-  - an `unmeasured` line from the comparison script → `"design value '<property> <value>' on node
-    <node> was judged visually only: <reason>"` — one entry per line
+  - an `unmeasured` line from the comparison script's `variables` mode → `"design variable '<name>'
+    was judged visually only, not confirmed numerically: <reason>"` — one entry per line
+  - an `unmeasured` line from the comparison script's `compare` mode → `"design value '<property>
+    <value>' on node <node> was judged visually only: <reason>"` — one entry per line
   - an `approx` line, a size-origin `grown` line, or a `[content-dependent]` entry on the final
     check → `"content-dependent, not graded: <selector> <property>: <detail>"` — one entry per line
   - an edit to an already-existing block → `"this run edited an already-existing block's CSS/JS

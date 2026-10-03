@@ -60,6 +60,40 @@
 #
 # Exit codes: 0 — no mismatch; 1 — at least one mismatch; 2 — usage error
 # (missing argument, unreadable file, malformed table row or measurement).
+#
+# compare-design-values.py size <values.tsv> <prototype-report.md> <measure.json> <selector> <width|height>
+#
+# Answers whether a size difference the visual comparison saw on <selector>
+# depends on the design's content. It does when an `approx` line of `compare`
+# names that same selector and that same dimension: `width` is named by a
+# `width` or `aspect-ratio` row, `height` by a `height`, `min-height` or
+# `aspect-ratio` row. A row naming the other dimension says nothing about this
+# one — a header whose height follows its copy can still have a width the
+# design fixes by layout. One line:
+#
+#   content-dependent TAB <selector> TAB <dimension> TAB follows approx line: <selector> <property>: <detail> (node <node>)
+#   fixable           TAB <selector> TAB <dimension> TAB no approx line names <dimension> on this selector
+#
+# Exit codes: 0 — content-dependent (one line per approx line that covers it);
+# 1 — fixable; 2 — usage error (an empty selector, a dimension other than
+# width or height, or any error `compare` would raise).
+#
+# compare-design-values.py variables <design-reference.json> <prototype-report.md> <measure.json>
+#
+# Compares each design variable on the element its value was written on: the
+# `## Design values` line whose source is `variables` and whose token is the
+# variable's name as a custom property (lower-cased, every run of other
+# characters a single `-`). A variable is never compared on the block wrapper,
+# which only inherits. One line per variables-sourced report line, then one
+# per variable no line carries:
+#
+#   match       TAB <variable> TAB <selector> TAB <property> TAB <value>
+#   mismatch    TAB <variable> TAB <selector> TAB <property> TAB expected <v>, measured <v>
+#   unmeasured  TAB <variable> TAB <selector> TAB <property> TAB <value>: <reason>
+#   unmeasured  TAB <variable> TAB -          TAB -          TAB <value>: no design-values line carries its token
+#   unmeasured  TAB -          TAB <selector> TAB <property> TAB <value>: no variable matches this line
+#
+# A reference with no `variables` prints nothing. Exit codes as for `compare`.
 
 import json
 import os
@@ -105,10 +139,11 @@ def read_text(path):
 
 # --- the prototype report -------------------------------------------------
 
-def design_value_lines(report):
-    """(selector, property, value, node) for each `## Design values` line that
-    names a node; property (qualifier dropped, lower-cased) and value are None
-    when the line is too short to carry them."""
+def report_lines(report):
+    """(selector, property, value, source, token, node) for each `## Design
+    values` line; property (qualifier dropped, lower-cased) and value are None
+    when the line is too short to carry them, source and token are None when
+    absent, node is None when the line names none."""
     inside = False
     for raw in report.splitlines():
         line = raw.strip()
@@ -121,18 +156,47 @@ def design_value_lines(report):
             line = line[2:].strip()
         line = line.strip("`").strip()
         parts = [p.strip() for p in line.split(" — ")]
-        if len(parts) < 2:
+        if len(parts) < 2 or not parts[0]:
             continue
         m = NODE_TAIL.match(parts[-1])
         if not m and parts[-1].startswith("node:"):
             print(f"unreadable node: part (one node id expected): {raw.strip()}", file=sys.stderr)
             sys.exit(2)
-        if m and parts[0]:
-            prop = value = None
-            if len(parts) >= 4:
-                prop = QUALIFIER.sub("", parts[1]).strip().lower()
-                value = parts[2]
-            yield parts[0].strip("`").strip(), prop, value, m.group(1)
+        prop = value = None
+        if len(parts) >= 4:
+            prop = QUALIFIER.sub("", parts[1]).strip().lower()
+            value = parts[2]
+        source = token = None
+        for part in parts[3:]:
+            if part.startswith("source:"):
+                source = part[7:].strip().lower()
+            elif part.startswith("token:"):
+                token = part[6:].strip()
+        yield parts[0].strip("`").strip(), prop, value, source, token, m.group(1) if m else None
+
+
+def design_value_lines(report):
+    """(selector, property, value, node) for each `## Design values` line that
+    names a node."""
+    for selector, prop, value, _, _, node in report_lines(report):
+        if node is not None:
+            yield selector, prop, value, node
+
+
+def measured_selectors(report):
+    """Every selector a node-bearing or variables-sourced line names, once, in
+    order: the selectors the browser role is asked to measure."""
+    seen = []
+    for selector, _, _, source, _, node in report_lines(report):
+        if (node is not None or source == "variables") and selector not in seen:
+            seen.append(selector)
+    return seen
+
+
+def token_slug(name):
+    """A design variable's name as the custom-property name a token writer
+    derives from it: lower-cased, every run of other characters one `-`."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
 def selectors_by_node(report):
@@ -404,18 +468,108 @@ def compare(table_path, report_path, measure_path):
     sys.exit(1 if mismatches else 0)
 
 
+COVERS = {"width": ("width", "aspect-ratio"), "height": ("height", "min-height", "aspect-ratio")}
+
+
+def size(table_path, report_path, measure_path, selector, dimension):
+    if not selector.strip():
+        usage_error("size: the selector is empty")
+    if dimension not in COVERS:
+        usage_error(f"size: the dimension must be width or height, got '{dimension}'")
+    rows = read_table(table_path)
+    report = read_text(report_path)
+    lines = list(design_value_lines(report))
+    by_node = selectors_by_node(report)
+    results = read_measurement(measure_path)
+    covering = []
+    for node, prop, value, approx in rows:
+        if not approx or prop not in COVERS[dimension]:
+            continue
+        for _, _, sel, lprop, detail in list_approx(node, prop, value, lines, by_node, results):
+            if sel == selector:
+                covering.append(f"follows approx line: {sel} {lprop}: {detail} (node {node})")
+    if covering:
+        for text in covering:
+            print("\t".join(("content-dependent", selector, dimension, text)))
+        sys.exit(0)
+    print("\t".join(("fixable", selector, dimension, f"no approx line names {dimension} on this selector")))
+    sys.exit(1)
+
+
+def variables(reference_path, report_path, measure_path):
+    try:
+        reference = json.loads(read_text(reference_path))
+    except ValueError as e:
+        usage_error(f"'{reference_path}' is not readable JSON: {e}")
+    if not isinstance(reference, dict):
+        usage_error(f"'{reference_path}': expected an object")
+    names = reference.get("variables")
+    if names is None:
+        sys.exit(0)
+    if not isinstance(names, dict) or not all(isinstance(v, str) for v in names.values()):
+        usage_error(f"'{reference_path}': `variables` must map names to string values")
+    report = read_text(report_path)
+    results = read_measurement(measure_path)
+    by_slug = {}
+    for name in names:
+        by_slug.setdefault(token_slug(name), name)
+
+    out = []
+    mismatches = 0
+    carried = set()
+    for selector, prop, value, source, token, _ in report_lines(report):
+        if source != "variables" or prop is None:
+            continue
+        name = by_slug.get((token or "").lstrip("-"))
+        if name is None:
+            out.append(("unmeasured", "-", selector, prop, f"{value}: no variable matches this line"))
+            continue
+        carried.add(name)
+        want = names[name]
+        if prop not in MEASURED:
+            out.append(("unmeasured", name, selector, prop, f"{want}: not in measure's property set"))
+            continue
+        result = results.get(selector)
+        if not isinstance(result, dict) or not result.get("found"):
+            out.append(("unmeasured", name, selector, prop, f"{want}: selector not found on the page"))
+            continue
+        computed = result.get("computed") or {}
+        if not isinstance(computed.get(prop), str):
+            out.append(("unmeasured", name, selector, prop, f"{want}: not in the measurement"))
+            continue
+        comparable, shown, equal = compare_value(prop, want, computed[prop])
+        if not comparable:
+            out.append(("unmeasured", name, selector, prop, f"{want}: not comparable to the computed value"))
+        elif equal:
+            out.append(("match", name, selector, prop, shown))
+        else:
+            out.append(("mismatch", name, selector, prop, f"expected {shown}, measured {computed[prop]}"))
+            mismatches += 1
+    for name, want in names.items():
+        if name not in carried:
+            out.append(("unmeasured", name, "-", "-", f"{want}: no design-values line carries its token"))
+    for line in out:
+        print("\t".join(line))
+    sys.exit(1 if mismatches else 0)
+
+
 def main():
     args = sys.argv[1:]
     if args[:1] == ["selectors"] and len(args) == 2:
-        seen = []
-        for selector, _, _, _ in design_value_lines(read_text(args[1])):
-            if selector not in seen:
-                seen.append(selector)
-                print(selector)
+        for selector in measured_selectors(read_text(args[1])):
+            print(selector)
         sys.exit(0)
     if args[:1] == ["compare"] and len(args) == 4:
         compare(args[1], args[2], args[3])
-    usage_error("expected `selectors <report>` or `compare <table> <report> <measurement>`")
+    if args[:1] == ["size"] and len(args) == 6:
+        size(args[1], args[2], args[3], args[4], args[5])
+    if args[:1] == ["variables"] and len(args) == 4:
+        variables(args[1], args[2], args[3])
+    usage_error(
+        "expected `selectors <report>`, `compare <table> <report> <measurement>`, "
+        "`size <table> <report> <measurement> <selector> <width|height>` "
+        "or `variables <reference> <report> <measurement>`"
+    )
 
 
 if __name__ == "__main__":
