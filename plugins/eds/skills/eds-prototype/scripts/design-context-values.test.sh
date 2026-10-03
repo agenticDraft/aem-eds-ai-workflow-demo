@@ -326,6 +326,37 @@ has_row "a non-px font size is printed as written" "$D" "4:1" "padding-block" "4
 has_row "and its wrapper keeps leading 0" "$D" "4:2" "line-height" "0"
 has_row "no leading-[0] wrapper: padding as written" "$D" "5:1" "padding-block" "40px"
 
+echo "G139: a fixed-height node at the top edge of a bordered frame takes the frame's top border too"
+D="$(case_dir frame '<section className="border border-[#e9e9e9] border-solid flex flex-col" data-node-id="1:196">
+  <div className="border-[#929292] border-b border-solid flex h-[96px] items-start px-[30px] py-[40px]" data-node-id="1:197">
+    <div className="flex flex-col leading-[0] text-[25.714px]" data-node-id="1:198"><p className="leading-[1.2]">Area</p></div>
+  </div>
+  <div className="h-[50px] pt-[10px]" data-node-id="1:199"><div className="leading-[0] text-[16px]" data-node-id="1:200"><p className="leading-[24px]">second</p></div></div>
+</section>
+<section className="flex flex-col" data-node-id="1:205">
+  <div className="border-[#929292] border-b border-solid flex h-[96px] items-start px-[30px] py-[40px]" data-node-id="1:206">
+    <div className="flex flex-col leading-[0] text-[25.714px]" data-node-id="1:207"><p className="leading-[1.2]">WebSurge</p></div>
+  </div>
+</section>
+<section className="border-[2px] pt-[8px]" data-node-id="6:1">
+  <div className="h-[50px] pt-[10px]" data-node-id="6:2"><div className="leading-[0] text-[16px]" data-node-id="6:3"><p className="leading-[24px]">padded frame</p></div></div>
+</section>
+<section className="border-t-[3px]" data-node-id="7:1">
+  <div className="h-[50px] pt-[10px]" data-node-id="7:2"><div className="leading-[0] text-[16px]" data-node-id="7:3"><p className="leading-[24px]">top only</p></div></div>
+</section>')"
+run_table "$D"
+if [ "$STATUS" -eq 0 ]; then ok "exits 0"; else bad "exits 0" "got: $STATUS" "stderr: $(cat "$D/stderr")"; fi
+has_row "first child of a bordered frame: 96 - 40 - 1 - 1 (frame top) - 30.857" "$D" "1:197" "padding-bottom" "23.143px"
+if grep -qxF "spill: 1:197 padding-bottom 23.143px = 96px - 40px - 1px - 1px (top border of 1:196) - 30.857px" "$D/stderr"; then
+  ok "stderr names the frame whose border was taken"
+else
+  bad "stderr names the frame whose border was taken" "got: $(cat "$D/stderr")"
+fi
+has_row "a second child is not at the frame's top edge: 50 - 10 - 0 - 24" "$D" "1:199" "padding-bottom" "16px"
+has_row "an unbordered frame changes nothing" "$D" "1:206" "padding-bottom" "24.143px"
+has_row "a frame with its own top padding changes nothing: 50 - 10 - 24" "$D" "6:2" "padding-bottom" "16px"
+has_row "a top-only frame border counts: 50 - 10 - 3 - 24" "$D" "7:2" "padding-bottom" "13px"
+
 echo "design_context: null, with a stale reference-code file present"
 D="$(case_dir null '<a className="px-[99px]" data-node-id="9:9">stale</a>')"
 jq '.design_context = null' "$D/.ai/run-context/design-reference.json" > "$D/ref.json" \

@@ -249,8 +249,14 @@ Run:
 
 ```
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/design-context-values.py \
-  .ai/run-context/design-reference.json > .ai/run-context/design-context-values.tsv
+  .ai/run-context/design-reference.json > .ai/run-context/design-context-values.tsv \
+  2> .ai/run-context/design-context-notes.txt
 ```
+
+Its stderr goes to `design-context-notes.txt` as written: the `spill:`, `replaced:` and `conflict:`
+lines that say how a row was derived, or the reason it stopped. That file is the run's record of the
+arithmetic behind a padding row, so keep it whole — list it under `artifacts:` and name it in the
+report; do not retype its lines.
 
 The script reads the reference code through `design_context.code_file` and prints one
 `<node_id> TAB <css-property> TAB <value> TAB <approx>` row per property an arbitrary-value class
@@ -266,7 +272,7 @@ a reference-code file by a fixed path.
   Any reference-code file already in `.ai/run-context/` belongs to an earlier run; do not read it.
   Record "design_context: null — no design-context values" for the report and continue.
 - **Exit `2`** — `design_context` names a code file that is missing, or is malformed. Go to
-  **Report fail**, naming the script's stderr reason.
+  **Report fail**, naming the reason `design-context-notes.txt` holds.
 
 A node id is the design's own element identity. Apply a row to the element composed for that node
 — the outermost node is the block's styled element, a nested node the element nested inside it.
@@ -498,8 +504,9 @@ and the plain property — never a qualifier such as `(top)`:
 Every component of a split value is `0` or the node's own value in that position; `verify-design`
 refuses any other. After the lines,
 state the row count of `design-context-values.tsv`, or "design_context: null — no design-context
-values" when the script exited `3`, and name any table row not applied, with the reason (no
-composed element for that node).
+values" when the script exited `3`; name `.ai/run-context/design-context-notes.txt` and the
+number of its `spill:` lines, which carry the arithmetic behind every bottom-padding row it
+derived; and name any table row not applied, with the reason (no composed element for that node).
 
 With viewports, add a `## Viewport overrides` section: the base variant and each override block
 (`<breakpoint> — <variant> — <n> values`), the `value` rows not applied with the reason, and then
@@ -664,6 +671,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   - every other `copied=` file of **Copy an upstream block**
   - `.ai/run-context/prototype-report.md`
   - `.ai/run-context/design-context-values.tsv`
+  - `.ai/run-context/design-context-notes.txt`
   - `.ai/run-context/viewport-overrides.tsv`, only when **Read the viewport overrides** ran
   - `.ai/run-context/placed-assets.tsv` and `.ai/run-context/committed-assets.tsv`, and every
     `<dest>` path in `placed-assets.tsv`, only when **Place the assets** ran
