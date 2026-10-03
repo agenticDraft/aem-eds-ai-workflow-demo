@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# check-gate-isolation.test.sh — the gate isolation check and verdict cap
-# (D537). No framework; exits 0 when every case passes, 1 otherwise.
+# check-gate-isolation.test.sh — the gate isolation check (D537, D121). No framework; exits 0 when every case passes, 1 otherwise.
 #
 # Usage:
 #   bash check-gate-isolation.test.sh
@@ -63,30 +62,10 @@ assert_has "names the path" "$TMP/a-file" "$OUT"
 run_in "$ROOT" isolation "$ROOT" extra
 assert_eq "an extra argument → exit 2" "2" "$CODE"
 
-echo "[cap] absent caps pass at warn; nothing else changes"
+echo "[no cap] the verdict is the review's; isolation is information only (D121)"
 run cap absent pass
-assert_eq "absent + pass → exit 0" "0" "$CODE"
-assert_eq "absent + pass → warn" "warn" "$OUT"
-run cap absent warn
-assert_eq "absent + warn → warn" "warn" "$OUT"
-run cap absent fail
-assert_eq "absent + fail → fail" "fail" "$OUT"
-run cap present pass
-assert_eq "present + pass → pass" "pass" "$OUT"
-run cap present warn
-assert_eq "present + warn → warn" "warn" "$OUT"
-run cap present fail
-assert_eq "present + fail → fail" "fail" "$OUT"
-
-echo "[cap usage] unknown isolation or verdict"
-run cap unknown pass
-assert_eq "unknown isolation → exit 2" "2" "$CODE"
-run cap absent maybe
-assert_eq "unknown verdict → exit 2" "2" "$CODE"
-run cap "isolation: absent" pass
-assert_eq "the full line, not the value → exit 2" "2" "$CODE"
-run cap absent
-assert_eq "missing verdict → exit 2" "2" "$CODE"
+assert_eq "the cap mode is gone → exit 2" "2" "$CODE"
+assert_has "it is named as an unknown mode" "unknown mode 'cap'" "$OUT"
 
 echo "[usage] no mode or an unknown one"
 run
