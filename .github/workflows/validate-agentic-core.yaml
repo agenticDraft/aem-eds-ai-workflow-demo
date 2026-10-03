@@ -117,6 +117,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/check-run-state.test.sh
       - name: a fresh start archives the previous run's context
         run: bash plugins/agentic-core/shared/lib/archive-run-context.test.sh
+      - name: a fresh start refuses a tree that already holds a change
+        run: bash plugins/agentic-core/shared/lib/check-tree-clean.test.sh
       - name: Check onboarding gate
         run: bash plugins/agentic-core/shared/lib/check-onboarding-gate.test.sh
       - name: Check preflight

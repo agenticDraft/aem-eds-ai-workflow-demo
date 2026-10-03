@@ -45,8 +45,8 @@ the core can be pointed at.
    stage is re-invoked once with the answer; in autonomous mode the blocker is written back
    through the tracker role and the run ends `blocked`. `limits.questions_per_run` caps the count.
 5. **Exactly three terminal states.** `delivered` when `deliver` returns `pass`; `blocked` on an
-   unanswered question, an exhausted budget or a pre-flight failure; `failed` on a stage's own
-   `fail` or on a contract violation. `warn` is never terminal.
+   unanswered question, an exhausted budget, a pre-flight failure or a dirty tree at a fresh
+   start; `failed` on a stage's own `fail` or on a contract violation. `warn` is never terminal.
 6. **Configuration is written once.** `setup` detects the project's commands and paths, confirms
    them, and writes them into `.ai/project-config.yaml`, which holds six top-level keys:
    `version`, `packs`, `commands`, `paths`, `limits`, `trigger`. `limits` and `trigger` are human
