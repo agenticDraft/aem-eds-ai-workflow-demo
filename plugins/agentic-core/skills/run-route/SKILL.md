@@ -49,7 +49,7 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
   rest of the session, and after a terminal state the session's reads are no longer yours
 - `.ai/logs/run-context-<date>-<time>/` — where a fresh start moves everything the previous run
   left in `.ai/run-context/`, plus `.ai/progress.md` and `.ai/route-progress.txt`, written only by
-  `archive-run-context.sh` (**Fresh start: write flag, run intake**, step 2) and read by nobody
+  `archive-run-context.sh` (**Fresh start: write flag, run intake**, step 3) and read by nobody
   in a run
 
 **`.ai/run-context/` — crosses the driver↔stage boundary. A stage adapter reads these as its own
@@ -268,6 +268,7 @@ digraph run_route {
     "Run-state status?" -> "Fresh start: write flag, run intake" [label="none, or stale-deleted"];
     "Resume or start fresh?" -> "Resume: re-evaluate stage conditions" [label="resume"];
     "Resume or start fresh?" -> "Fresh start: write flag, run intake" [label="start fresh"];
+    "Fresh start: write flag, run intake" -> "blocked" [label="tree not clean"];
     "Fresh start: write flag, run intake" -> "Intake decision?";
     "Intake decision?" -> "failed" [label="terminate-failed / terminate-contract-violation"];
     "Intake decision?" -> "Evaluate stage conditions" [label="continue / continue-warn"];
@@ -397,7 +398,30 @@ fresh?"* using the fields `check-run-state.sh` reported.
    `<mode>` is `interactive` (the default) and `<item_id>` is `$ARGUMENTS` unchanged. Carry
    `<item_id>` and `<mode>` forward in your own working memory for the rest of the run, the same
    way `<start_time>` is carried (**Record intake stage**, step 2).
-2. **Clear the previous run's context, before anything of this run is written:**
+2. **Refuse a dirty working tree, before anything of this run exists:**
+
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/shared/lib/check-tree-clean.sh <project root>
+   ```
+
+   `<project root>` is your own working directory, absolute — the same path you later pass the gates
+   as `project_root:`. Print its output verbatim. It asks `list-changed-files.sh` for the change
+   set `publish-gate` will review and `deliver` will publish, so a path it names now is one this run
+   did not write and would carry into the change anyway (`shared/run-state.md`, "A fresh start
+   begins on a clean tree").
+
+   - **Exit 0** (`clean: …`) — go on to step 3.
+   - **Exit 1** (`refused: <n> paths changed before this run`, then one `changed: <path>` line per
+     path) — stop here. No marker, branch or run state exists yet, so there is nothing to finalize
+     and nothing to archive. Route to **blocked** with `<missing>` set to `a clean working tree:`
+     followed by the `refused:` line's text after `refused: `, and `<recorded-at>` set to
+     `nowhere — refused at fresh start, before the run began`. The `changed:` lines you printed name
+     every path; commit, stash or remove them is the human's call, never yours. Do not clean the
+     tree yourself, and do not go on to step 3.
+   - **Exit 2** (`invalid: …` or a usage line) — the change set could not be computed. Route to
+     **blocked** the same way, with `<missing>` set to the script's message verbatim.
+
+3. **Clear the previous run's context, before anything of this run is written:**
 
    ```
    ${CLAUDE_PLUGIN_ROOT}/shared/lib/archive-run-context.sh .ai/run-context .ai/logs .ai/progress.md .ai/route-progress.txt
@@ -409,14 +433,14 @@ fresh?"* using the fields `check-run-state.sh` reported.
    merged manifest from the last run as its own — the stage reading it cannot tell the difference,
    and neither can you. This step belongs to a fresh start only; **Resume: re-evaluate stage
    conditions** never runs it, because the directory then holds the very run being resumed.
-3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-4. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
+4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
+5. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
    invocation argument `item_id: <item_id>`; `intake` needs no `fact_record`/`route`/mode input
    yet, since it is what produces the fact record. Get its envelope onto
    `.ai/run-context/envelope-intake.txt` by the three steps in "Getting a stage's envelope onto
    disk", running `reset-envelope.sh` on that path **before** invoking the adapter.
-5. `${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-intake.txt`
-6. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
+6. `${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-intake.txt`
+7. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
    → go to **Intake decision?**.
 
 ### Intake decision?
@@ -466,6 +490,9 @@ stage. Otherwise go to **Drive next stage**, starting at the stage after `intake
    stages** above, rewriting both `.ai/run-context/stage-conditions.txt` and
    `.ai/route-progress.txt`. **Do not run `archive-run-context.sh` here**: `.ai/run-context/` holds
    the run you are resuming, and clearing it would leave every later stage without its inputs.
+   **Do not run `check-tree-clean.sh` either**: a resumed run's tree is dirty with its own work by
+   design, and the check at its fresh start is what guarantees that everything dirty now is the
+   run's own.
 
 Go to **Stage list matches?**.
 
@@ -795,7 +822,10 @@ gate, none for every other stage). The adapter reads its answer itself from the 
   message — a stage's or a provider operation's. Every envelope the run judges was written by the
   thing it judges.
 - Starting fresh without `archive-run-context.sh`, or running it on a resume.
+- Starting fresh without `check-tree-clean.sh`, running it on a resume, composing the same check
+  from `git` commands of your own, or cleaning, stashing or committing a path it names so the run
+  can go on.
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: b5d63a72f981 -->
+<!-- instructions-stamp: 78af82988549 -->

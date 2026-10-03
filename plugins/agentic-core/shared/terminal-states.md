@@ -10,7 +10,7 @@ description: The three terminal states a run can end in — delivered, blocked, 
 | State       | Cause                                                          | Required output                                    |
 | ----------- | --------------------------------------------------------------- | --------------------------------------------------- |
 | `delivered` | `deliver` returned `pass`                                    | The status table, and the published location.      |
-| `blocked`   | Question unanswered, budget exhausted, or a pre-flight failure | What is missing, and where it was recorded.        |
+| `blocked`   | Question unanswered, budget exhausted, a pre-flight failure, or a dirty tree at a fresh start | What is missing, and where it was recorded. |
 | `failed`    | A stage returned `fail`, or a contract violation             | The failing stage, and its summary.                |
 
 **Never does:** decide *which* state a run ends in — that decision is already made by
@@ -29,7 +29,9 @@ inventing a fourth one:
   route treats its `continue` as the run's end rather than an advance.
 - **`blocked`** — `question-protocol.md`'s `terminate-blocked`: an interactive run's per-run
   question cap exhausted, or an autonomous run's blocker written back. A pre-flight capability
-  check, once built, produces this same state for a capability missing before any stage runs.
+  check, once built, produces this same state for a capability missing before any stage runs. A
+  fresh start on a tree that is not clean (`run-state.md`, "A fresh start begins on a clean tree")
+  ends here too, before any stage runs, naming every path.
 - **`failed`** — `stage-runner.md`'s `terminate-failed` (the stage's own `fail` verdict) or
   `terminate-contract-violation` (an unresolvable stage id, or an envelope that fails validation).
   Both end the run `failed`; only the report to a human distinguishes which one happened —

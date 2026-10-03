@@ -64,10 +64,30 @@ own staleness check partway through. Rewriting `run-state.json` in full after ev
 does this — there is no separate "touch" step, and no code path that updates only some fields
 without rewriting the file.
 
+## A fresh start begins on a clean tree
+
+Before anything of a fresh run exists — before the run context is archived, before the marker,
+the branch or any outbound call — `lib/check-tree-clean.sh <project root>` must report the tree
+clean. "Clean" is defined once, by `lib/list-changed-files.sh`: the change set the publish gate
+reviews and the deliver stage publishes — every tracked change against the merge base of the
+remote's default branch and `HEAD` (edited, staged, deleted, or committed on this branch only) and
+every untracked path the ignore rules do not exclude. The guard calls that script rather than
+restating it, so the guard and the gate cannot disagree about what a change is.
+
+A path in that set before the run began is one the run did not write and would publish anyway,
+unreviewed by anything that knows it predates the run; the publish gate would refuse it only at the
+end. So a non-empty set ends the run `blocked` at once, every path named, with nothing written: no
+marker, no branch, no run state, no archive. The guard reads and never writes, and nothing cleans
+the tree on the human's behalf — whether a named path is committed, stashed or removed is theirs to
+decide.
+
+**A resume never checks.** A resumed run's tree is dirty with its own work by design; the check at
+its fresh start is what guarantees that everything dirty on resume is the run's own.
+
 ## A fresh start archives the run context
 
 A fresh start — `status: none`, `status: stale-deleted`, or "start fresh" chosen over a resumable
-state — begins by moving everything the previous run left in the run-context directory, together
+state — once the tree is clean (above), moves everything the previous run left in the run-context directory, together
 with `progress.md` and the flat stage list, into one new directory under the run's log root,
 `run-context-<UTC date>-<UTC time>/`, and leaving the run-context directory present and empty.
 That is `lib/archive-run-context.sh`'s whole job, and it runs **before** the orchestration marker
@@ -85,6 +105,8 @@ separates by the state file's age.
 ## Anti-patterns
 
 - Clearing the run context on a resume, or starting fresh without clearing it.
+- Starting fresh on a tree `check-tree-clean.sh` refused, checking the tree on a resume, or
+  defining "clean" any other way than the publish gate's change set.
 - Computing "resume or fresh" from anything but the file's own mtime — a field inside the JSON
   recording when the run started is `start_time`, kept for the record, not read back to decide
   staleness.
@@ -120,6 +142,10 @@ hours or older).
 `lib/finalize-run-state.sh <state-file>` deletes the file (`status: deleted`) or reports
 `status: not-found` — idempotent either way, for the successful-terminal-state case.
 
+`lib/check-tree-clean.sh <project-root>` prints `clean: no change and no untracked path` and exits
+`0`, or prints `refused: <n> paths changed before this run` and one `changed: <path>` line per path
+and exits `1`; `2` for a usage error or a change set that could not be computed.
+
 `lib/archive-run-context.sh <run-context dir> <archive root> [extra file …]` moves every entry of
 the directory and each listed extra file that exists into `<archive root>/run-context-<date>-<time>/`
 and leaves the directory present and empty, printing `archived: <n> entries -> <dir>`; a directory
@@ -135,4 +161,5 @@ bash plugins/agentic-core/shared/lib/check-run-state.test.sh
 bash plugins/agentic-core/shared/lib/finalize-run-state.test.sh
 bash plugins/agentic-core/shared/lib/write-progress-row.test.sh
 bash plugins/agentic-core/shared/lib/archive-run-context.test.sh
+bash plugins/agentic-core/shared/lib/check-tree-clean.test.sh
 ```
