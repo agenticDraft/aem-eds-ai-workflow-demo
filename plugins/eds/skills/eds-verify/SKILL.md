@@ -136,6 +136,11 @@ answers when a reviewer opens it; only `eds-serve`'s cleanup stops it
    never a reason to fail this stage, only a reason **Report warn**'s reachability check below falls
    back to a weaker one.
 
+Every browser and tracker call this stage makes goes through the resolved operation's skill, and
+the operation's `fail` envelope is this stage's input, never a reason to run the pack's script
+itself (`../../../agentic-core/shared/role-operations.md`). `render_script` is handed to the core's
+reachability check as an argument, never executed here.
+
 ### Browser role resolved?
 
 `render`, `capture` and `measure` all resolved to a skill name — continue to **Read the fact record

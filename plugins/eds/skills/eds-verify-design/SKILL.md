@@ -163,6 +163,10 @@ Same resolution `eds-verify` performs for itself:
    Any of the three absent or listed under `unsupported` — go straight to **Report fail** naming the
    missing operation(s); this is a configuration error pre-flight should have already caught.
 
+Every browser call this stage makes, on every check, goes through the resolved operation's skill,
+and the operation's `fail` envelope is this stage's input, never a reason to run the pack's script
+itself (`../../../agentic-core/shared/role-operations.md`).
+
 ### Browser role resolved?
 
 All three operations resolved to a skill name — continue to **Locate the draft file**. Any missing

@@ -176,7 +176,8 @@ To make this pack the project's browser, set `packs.browser: playwright` in
 - **Chromium only.** The scripts launch one engine; no other browser is declared or probed.
 - **A sandbox that blocks the browser process turns every operation into `fail`.** The envelope
   above is what that looks like; it is indistinguishable from a missing binary except by its
-  summary text.
+  summary text. Each operation skill therefore runs its script with the command sandbox off,
+  unconditionally; a caller that runs a script itself, sandboxed, gets that envelope.
 - **Three test files cover the helpers and `measure`'s parsing.** `render`, `capture` and
   `interact` have no offline test; a real page was not loaded in producing this README.
 - **A local preview needs loopback.** The operations connect to whatever URL they are given;
