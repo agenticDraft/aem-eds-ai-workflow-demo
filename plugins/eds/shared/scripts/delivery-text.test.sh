@@ -110,6 +110,20 @@ printf '[{"bucket":"pass","name":"build","state":"SUCCESS"},{"bucket":"pending",
 run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/green.json" "${COMMON[@]}"
 assert_has "Nothing to do before merge" $'Action needed\n- Nothing to do before merge' "$OUT"
 
+echo "[note] a pending check is not an action, but the note says it was still running (G142)"
+assert_has "a Pending section names it" $'Pending\n- Check pending: psi (still running when this note was posted)' "$OUT"
+ACTION=$(printf '%s\n' "$OUT" | sed -n '/^Action needed$/,/^$/p')
+assert_lacks "it is not under Action needed" "psi" "$ACTION"
+assert_eq "last line unchanged" "Details: delivery-report.md (attached)" "$(echo "$OUT" | tail -1)"
+printf '[{"bucket":"pending","name":"aem-psi-check","state":"QUEUED"},{"bucket":"pending","name":"build","state":"IN_PROGRESS"},{"bucket":"fail","name":"lint","state":"FAILURE"}]' > "$WORK/mixed.json"
+run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/mixed.json" "${COMMON[@]}"
+assert_has "every pending check is listed, in order" $'Pending\n- Check pending: aem-psi-check (still running when this note was posted)\n- Check pending: build (still running when this note was posted)' "$OUT"
+assert_has "a failing check stays an action beside them" "- Check failing: lint" "$OUT"
+printf '[{"bucket":"pass","name":"build","state":"SUCCESS"},{"bucket":"fail","name":"lint","state":"FAILURE"}]' > "$WORK/no-pending.json"
+run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/no-pending.json" "${COMMON[@]}"
+assert_has "(the checks were read)" "- Check failing: lint" "$OUT"
+assert_lacks "no pending check → no Pending section" "Pending" "$OUT"
+
 echo "[note] checks that cannot be read, and a cancelled check, need a person"
 run note --manifest "$WORK/clean.json" --branch x-1 --item-id X-1 --pr-url "$PR" --checks "$WORK/missing-checks.json" "${COMMON[@]}"
 assert_has "unreadable checks" "- Automated checks could not be read; see delivery-report.md" "$OUT"

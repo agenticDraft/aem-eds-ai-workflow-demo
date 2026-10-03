@@ -43,6 +43,10 @@
 # Nothing → "Nothing to do before merge". Every other gap stays out of the
 # note; the report carries all of them.
 #
+# A check still running is not an action — nothing is wrong yet — but the note
+# must not read as if CI had finished: each pending check gets one line in a
+# "Pending" section after Action needed, and no pending check means no section.
+#
 # Expected failure (G31): on an automation-only PR, a failing `aem-psi-check`
 # is expected (no preview URL to measure). The note lists it under Expected,
 # not Action needed; `checks` does not count it. Any other PR type keeps it an
@@ -181,13 +185,16 @@ def check_line(check):
 
 
 def check_actions(path, pr_type):
-    """(action lines, expected lines) for the note."""
+    """(action lines, expected lines, pending lines) for the note."""
     checks = read_checks(path)
     if checks is None:
-        return ["Automated checks could not be read; see delivery-report.md"], []
+        return ["Automated checks could not be read; see delivery-report.md"], [], []
     unexpected, expected = split_red(checks, pr_type)
     reason = f"{pr_type} PR: no preview URL to measure"
-    return [check_line(c) for c in unexpected], [f"{check_line(c)} ({reason})" for c in expected]
+    pending = [f"Check pending: {c.get('name', '(unnamed)')} (still running when this note was posted)"
+               for c in checks if c.get("bucket") == "pending"]
+    return ([check_line(c) for c in unexpected], [f"{check_line(c)} ({reason})" for c in expected],
+            pending)
 
 
 def checks_verdict(path, pr_type):
@@ -224,7 +231,7 @@ def note(args, manifest, reason, config):
     actions = gap_actions(manifest, args.block_name)
     if reason:
         actions.append(f"The evidence manifest could not be read ({reason}); see delivery-report.md")
-    check_lines, expected = check_actions(args.checks, args.pr_type)
+    check_lines, expected, pending = check_actions(args.checks, args.pr_type)
     actions += check_lines
     if not actions:
         actions = ["Nothing to do before merge"]
@@ -237,6 +244,7 @@ def note(args, manifest, reason, config):
         "Action needed",
         *[f"- {action}" for action in actions],
         "",
+        *(["Pending", *[f"- {line}" for line in pending], ""] if pending else []),
         *(["Expected", *[f"- {line}" for line in expected], ""] if expected else []),
         "Details: delivery-report.md (attached)",
     ]
