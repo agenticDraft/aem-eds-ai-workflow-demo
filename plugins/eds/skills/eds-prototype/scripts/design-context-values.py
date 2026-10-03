@@ -63,8 +63,13 @@
 # its inner text element sets (`leading-[…]`), and the fixed-height node's
 # padding rows become `padding-top` (as designed) and `padding-bottom` = the
 # height minus the top padding, the top and bottom borders and the text's line
-# box, never below 0. One `spill: <node_id> padding-bottom <value> = …` line on
-# stderr shows the arithmetic. Only px values take part; a node whose height,
+# box, never below 0. When the node is its parent's first child and the parent
+# has a top border and no top padding, that border is subtracted too: a layout
+# with no element for the parent frame carries the frame's border on the node
+# itself, and with the node's own height row in place, a box given less bottom
+# padding never ends up smaller than that height. One `spill: <node_id>
+# padding-bottom <value> = …` line on stderr shows the arithmetic, naming the
+# parent whose border it took. Only px values take part; a node whose height,
 # padding, border, font size or inner leading is not a px length (or a plain
 # number for the leading) is printed as written.
 #
@@ -274,11 +279,28 @@ def line_box(wrapper_classes, inner_classes):
     return (lead_px, leading) if lead_px is not None else (None, None)
 
 
+def frame_top_border(node_attrs, parent_of):
+    """(frame node id, px) of the top border a fixed-height node sits directly under: its parent's,
+    when the node is the parent's first child and the parent sets no top padding. (None, 0.0) when
+    nothing sits there; (None, None) when that border is not a px length."""
+    parent, first = parent_of.get(id(node_attrs), (None, False))
+    if parent is None or not first:
+        return None, 0.0
+    p_cls = parent.get("className") or parent.get("class") or ""
+    if padding_top(p_cls):
+        return None, 0.0
+    borders = border_block(p_cls)
+    if borders is None:
+        return None, None
+    return (parent.get("data-node-id") or "its parent", borders[0]) if borders[0] else (None, 0.0)
+
+
 def spill(code):
     """(node padding rows, wrapper line-heights, stderr lines) for every leading-[0] wrapper
     inside a fixed-height node."""
     stack = []  # (tag, attrs) per open element
     wrappers = []  # (fixed-height ancestor attrs, wrapper attrs, [inner classes…])
+    parent_of, children = {}, {}  # id(attrs) -> (parent attrs, first child?); id(attrs) -> count
     i = 0
     while i < len(code):
         m = TAG_ANY.match(code, i)
@@ -292,6 +314,10 @@ def spill(code):
             continue
         attrs, i, self_closing = read_tag(code, m.end())
         classes = attrs.get("className") or attrs.get("class") or ""
+        if stack:
+            parent = stack[-1][1]
+            children[id(parent)] = children.get(id(parent), 0) + 1
+            parent_of[id(attrs)] = (parent, children[id(parent)] == 1)
         for anc, wrap, inner in wrappers:
             if any(a is wrap for _, a in stack):
                 inner.append(classes)
@@ -312,14 +338,18 @@ def spill(code):
         height, top, borders = px_value(arbitrary(a_cls, "h")), padding_top(a_cls), border_block(a_cls)
         if box is None or top is None or borders is None:
             continue
-        bottom = max(0.0, height - top - borders[0] - borders[1] - box)
+        frame, frame_top = frame_top_border(anc, parent_of)
+        if frame_top is None:
+            continue
+        bottom = max(0.0, height - top - borders[0] - borders[1] - frame_top - box)
         if node in pads and pads[node][1] <= bottom:
             continue
         pads[node] = (top, bottom)
         if wrap.get("data-node-id"):
             leads[wrap["data-node-id"]] = leading
+        taken = f" - {fmt_px(frame_top)} (top border of {frame})" if frame_top else ""
         notes.append(f"spill: {node} padding-bottom {fmt_px(bottom)} = {fmt_px(height)} - {fmt_px(top)}"
-                     f" - {fmt_px(borders[0] + borders[1])} - {fmt_px(box)}")
+                     f" - {fmt_px(borders[0] + borders[1])}{taken} - {fmt_px(box)}")
     return pads, leads, notes
 
 

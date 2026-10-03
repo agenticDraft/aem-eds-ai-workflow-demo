@@ -70,7 +70,7 @@ with no authored content.
 | `conventions`   | `eds-conventions`    | always                                     |        | `design-conventions.md`                             |
 | `serve`         | `eds-serve`          | always                                     |        | `serve-report.md`                                   |
 | `baseline`      | `eds-baseline`       | components present                         |        | `baseline-capture.json`                             |
-| `prototype`     | `eds-prototype`      | design source or design mentioned          |        | `prototype-report.md`, `design-context-values.tsv`  |
+| `prototype`     | `eds-prototype`      | design source or design mentioned          |        | `prototype-report.md`, `design-context-values.tsv`, `design-context-notes.txt` |
 | `verify-design` | `eds-verify-design`  | design source or design mentioned          | 2      | `verify-design-report.md`                           |
 | `plan`          | `eds-plan`           | always                                     | 1      | `plan.yaml`                                         |
 | `plan-gate`     | `eds-plan-gate`      | always                                     |        | `plan-gate-report.md`                               |
