@@ -387,8 +387,9 @@ Capture its entire output and read the captured envelope's `verdict`.
    person by the gap's own prefix, not by judgement: a `content-asset gap` entry, the
    placeholder-fixture gap (turned into a remedy line naming the block and the fixture file), a
    failing or cancelled check, checks that could not be read, or a manifest that could not be read.
-   None of these → "Nothing to do before merge". A check that fails by design for the PR type goes
-   under **Expected** instead. "Judged visually only" lines, skipped comparisons
+   None of these → "Nothing to do before merge". A check still running goes under **Pending**, one
+   line each, so the note never reads as if CI had finished; a check that fails by design for the PR
+   type goes under **Expected**. "Judged visually only" lines, skipped comparisons
    and the like stay out of the note; every one of them is already verbatim in
    `delivery-report.md`, which is attached. Use the output unchanged. This stage never authors,
    generates or publishes anything to make the note read better (D87).
