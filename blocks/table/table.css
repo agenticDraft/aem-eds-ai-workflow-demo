@@ -84,38 +84,24 @@
 }
 
 .table.comparison table th {
+  box-sizing: border-box;
   min-width: 200px;
   height: 96px;
   padding-inline: 30px;
-  padding-block: 40px;
+  padding-top: 40px;
   border-bottom: 1px solid var(--accent-accent-6);
   font-weight: 500;
-  line-height: 0;
   text-align: center;
   vertical-align: top;
-  overflow-wrap: anywhere;
 }
 
-/* heading text box: design wrapper is leading 0, flex column, centred; inner text is leading 1.2 */
+/* heading text box: the design's padding-bottom per column closes each header cell at 96px */
 .table.comparison table th p {
   display: flex;
   flex-direction: column;
   justify-content: center;
   line-height: 1.2;
-}
-
-.table.comparison table th:nth-child(2) {
-  color: var(--text-paragraph);
-  font-family: 'Rethink Sans', var(--body-font-family);
-  font-size: 22.857px;
-  letter-spacing: -1.8286px;
-}
-
-.table.comparison table th:nth-child(3) {
-  color: var(--text-paragraph);
-  font-family: 'Reddit Mono', monospace;
-  font-size: 21.654px;
-  letter-spacing: -1.7323px;
+  overflow-wrap: anywhere;
 }
 
 .table.comparison table td {
@@ -134,6 +120,28 @@
   line-height: 1.4;
   letter-spacing: -0.12px;
   overflow-wrap: anywhere;
+}
+
+.table.comparison table th:nth-child(2) {
+  padding-bottom: 27.572px;
+}
+
+.table.comparison table th:nth-child(2) p {
+  color: var(--text-paragraph);
+  font-family: 'Rethink Sans', var(--body-font-family);
+  font-size: 22.857px;
+  letter-spacing: -1.8286px;
+}
+
+.table.comparison table th:nth-child(3) {
+  padding-bottom: 29.015px;
+}
+
+.table.comparison table th:nth-child(3) p {
+  color: var(--text-paragraph);
+  font-family: 'Reddit Mono', monospace;
+  font-size: 21.654px;
+  letter-spacing: -1.7323px;
 }
 
 .table.comparison table td .icon {
@@ -155,14 +163,19 @@
   clip-path: inset(0 -10px);
 }
 
+/* the Area cell also carries the column frame's 1px top border, so it closes 1px earlier to keep the row at 96px */
 .table.comparison table th:first-child {
+  padding-bottom: 23.143px;
   border-top: 1px solid var(--dividers-divider-1);
+  border-radius: 20px 20px 0 0;
+  clip-path: inset(-10px -10px 0);
+}
+
+.table.comparison table th:first-child p {
   color: var(--text-headline);
   font-family: 'DM Sans', var(--body-font-family);
   font-size: 25.714px;
   letter-spacing: -2.0571px;
-  border-radius: 20px 20px 0 0;
-  clip-path: inset(-10px -10px 0);
 }
 
 .table.comparison table tr:last-child td:first-child {
