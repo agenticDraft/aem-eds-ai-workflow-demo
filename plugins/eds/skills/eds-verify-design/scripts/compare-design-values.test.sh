@@ -61,11 +61,17 @@ Target block: zoki (new)
 
 .zoki — padding-inline — 22px — source: design_context — token: none — node: 1:185
 .zoki — padding-block — 14px — source: design_context — token: none — node: 1:185
+.zoki — padding — 14px 22px 10px — source: design_context — token: none — node: 1:185
 .zoki — border-radius — 1000px — source: design_context — token: none — node: 1:185
-.zoki — background-color — var(--accent-2) — source: variables — token: --accent-2
+.zoki — gap — 8px — source: design_context — token: none — node: 1:185
+.zoki — background-color — var(--accent-2) — source: variables — token: --accent-2 — node: 1:185
 - `.zoki a — font-size — 14px — source: design_context — token: none — node: I1:185;1:543`
+- `.zoki a — line-height — 1.4 — source: design_context — token: none — node: I1:185;1:543`
+- `.zoki a — color — #1a1a1a — source: design_context — token: none — node: I1:185;1:543`
+- `.zoki a — width — 94px — source: design_context — token: none — node: I1:185;1:543`
+- `.zoki a — height — 20px — source: design_context — token: none — node: I1:185;1:543`
 
-Rows: 6.
+Rows: 11.
 
 ## Files written
 
@@ -226,7 +232,8 @@ has_line "unmeasured, naming the reason" "$D" \
 echo "a selector the measurement did not find, or did not measure"
 REPORT_NF='## Design values
 
-.missing — padding — 8px — source: design_context — token: none — node: 5:5
+.missing — padding-top — 8px — source: design_context — token: none — node: 5:5
+.missing — height — 10px — source: design_context — token: none — node: 5:5
 '
 TSV="5:5${TAB}padding-top${TAB}8px${TAB}false
 "
@@ -381,6 +388,7 @@ echo "approx aspect ratio and min-height of an image fill"
 REPORT_IMG='## Design values
 
 .card img — aspect-ratio — 16/9 — source: design_context — token: none — node: 8:2
+.card img — min-height — 180px — source: design_context — token: none — node: 8:2
 '
 TSV="8:2${TAB}aspect-ratio${TAB}16/9${TAB}true
 8:2${TAB}min-height${TAB}180px${TAB}true
@@ -404,10 +412,73 @@ has_line "no selector for the node" "$D" \
   "approx${TAB}7:7${TAB}-${TAB}width${TAB}50px: no selector recorded for this node"
 has_line "selector not on the page" "$D" \
   "approx${TAB}5:5${TAB}.missing${TAB}height${TAB}10px: selector not found on the page"
+TSV_WIDTH="5:5${TAB}width${TAB}50px${TAB}true
+"
+D="$(case_dir approxownsel "$TSV_WIDTH" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":true,"geometry":{"x":0,"y":0,"width":50,"height":10},"computed":{}}}}')"
+run_compare "$D"
+has_line "an approx property no line names is listed without a selector, never on another row's" "$D" \
+  "approx${TAB}5:5${TAB}-${TAB}width${TAB}50px: no selector recorded for this property"
 D="$(case_dir approxnobox "$TSV" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":true,"geometry":{},"computed":{}}}}')"
 run_compare "$D"
 has_line "a measurement without a box" "$D" \
   "approx${TAB}5:5${TAB}.missing${TAB}height${TAB}10px: no box in the measurement"
+
+echo "a property is measured on its own row's selector, never on another row's"
+# Two data cells share their values. The report writes the shared values once,
+# on `td` / `td p` for the first cell, and gives the third cell one line of its
+# own, for `border-color` only. The third cell's `gap` therefore has no
+# selector of its own: it is unmeasured, not measured on the border-color
+# selector (a table cell, where `gap` has no effect).
+TSV_OWN="1:199${TAB}border-color${TAB}#e9e9e9${TAB}false
+1:199${TAB}gap${TAB}8px${TAB}false
+1:199${TAB}padding-inline${TAB}30px${TAB}false
+1:199${TAB}padding-block${TAB}32px${TAB}false
+1:217${TAB}border-color${TAB}#e9e9e9${TAB}false
+1:217${TAB}gap${TAB}8px${TAB}false
+1:217${TAB}padding-inline${TAB}30px${TAB}false
+1:217${TAB}padding-block${TAB}32px${TAB}false
+"
+REPORT_OWN='# Prototype report
+
+## Design values
+
+.table.comparison table td — border-color — #e9e9e9 — source: design_context — token: --dividers-divider-1 — node: 1:199
+.table.comparison table td — padding-inline — 30px — source: design_context — token: none — node: 1:199
+.table.comparison table td — padding-block — 32px — source: design_context — token: none — node: 1:199
+.table.comparison table td:nth-child(3) — border-color — #e9e9e9 — source: design_context — token: --dividers-divider-1 — node: 1:217
+.table.comparison table td p — gap — 8px — source: design_context — token: none — node: 1:199
+'
+# own_json <td:nth-child(3) gap> — the other values as the page measured them
+own_json() {
+  cat <<EOF
+{
+  "target": "http://localhost:3001/drafts/EDS-18",
+  "results": {
+    ".table.comparison table td": {"found": true, "geometry": {"x": 40, "y": 160, "width": 381.703125, "height": 81.796875}, "computed": {"color": "rgb(19, 19, 19)", "background-color": "rgb(255, 255, 255)", "font-family": "roboto, roboto-fallback, sans-serif", "font-size": "18px", "font-weight": "400", "line-height": "normal", "padding-top": "32px", "padding-right": "30px", "padding-bottom": "32px", "padding-left": "30px", "gap": "normal", "border-radius": "0px"}, "holds_text": true},
+    ".table.comparison table td:nth-child(3)": {"found": true, "geometry": {"x": 847.953125, "y": 160, "width": 392.046875, "height": 81.796875}, "computed": {"color": "rgb(19, 19, 19)", "background-color": "rgba(0, 0, 0, 0)", "font-family": "roboto, roboto-fallback, sans-serif", "font-size": "18px", "font-weight": "400", "line-height": "normal", "padding-top": "32px", "padding-right": "30px", "padding-bottom": "32px", "padding-left": "30px", "gap": "$1", "border-radius": "0px"}, "holds_text": true},
+    ".table.comparison table td p": {"found": true, "geometry": {"x": 71, "y": 192, "width": 319.703125, "height": 16.796875}, "computed": {"color": "rgb(0, 0, 0)", "background-color": "rgba(0, 0, 0, 0)", "font-family": "\"Roboto Mono\", monospace", "font-size": "12px", "font-weight": "400", "line-height": "16.8px", "padding-top": "0px", "padding-right": "0px", "padding-bottom": "0px", "padding-left": "0px", "gap": "8px", "border-radius": "0px"}, "holds_text": true}
+  }
+}
+EOF
+}
+D="$(case_dir ownsel1 "$TSV_OWN" "$REPORT_OWN" "$(own_json normal)")"
+run_compare "$D"
+exit_is "the cell's gap is no mismatch (exit 0)" 0
+has_line "the first cell's gap matches on the selector its own row names" "$D" \
+  "match${TAB}1:199${TAB}.table.comparison table td p${TAB}gap${TAB}8px"
+has_line "the third cell's gap is unmeasured, naming the missing selector" "$D" \
+  "unmeasured${TAB}1:217${TAB}-${TAB}gap${TAB}8px: no selector recorded for this property"
+no_line_matching "nothing is measured on the border-color selector" "$D" \
+  "${TAB}1:217${TAB}\.table\.comparison table td:nth-child\(3\)${TAB}"
+has_line "the third cell's padding is unmeasured too (its row has no selector)" "$D" \
+  "unmeasured${TAB}1:217${TAB}-${TAB}padding-inline${TAB}30px: no selector recorded for this property"
+# After an edit that set `gap: 8px` on the cell, nothing changes: the value was
+# never the cell's to show.
+D="$(case_dir ownsel2 "$TSV_OWN" "$REPORT_OWN" "$(own_json 8px)")"
+run_compare "$D"
+exit_is "still exit 0" 0
+no_line_matching "the cell's gap is not reported as a match either" "$D" \
+  "^match${TAB}1:217${TAB}"
 
 echo "selectors mode"
 D="$(case_dir selectors "" "$REPORT" "{}")"
