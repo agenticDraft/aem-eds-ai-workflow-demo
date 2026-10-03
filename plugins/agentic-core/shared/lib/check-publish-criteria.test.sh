@@ -118,15 +118,21 @@ OUT=$(bash "$CHECK" "$WORK" 2>&1); ST=$?
 assert_exit "uncommitted-only change accepted (exit 0)" 0 $ST "$OUT"
 assert_contains "reports file count" "valid: publish (1 files changed)" "$OUT"
 
-echo "[reject] nothing changed since the merge base"
+echo "[satisfied] nothing changed since the merge base"
 WORK="$(new_fixture reject-empty)"
 (
   cd "$WORK"
   git checkout --quiet -b task-branch
 )
-OUT=$(bash "$CHECK" "$WORK" 2>&1); ST=$?
-assert_exit "empty change rejected (exit 1)" 1 $ST "$OUT"
-assert_contains "reason says no change" "no change to review" "$OUT"
+OUT=$(bash "$CHECK" "$WORK" 2>/dev/null); ST=$?
+assert_exit "empty change is its own outcome (exit 3), not a failed criterion" 3 $ST "$OUT"
+assert_contains "stdout says satisfied and names the base" "satisfied: no change to review — working tree matches 'origin/" "$OUT"
+ERR=$(bash "$CHECK" "$WORK" 2>&1 >/dev/null)
+if [[ -z "$ERR" ]]; then
+  PASS=$((PASS + 1)); echo "  ok: nothing on stderr: it is not an invalid change"
+else
+  FAIL=$((FAIL + 1)); echo "  FAIL: nothing on stderr: it is not an invalid change"; echo "    stderr: $ERR"
+fi
 
 echo "[reject] the diff includes a path .gitignore marks never-tracked"
 WORK="$(new_fixture reject-ignored)"

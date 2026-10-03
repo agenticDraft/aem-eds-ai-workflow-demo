@@ -169,6 +169,29 @@ has "verdict fail" "verdict: fail"
 hasnt "no change_state at all" "change_state:"
 rm -f "$GH_STUB/no-auth"
 
+echo "[envelope] --envelope leaves the same block in the named file, for a caller that must not transcribe it"
+ENV_OUT="$WORK/project/.ai/run-context/envelope-check-status.txt"
+mkdir -p "$WORK/project/.ai/run-context"
+rm -f "$ENV_OUT"
+OUT="$(cd "$WORK/project" && bash "$SCRIPT" --envelope .ai/run-context/envelope-check-status.txt feature-merged 2>/dev/null)"; ST=$?
+exit0 "exit 0"
+[[ -s "$ENV_OUT" ]] && ok "the named file is written" || bad "the named file is written"
+[[ "$(cat "$ENV_OUT")" == "$OUT" ]] && ok "the file holds exactly the block printed" || bad "the file holds exactly the block printed" "file: $(cat "$ENV_OUT")" "stdout: $OUT"
+has "the file's block carries change_state merged" "change_state: merged"
+bash "$VALIDATE" "$ENV_OUT" >/dev/null 2>&1 && ok "the file validates" || bad "the file validates" "$(bash "$VALIDATE" "$ENV_OUT" 2>&1)"
+rm -f "$ENV_OUT"
+OUT="$(cd "$WORK/project" && bash "$SCRIPT" --envelope .ai/run-context/envelope-check-status.txt feature-none 2>/dev/null)"; ST=$?
+has "a none lookup is written too" "change_state: none"
+[[ -s "$ENV_OUT" ]] && ok "the none envelope reaches the file" || bad "the none envelope reaches the file"
+rm -f "$ENV_OUT"
+touch "$GH_STUB/no-auth"
+OUT="$(cd "$WORK/project" && bash "$SCRIPT" --envelope .ai/run-context/envelope-check-status.txt feature-open 2>/dev/null)"; ST=$?
+rm -f "$GH_STUB/no-auth"
+has "a failed lookup is written too, with no state" "verdict: fail"
+grep -q 'change_state:' "$ENV_OUT" && bad "no change_state in the failed lookup's file" || ok "no change_state in the failed lookup's file"
+(cd "$WORK/project" && bash "$SCRIPT" --envelope >/dev/null 2>&1); ST=$?
+[[ "$ST" == 2 ]] && ok "--envelope without a value -> exit 2" || bad "--envelope without a value -> exit 2" "got $ST"
+
 echo "[usage] no branch -> exit 2"
 (cd "$WORK/project" && bash "$SCRIPT" >/dev/null 2>&1); ST=$?
 [[ "$ST" == 2 ]] && ok "exit 2" || bad "exit 2" "got $ST"

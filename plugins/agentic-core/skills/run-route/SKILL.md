@@ -249,6 +249,7 @@ digraph run_route {
     "Record stage, refresh flag" [shape=box];
     "Stage is readiness?" [shape=diamond];
     "Ensure the working branch" [shape=box];
+    "Item already satisfied?" [shape=diamond];
     "Branch ensured?" [shape=diamond];
     "Stage is deliver?" [shape=diamond];
     "Handle question" [shape=box];
@@ -296,6 +297,10 @@ digraph run_route {
     "Record stage, refresh flag" -> "Stage is readiness?";
     "Stage is readiness?" -> "Ensure the working branch" [label="yes"];
     "Stage is readiness?" -> "Stage is deliver?" [label="no"];
+    "Ensure the working branch" -> "Item already satisfied?" [label="check_status read"];
+    "Item already satisfied?" -> "Ensure the working branch" [label="continue / unknown — create the branch"];
+    "Item already satisfied?" -> "blocked" [label="satisfied — note posted"];
+    "Item already satisfied?" -> "failed" [label="envelope unreadable"];
     "Ensure the working branch" -> "Branch ensured?";
     "Branch ensured?" -> "Drive next stage" [label="pass"];
     "Branch ensured?" -> "Handle question" [label="question"];
@@ -659,7 +664,30 @@ branch name comes from.
    manifest at its own pack root, and take `operations.create_branch`. Absent, the literal `none`,
    or listed under `unsupported` — route to **failed**, naming it. `deliver` is the last stage of
    every route and cannot publish without this role either, so a run that reaches here without it
-   has nowhere to end.
+   has nowhere to end. Take `operations.check_status` from the same manifest too; absent or
+   unsupported, skip the next step and say so in one line (the publish gate's own empty-change
+   check stays the backstop).
+
+   **Is the item already satisfied?** The branch name is derived from the item id, so a merged
+   change for that branch is this item's own earlier delivery, and running the route again would
+   plan the delivered work, implement nothing, and be refused at the publish gate for an empty
+   change. Ask the scm role first, exactly as "Getting a stage's envelope onto disk" requires:
+   `reset-envelope.sh` on `.ai/run-context/envelope-check-status.txt`, then invoke
+   `Skill(<packs.scm>:<check_status skill name>)` with exactly these two lines as its invocation
+   argument:
+
+   ```
+   branch: <the derived name>
+   envelope: .ai/run-context/envelope-check-status.txt
+   ```
+
+   then `capture-envelope.sh` and `validate-result-envelope.sh` over that file, then:
+
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/shared/lib/check-item-satisfied.sh .ai/run-context/envelope-check-status.txt <item_id>
+   ```
+
+   Print its first line. Go to **Item already satisfied?**.
 
 3. **Get its envelope onto disk** exactly as "Getting a stage's envelope onto disk" requires —
    `reset-envelope.sh` on `.ai/run-context/envelope-create-branch.txt`, then invoke
@@ -679,6 +707,25 @@ branch name comes from.
 4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/validate-result-envelope.sh .ai/run-context/envelope-create-branch.txt`
 
 Go to **Branch ensured?**.
+
+### Item already satisfied?
+
+Read `check-item-satisfied.sh`'s exit code and lines.
+
+- **Exit 0** (`continue` or `unknown`) — go on to step 3 of **Ensure the working branch**. `unknown`
+  means the lookup did not succeed; it is never read as "not merged", and the publish gate's own
+  empty-change check still catches a satisfied item at the end.
+- **Exit 1** (`satisfied`, then a `note` line) — nothing is left to deliver, and whether the item is
+  closed or something is still missing is a person's call. Post the `note` line's text (after the
+  tab) on the item through `Skill(<packs.tracker>:<post_note skill name>)` with `item_id: <item_id>`
+  and `note: <that text>`, resolving `operations.post_note` from the tracker pack's manifest the
+  same way **Ensure the working branch** step 2 resolves the scm pack's; absent or unsupported, say
+  so and go on. Then route to **blocked** with `<missing>` set to `nothing to deliver: ` followed by
+  the `satisfied` line's text after the tab, and `<recorded-at>` set to `a note on <item_id>` (or
+  `nowhere — the tracker pack declares no post_note` when it could not be posted). No branch was
+  created and no stage after `readiness` ran, so nothing else needs finalizing.
+- **Exit 2** — the check could not read the envelope. Route to **failed** as a contract violation,
+  with the script's message.
 
 ### Branch ensured?
 
@@ -828,4 +875,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: 78af82988549 -->
+<!-- instructions-stamp: 7a695c301b30 -->

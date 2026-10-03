@@ -44,6 +44,9 @@ ordinary decision vocabulary — nothing about being a gate changes what a verdi
 
 - `verdict: fail` — terminal. The run ends `failed`, the same outcome any other stage's `fail`
   produces.
+- `verdict: question` — follows the question protocol unchanged, like any stage's question. The
+  publish gate asks one when there is no change to review (`publish-criteria.md`, criterion 1):
+  that is a person's decision, not a failed change.
 - `verdict: warn` — the run continues; the finding is recorded in the gate's report,
   `.ai/run-context/<gate id>-report.md` under its given `project_root`, not silently dropped.
 - An envelope that fails to validate, or a deterministic check that could not run to a verdict at

@@ -62,6 +62,7 @@ digraph eds_publish_gate {
     "Report fail" [shape=doublecircle];
     "Report warn" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
+    "Report question" [shape=doublecircle];
 
     "Check isolation" -> "Locate the run context" [label="exit 0"];
     "Check isolation" -> "Report fail" [label="exit 2"];
@@ -70,6 +71,8 @@ digraph eds_publish_gate {
     "Structural criteria hold?" -> "Read the plan" [label="exit 0"];
     "Structural criteria hold?" -> "Report fail" [label="exit 1"];
     "Structural criteria hold?" -> "Report fail" [label="exit 2"];
+    "Structural criteria hold?" -> "Report question" [label="exit 3, no answer on file"];
+    "Structural criteria hold?" -> "Report fail" [label="exit 3, answered"];
     "Read the plan" -> "Plan present?";
     "Plan present?" -> "Read the diff" [label="present and non-empty"];
     "Plan present?" -> "Report fail" [label="missing or empty"];
@@ -156,8 +159,24 @@ runs before any reviewing starts.
 ### Structural criteria hold?
 
 - Exit `0` — criteria 1 and 2 are answered yes. Go to **Read the plan**.
-- Exit `1` — criterion 1 or 2 is answered no, and stderr names the empty diff or the offending path.
-  Go to **Report fail**.
+- Exit `1` — criterion 2 is answered no, and stderr names the offending path. Go to **Report
+  fail**.
+- Exit `3` — criterion 1 is answered no: stdout says `satisfied: no change to review …`, the
+  working tree equals the merge base, so the item's requirements are already met on the base
+  branch and nothing this run did was wrong (`../../../agentic-core/shared/publish-criteria.md`).
+  This is a person's decision, not a failed change. Read the answer on file:
+
+  ```
+  bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/read-question-answer.sh \
+    <project root>/.ai/run-context/question-answer.yaml publish-gate already-satisfied
+  ```
+
+  - Exit `3` (no answer) — this is the first time. Go to **Report question**.
+  - Exit `0` (an answer) — the route re-invoked this stage with the person's answer. Go to
+    **Report fail**, with the summary "no change to review: the item is already satisfied on the
+    base; the answer was: <answer>". Nothing can be delivered either way; the answer tells the
+    reader whether the item is closed or what was missing.
+  - Exit `1` — the answer file is malformed. Go to **Report fail**, naming its stderr reason.
 - Exit `2` — a usage or environment error: the check did not run to a verdict at all (no
   `origin/HEAD`, a detached `HEAD`, no project root). Go to **Report fail**. This is not the same
   failure as exit `1` and must not be reported as one; a check that could not decide has told you
@@ -276,6 +295,41 @@ Values to pass:
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the checker's `invalid: <reason>` from stderr, verbatim, never reworded into something more general; or that the checker could not run to a verdict, naming its usage or environment error; or that the plan is missing; or which of criteria 3 and 4 is answered no and the single step or path that settles it.
 - `artifacts`: `.ai/run-context/publish-gate-report.md` — the one `--artifact`.
+- `next_action: none` — the emitter's default; pass nothing.
+
+### Report question
+
+Write the report first, then the envelope — both by the steps in **Write the report and the
+envelope**, with `<verdict>` `question`. The report's criterion 1 says `no — the working tree
+equals the merge base`; criteria 2–4 say `not reached`.
+
+The report goes to `<project root>/.ai/run-context/publish-gate-report.md`; the envelope:
+
+```
+bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+  <project root>/.ai/run-context/envelope-publish-gate.txt \
+  --verdict question \
+  --summary "<one sentence>" \
+  --artifact .ai/run-context/publish-gate-report.md \
+  --question "<text>" --question-id already-satisfied \
+  --option "close the item" --option "name what is still missing" \
+  --blocker "<text>"
+```
+
+Values to pass:
+
+- `verdict: question`
+- `summary`: one sentence, 200 characters or fewer — the checker's `satisfied: …` line, verbatim.
+- `artifacts`: `.ai/run-context/publish-gate-report.md` — the one `--artifact`.
+- `question`: "No change to review: the working tree equals the base at the merge base, so this
+  item's requirements are already met on the base branch. Close the item, or name what is still
+  missing?"
+- `question_id`: `already-satisfied` — the key **Structural criteria hold?** reads the answer back
+  under; keep it exactly this, or the answer is never found.
+- `options`: `close the item`, `name what is still missing`.
+- `blocker`: "the item's work is already on the base branch, so there is nothing to deliver; a
+  person decides whether the item is done or what is still missing." In autonomous mode the route
+  posts this on the item and the run ends `blocked`.
 - `next_action: none` — the emitter's default; pass nothing.
 
 ### Report warn
