@@ -39,7 +39,8 @@ the core can be pointed at.
 3. **The driver reads only the envelope.** `run-route` never opens a path listed under
    `artifacts:` and never retries a stage. A `PreToolUse` hook on `Read`,
    `skills/run-route/scripts/check-driver-read.sh`, denies any read the driver is not entitled
-   to and logs each decision.
+   to while a run is live (its orchestration marker exists) and logs each decision; with no run
+   live it lets the read through.
 4. **Questions are asked at stage boundaries only.** A stage that cannot resolve something
    returns `verdict: question` with a `blocker`; in interactive mode the human answers and the
    stage is re-invoked once with the answer; in autonomous mode the blocker is written back

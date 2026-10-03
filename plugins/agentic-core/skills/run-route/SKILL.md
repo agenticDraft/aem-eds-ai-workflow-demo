@@ -44,7 +44,9 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
   gate runs, written and read only by `check-tree-unchanged.sh` (`shared/gate-contract.md`, "The
   driver guards the tree")
 - `.ai/logs/run-route-reads.log` — the read-hook's log (see frontmatter above): one line per
-  read the hook judged, allowed or denied
+  read, `ALLOW` or `DENY` while a run is live (the orchestration marker exists), `NORUN` for a
+  read made with no run live, which the hook lets through — the hook stays registered for the
+  rest of the session, and after a terminal state the session's reads are no longer yours
 - `.ai/logs/run-context-<date>-<time>/` — where a fresh start moves everything the previous run
   left in `.ai/run-context/`, plus `.ai/progress.md` and `.ai/route-progress.txt`, written only by
   `archive-run-context.sh` (**Fresh start: write flag, run intake**, step 3) and read by nobody
@@ -826,4 +828,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: 9cd29ad0bfa6 -->
+<!-- instructions-stamp: 78af82988549 -->

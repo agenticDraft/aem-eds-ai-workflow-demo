@@ -16,7 +16,8 @@
 # terminated route is not.
 #
 # Every decision, allowed or denied, is appended to the log so the discipline
-# can be asserted against after a run rather than only watched live.
+# can be asserted against after a run rather than only watched live; a read
+# made while no run is live is logged as NORUN, never as ALLOW.
 #
 # Adapts the allowlist-then-denylist shape of an upstream check, inverted here
 # to default-deny. Attribution is in this plugin's NOTICE.
@@ -39,6 +40,18 @@ case "$REL" in
   "$PROJECT_DIR"/*) REL="${REL#"$PROJECT_DIR"/}" ;;
 esac
 REL="${REL#./}"
+
+# The hook stays registered for the rest of the session once the driver skill
+# has loaded, but the driver's discipline holds only while a run is live, and
+# a run is live exactly while its orchestration marker exists (written before
+# the first stage, removed at every terminal state). With no marker, the read
+# is not the driver's: let it proceed, and log it apart from the run's own
+# ALLOW and DENY lines so the run's record stays the run's.
+if [ ! -e "$PROJECT_DIR/.ai/run-context/orchestrating.flag" ]; then
+  mkdir -p "$LOG_DIR" 2>/dev/null
+  printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" NORUN "$REL" >> "$LOG_FILE" 2>/dev/null
+  exit 0
+fi
 
 # The driver's own bookkeeping. No stage writes these, so reading one cannot
 # pull stage content into the driver's context.

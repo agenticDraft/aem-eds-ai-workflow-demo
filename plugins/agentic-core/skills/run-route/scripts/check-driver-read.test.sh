@@ -58,6 +58,11 @@ run_check() {
     | CLAUDE_PROJECT_DIR="$WORK" bash "$CHECKER" 2>&1
 }
 
+# A run is live while the orchestration marker exists; every case up to
+# [no run] below is judged inside one.
+FLAG="$WORK/.ai/run-context/orchestrating.flag"
+mkdir -p "$(dirname "$FLAG")" && : > "$FLAG"
+
 echo "[allow] the driver's own bookkeeping"
 for p in .ai/project-config.yaml .ai/run-state.json .ai/progress.md .ai/route-progress.txt; do
   OUT=$(run_check "$p"); ST=$?
@@ -125,6 +130,30 @@ assert_contains "a denied read is logged" "DENY .ai/run-context/fact-record.yaml
 LINES_BEFORE=$(wc -l < "$LOG")
 printf '{"tool_input":{}}' | CLAUDE_PROJECT_DIR="$WORK" bash "$CHECKER" >/dev/null 2>&1
 assert_exit "an empty path adds no log line" "$LINES_BEFORE" "$(wc -l < "$LOG")" ""
+
+echo "[no run] with no orchestration marker the hook judges nothing"
+rm -f "$FLAG"
+OUT=$(run_check "blocks/cards/cards.js"); ST=$?
+assert_exit "a source file proceeds when no run is live" 0 $ST "$OUT"
+assert_exit "and says nothing" 0 "${#OUT}" ""
+OUT=$(run_check "notes/plan.md"); ST=$?
+assert_exit "a document outside the allowlist proceeds when no run is live" 0 $ST "$OUT"
+assert_contains "the read is logged as outside a run, not as ALLOW" "NORUN blocks/cards/cards.js" "$(cat "$LOG")"
+if grep -q "ALLOW blocks/cards/cards.js" "$LOG"; then
+  FAIL=$((FAIL + 1)); echo "  FAIL: a read outside a run is never logged as ALLOW"
+else
+  PASS=$((PASS + 1)); echo "  ok: a read outside a run is never logged as ALLOW"
+fi
+
+echo "[no run] a missing run-context directory is no run either"
+rm -rf "$WORK/.ai/run-context"
+OUT=$(run_check ".ai/run-context/fact-record.yaml"); ST=$?
+assert_exit "proceeds" 0 $ST "$OUT"
+
+echo "[live again] a new marker restores the allowlist"
+mkdir -p "$(dirname "$FLAG")" && : > "$FLAG"
+OUT=$(run_check "blocks/cards/cards.js"); ST=$?
+assert_exit "a source file is blocked again" 2 $ST ""
 
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
