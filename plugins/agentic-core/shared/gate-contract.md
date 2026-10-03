@@ -71,12 +71,14 @@ when it does. So a gate checks it itself, before reviewing anything: compare its
 directory with the `project_root` it was given, both resolved to physical paths (`pwd -P`).
 
 - **Different** — isolated. Review as usual.
-- **Equal** — not isolated. Record `isolation: absent` in the report, and return at most `warn`: a
-  review that would pass returns `warn` instead, and a `fail` stays `fail`. **Review anyway.** An
-  unisolated gate is still a working review; it is the read-only guarantee that is weaker, and the
-  driver's guard below covers that.
+- **Equal** — not isolated. Record `isolation: absent` in the report. **Review anyway**, and return
+  the review's own verdict. An unisolated gate is still a working review; it is the read-only
+  guarantee that is weaker, and the driver's guard below enforces that guarantee itself.
 
-Never refuse to run, and never `fail`, only because the gate is not isolated.
+The isolation line is information for a reader, never an input to the verdict. Never refuse to run,
+never lower a verdict, and never `fail`, only because the gate is not isolated: the gate cannot
+choose where the harness runs it, and whether it wrote anything else is decided by the driver's
+guard, which ends the stage `fail` on its own.
 
 ## The driver guards the tree
 
