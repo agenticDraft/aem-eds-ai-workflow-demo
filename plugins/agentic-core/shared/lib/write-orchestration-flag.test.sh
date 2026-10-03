@@ -66,6 +66,27 @@ echo "[usage] missing argument"
 OUT=$(bash "$WRITER" 2>&1); ST=$?
 assert_exit "no arg -> usage error (exit 2)" 2 $ST "$OUT"
 
+echo "[driver] the marker is first written together with the first run state, never before it"
+# A marker without a run state is a run nothing can resume and nothing can
+# finish: the driver's fresh start must not write the marker before intake
+# returns, and the node that first writes the run state writes the marker too.
+DRIVER="$SCRIPT_DIR/../../skills/run-route/SKILL.md"
+node_body() {  # node_body <heading text> — the node's lines up to the next heading
+  awk -v h="### $1" '$0 == h {on=1; next} on && /^### / {exit} on' "$DRIVER"
+}
+FRESH="$(node_body "Fresh start: run intake")"
+RECORD="$(node_body "Record intake stage")"
+if [[ -n "$FRESH" && "$FRESH" != *"write-orchestration-flag.sh"* ]]; then
+  PASS=$((PASS + 1)); echo "  ok: the fresh-start node writes no marker before intake"
+else
+  FAIL=$((FAIL + 1)); echo "  FAIL: the fresh-start node must exist and write no marker before intake"
+fi
+if [[ "$RECORD" == *"write-run-state.sh"* && "$RECORD" == *"write-orchestration-flag.sh"* ]]; then
+  PASS=$((PASS + 1)); echo "  ok: the node that first writes run state writes the marker too"
+else
+  FAIL=$((FAIL + 1)); echo "  FAIL: the record-intake node must write both run state and the marker"
+fi
+
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
 exit $(( FAIL > 0 ? 1 : 0 ))
