@@ -64,8 +64,27 @@ own staleness check partway through. Rewriting `run-state.json` in full after ev
 does this — there is no separate "touch" step, and no code path that updates only some fields
 without rewriting the file.
 
+## A fresh start archives the run context
+
+A fresh start — `status: none`, `status: stale-deleted`, or "start fresh" chosen over a resumable
+state — begins by moving everything the previous run left in the run-context directory, together
+with `progress.md` and the flat stage list, into one new directory under the run's log root,
+`run-context-<UTC date>-<UTC time>/`, and leaving the run-context directory present and empty.
+That is `lib/archive-run-context.sh`'s whole job, and it runs **before** the orchestration marker
+is written, so nothing of the new run is ever moved. Why: the run context is one shared directory
+for every work item and every run, and a stage reads its inputs there by fixed name. A marker, a
+report or a merged manifest left by the previous run is indistinguishable from this run's own — a
+stage that skips its work because a file says an earlier stage already did it has no way to tell
+whose earlier stage that was. Archiving rather than deleting keeps a stopped run readable
+afterwards.
+
+**A resume never archives.** The directory then holds the very run being resumed; clearing it would
+leave every later stage without its inputs. The two cases are the same two this file already
+separates by the state file's age.
+
 ## Anti-patterns
 
+- Clearing the run context on a resume, or starting fresh without clearing it.
 - Computing "resume or fresh" from anything but the file's own mtime — a field inside the JSON
   recording when the run started is `start_time`, kept for the record, not read back to decide
   staleness.
@@ -101,6 +120,12 @@ hours or older).
 `lib/finalize-run-state.sh <state-file>` deletes the file (`status: deleted`) or reports
 `status: not-found` — idempotent either way, for the successful-terminal-state case.
 
+`lib/archive-run-context.sh <run-context dir> <archive root> [extra file …]` moves every entry of
+the directory and each listed extra file that exists into `<archive root>/run-context-<date>-<time>/`
+and leaves the directory present and empty, printing `archived: <n> entries -> <dir>`; a directory
+with nothing to move prints `archived: nothing to move` and creates no archive. Exits `0` for both;
+`2` for a usage error or an entry that could not be moved.
+
 `lib/write-progress-row.sh <progress-file> <stage-id> <status>` upserts one row, creating the file
 on the first call and preserving every other row's order and status on later calls.
 
@@ -109,4 +134,5 @@ bash plugins/agentic-core/shared/lib/write-run-state.test.sh
 bash plugins/agentic-core/shared/lib/check-run-state.test.sh
 bash plugins/agentic-core/shared/lib/finalize-run-state.test.sh
 bash plugins/agentic-core/shared/lib/write-progress-row.test.sh
+bash plugins/agentic-core/shared/lib/archive-run-context.test.sh
 ```

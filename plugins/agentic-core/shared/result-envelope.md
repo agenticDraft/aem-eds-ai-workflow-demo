@@ -67,7 +67,12 @@ Options beyond the two required: `--artifact <path>` (repeatable; none emits `ar
 
 Every stage writes its envelope this way; the runner never copies one out of a stage's message, and
 a stage that leaves its file empty ends the run as a contract violation. A provider operation still
-ends its output with the block, and everything below governs what that block must contain.
+ends its output with the block, and everything below governs what that block must contain. **An
+operation whose caller names a file in an `envelope:` input line writes the same block to that file
+with the emitter as well** — the route driver names one for every operation it invokes itself, so it
+reads the operation's envelope from a file the operation wrote and never transcribes a block out of a
+message; a file left empty is that operation's contract violation, exactly as a stage's is. A caller
+that names no file reads the block from the operation's output as before.
 
 ## Field rules
 

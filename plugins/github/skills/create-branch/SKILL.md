@@ -9,11 +9,12 @@ branch on a real GitHub remote.
 
 ## Input
 
-One or two lines in the invocation argument:
+One to three lines in the invocation argument:
 
 ```
 branch: <new branch name>
 base: <base branch name>          # optional; see the default below
+envelope: <file path>             # optional; see "Where the envelope goes" below
 ```
 
 **When no `base` is given**, the branch's base depends on where the caller is:
@@ -43,6 +44,17 @@ is standing on. The envelope names how many would be lost and what to do instead
 working tree is moved. `base` is not consulted in that case — the question is about what already
 exists, not about where a new branch would start.
 
+## Where the envelope goes
+
+This operation always ends its output with the `## Result` block. **When an `envelope:` line is
+given, it also leaves that same block in the named file**, written by the `agentic-core` plugin's
+`shared/lib/emit-envelope.sh` — the one spelling authority for every envelope — so a caller that
+takes verdicts from files rather than from messages reads this operation's own envelope there and
+never transcribes one. The route driver always gives this line; a stage or a person invoking the
+operation directly may omit it, and then the block is printed only. The file is written whole or
+not at all: a path that cannot be written is a usage error, with no block printed, so the caller
+finds the file exactly as it left it.
+
 ## What to do
 
 **This script calls `gh`, and the default Bash sandbox's network-filtering proxy does TLS
@@ -52,9 +64,9 @@ the token itself are unaffected, only `gh`'s own HTTP client (G68).** Run
 every step below with `dangerouslyDisableSandbox: true`, unconditionally, on the first attempt.
 
 1. Run, with `dangerouslyDisableSandbox: true`:
-   `${CLAUDE_PLUGIN_ROOT}/skills/create-branch/scripts/create-branch.sh <branch> [base]`,
-   substituting the `branch` and `base` values given above. Omit the second argument if no `base`
-   line was given.
+   `${CLAUDE_PLUGIN_ROOT}/skills/create-branch/scripts/create-branch.sh [--envelope <file>] <branch> [base]`,
+   substituting the `branch`, `base` and `envelope` values given above. Omit `--envelope` if no
+   `envelope` line was given, and omit the trailing argument if no `base` line was given.
 2. Output the script's entire stdout, unchanged, as your entire response. Do not add commentary,
    reformat it, or summarize it — the script's own output already ends with the `## Result` block
    this operation must return (see the `agentic-core` plugin's `shared/result-envelope.md`, which

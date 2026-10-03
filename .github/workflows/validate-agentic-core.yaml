@@ -115,6 +115,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/write-run-state.test.sh
       - name: Check run state
         run: bash plugins/agentic-core/shared/lib/check-run-state.test.sh
+      - name: a fresh start archives the previous run's context
+        run: bash plugins/agentic-core/shared/lib/archive-run-context.test.sh
       - name: Check onboarding gate
         run: bash plugins/agentic-core/shared/lib/check-onboarding-gate.test.sh
       - name: Check preflight

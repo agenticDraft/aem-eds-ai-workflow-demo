@@ -45,6 +45,10 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
   driver guards the tree")
 - `.ai/logs/run-route-reads.log` — the read-hook's log (see frontmatter above): one line per
   read the hook judged, allowed or denied
+- `.ai/logs/run-context-<date>-<time>/` — where a fresh start moves everything the previous run
+  left in `.ai/run-context/`, plus `.ai/progress.md` and `.ai/route-progress.txt`, written only by
+  `archive-run-context.sh` (**Fresh start: write flag, run intake**, step 2) and read by nobody
+  in a run
 
 **`.ai/run-context/` — crosses the driver↔stage boundary. A stage adapter reads these as its own
 input.**
@@ -163,13 +167,13 @@ a file this stage wrote from one that was already sitting there.
 - **Non-empty** — the stage wrote its own envelope with the emitter
   (`shared/result-envelope.md`, "How a stage writes it"). Leave it exactly as it is. Do not
   transcribe anything over it; the stage's own message is not the envelope and never was.
-- **Empty, after a stage** — the stage did not write its envelope. Write nothing into the file and
-  copy nothing out of the stage's message, even when that message ends with a `## Result` block:
-  every stage writes its own envelope, so an empty file is the stage's failure, not a gap for you to
-  fill. Step 3 then exits `1`, and the run ends `failed` as a contract violation.
-- **Empty, after a provider operation you invoked yourself** (`create_branch`) — an operation ends
-  its output with a `## Result` block instead of writing a file. Capture everything from that block
-  onward into the file. Never parse anything above that block.
+- **Empty** — whatever you invoked did not write its envelope. Write nothing into the file and
+  copy nothing out of its message, even when that message ends with a `## Result` block: every
+  stage writes its own envelope, and so does the one provider operation you invoke yourself
+  (`create_branch`, given the file's path as its `envelope:` input line in **Ensure the working
+  branch**), so an empty file is their failure, not a gap for you to fill. Step 3 then exits `1`,
+  and the run ends `failed` as a contract violation. There is no case in which you write to this
+  file: a verdict you transcribed is a verdict you judged, and the harness refuses exactly that.
 
 **3. Then run, every time and whichever case applied, before anything judges that file:**
 
@@ -391,14 +395,26 @@ fresh?"* using the fields `check-run-state.sh` reported.
    `<mode>` is `interactive` (the default) and `<item_id>` is `$ARGUMENTS` unchanged. Carry
    `<item_id>` and `<mode>` forward in your own working memory for the rest of the run, the same
    way `<start_time>` is carried (**Record intake stage**, step 2).
-2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-3. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
+2. **Clear the previous run's context, before anything of this run is written:**
+
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/shared/lib/archive-run-context.sh .ai/run-context .ai/logs .ai/progress.md .ai/route-progress.txt
+   ```
+
+   It moves everything the previous run left there into `.ai/logs/run-context-<date>-<time>/` and
+   leaves `.ai/run-context/` empty (`shared/run-state.md`, "A fresh start archives the run
+   context"). Print its one line. A fresh run that skipped this would read a marker, a report or a
+   merged manifest from the last run as its own — the stage reading it cannot tell the difference,
+   and neither can you. This step belongs to a fresh start only; **Resume: re-evaluate stage
+   conditions** never runs it, because the directory then holds the very run being resumed.
+3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
+4. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
    invocation argument `item_id: <item_id>`; `intake` needs no `fact_record`/`route`/mode input
    yet, since it is what produces the fact record. Get its envelope onto
    `.ai/run-context/envelope-intake.txt` by the three steps in "Getting a stage's envelope onto
    disk", running `reset-envelope.sh` on that path **before** invoking the adapter.
-4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-intake.txt`
-5. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
+5. `${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-intake.txt`
+6. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
    → go to **Intake decision?**.
 
 ### Intake decision?
@@ -446,7 +462,8 @@ stage. Otherwise go to **Drive next stage**, starting at the stage after `intake
 2. Re-evaluate the conditions against the fact record already on disk (it was never deleted — only
    `run-state.json` and the marker are removed on a terminal state), exactly as in **Skipped
    stages** above, rewriting both `.ai/run-context/stage-conditions.txt` and
-   `.ai/route-progress.txt`.
+   `.ai/route-progress.txt`. **Do not run `archive-run-context.sh` here**: `.ai/run-context/` holds
+   the run you are resuming, and clearing it would leave every later stage without its inputs.
 
 Go to **Stage list matches?**.
 
@@ -616,9 +633,19 @@ branch name comes from.
    has nowhere to end.
 
 3. **Get its envelope onto disk** exactly as "Getting a stage's envelope onto disk" requires —
-   `reset-envelope.sh` on `.ai/run-context/envelope-create-branch.txt`, invoke
-   `Skill(<packs.scm>:<create_branch skill name>)` with the invocation argument
-   `branch: <the derived name>`, then `capture-envelope.sh` over that file.
+   `reset-envelope.sh` on `.ai/run-context/envelope-create-branch.txt`, then invoke
+   `Skill(<packs.scm>:<create_branch skill name>)` with exactly these two lines as its invocation
+   argument:
+
+   ```
+   branch: <the derived name>
+   envelope: .ai/run-context/envelope-create-branch.txt
+   ```
+
+   The operation writes its own envelope to that path, the same way a stage writes its own; the
+   block it also prints in its message is not yours to copy. Then `capture-envelope.sh` over that
+   file. On a resume this node runs again with the same two lines, so the resumed run's envelope
+   lands in the same file the first did.
 
 4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/validate-result-envelope.sh .ai/run-context/envelope-create-branch.txt`
 
@@ -636,8 +663,8 @@ Read the captured envelope's `verdict`.
   `.ai/run-context/envelope-create-branch.txt`), relaying the operation's own `question` and
   `blocker` unchanged. The operation raises this when the named branch exists but does not contain the current
   `HEAD`, which cannot be resolved without discarding someone's work; it is not yours to answer.
-- **`fail`**, or an envelope that does not validate — route to **failed**. A run that cannot get
-  onto its own branch has no safe way to continue: every stage after this one may write, and the
+- **`fail`**, an envelope that does not validate, or an empty file after the operation returned —
+  route to **failed**. A run that cannot get onto its own branch has no safe way to continue: every stage after this one may write, and the
   only alternative is writing on whatever branch the caller happened to be on.
 
 ### Stage is deliver?
@@ -762,7 +789,11 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Calling `finalize-run-state.sh` on `blocked` or `failed` — only `delivered` deletes `run-state.json`.
 - Printing `print-status-table.sh` more than once, or before the run reaches `delivered`.
 - Restating any shared contract's shape here instead of referencing its file.
+- Writing anything into an envelope file yourself, or transcribing a `## Result` block out of a
+  message — a stage's or a provider operation's. Every envelope the run judges was written by the
+  thing it judges.
+- Starting fresh without `archive-run-context.sh`, or running it on a resume.
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: a21a1f80c6de -->
+<!-- instructions-stamp: ffacc5710f3c -->

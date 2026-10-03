@@ -234,6 +234,77 @@ else
   bad "the question envelope passes the real validator" "validator not found at $VALIDATOR"
 fi
 
+echo "[envelope] --envelope leaves the printed block in the named file, through the core emitter"
+# The route driver takes an operation's verdict from a file it named, never
+# from the operation's message: a driver transcribing a block it then
+# validates is refused by the harness as the driver judging its own verdict.
+REPO="$(fresh envelope-pass)"
+ENV_FILE="$WORK/envelope-pass.txt"
+: > "$ENV_FILE"
+OUT="$(cd "$REPO" && bash "$SCRIPT" --envelope "$ENV_FILE" feature-env 2>&1)"; ST=$?
+FILE_BODY="$(cat "$ENV_FILE" 2>/dev/null)"
+if [[ "$ST" == 0 && -s "$ENV_FILE" && "$OUT" == "$FILE_BODY" && "$FILE_BODY" == *"verdict: pass"* \
+      && "$FILE_BODY" == *"branch_action=created"* ]]; then
+  ok "pass -> the file holds exactly the block that was printed"
+else
+  bad "pass -> the file holds exactly the block that was printed" "exit $ST" "stdout: $OUT" "file: $FILE_BODY"
+fi
+if [[ -f "$VALIDATOR" ]]; then
+  bash "$VALIDATOR" "$ENV_FILE" >/dev/null 2>&1; VST=$?
+  [[ "$VST" == 0 ]] && ok "the written pass envelope passes the real validator" \
+    || bad "the written pass envelope passes the real validator" "exit $VST" "$FILE_BODY"
+else
+  bad "the written pass envelope passes the real validator" "validator not found at $VALIDATOR"
+fi
+
+echo "[envelope] the question verdict is written to the file too, and nothing moves"
+REPO="$(fresh envelope-stale)"
+commit_on "$REPO" "old-task" "old"
+(
+  cd "$REPO" || exit 1
+  git checkout -q main
+  echo newer > newer.txt && git add newer.txt && git commit -q -m "newer work on main"
+  git push -q origin main
+) >/dev/null 2>&1
+ENV_FILE="$WORK/envelope-question.txt"
+: > "$ENV_FILE"
+OUT="$(cd "$REPO" && bash "$SCRIPT" --envelope="$ENV_FILE" old-task 2>&1)"; ST=$?
+FILE_BODY="$(cat "$ENV_FILE" 2>/dev/null)"
+NOW="$(cd "$REPO" && git branch --show-current)"
+if [[ "$ST" == 0 && "$OUT" == "$FILE_BODY" && "$FILE_BODY" == *"verdict: question"* \
+      && "$FILE_BODY" == *"blocker:"* && "$NOW" == "main" ]]; then
+  ok "question -> written to the file, identical to stdout, still on main"
+else
+  bad "question -> written to the file, identical to stdout, still on main" "exit $ST  on: $NOW" "file: $FILE_BODY"
+fi
+if [[ -f "$VALIDATOR" ]]; then
+  bash "$VALIDATOR" "$ENV_FILE" >/dev/null 2>&1; VST=$?
+  [[ "$VST" == 0 ]] && ok "the written question envelope passes the real validator" \
+    || bad "the written question envelope passes the real validator" "exit $VST" "$FILE_BODY"
+fi
+
+echo "[envelope] a file that cannot be written is a usage error, and no block is printed"
+REPO="$(fresh envelope-unwritable)"
+OUT="$(cd "$REPO" && bash "$SCRIPT" --envelope "$WORK/no-such-dir/envelope.txt" feature-x 2>&1)"; ST=$?
+if [[ "$ST" == 2 && "$OUT" != *"## Result"* && "$OUT" == *"could not write"* ]]; then
+  ok "unwritable envelope path -> exit 2, nothing printed as a verdict"
+else
+  bad "unwritable envelope path -> exit 2, nothing printed as a verdict" "exit $ST" "output: $OUT"
+fi
+if [[ ! -f "$WORK/no-such-dir/envelope.txt" ]]; then
+  ok "unwritable envelope path -> nothing was written"
+else
+  bad "unwritable envelope path -> nothing was written"
+fi
+
+echo "[envelope] --envelope without a value"
+OUT="$(cd "$REPO" && bash "$SCRIPT" feature-x --envelope 2>&1)"; ST=$?
+if [[ "$ST" == 2 && "$OUT" != *"## Result"* ]]; then
+  ok "--envelope with no value -> exit 2"
+else
+  bad "--envelope with no value -> exit 2" "exit $ST" "output: $OUT"
+fi
+
 echo "[default] the default branch is refused as the working branch, nothing pushed"
 REPO="$(fresh default-refused)"
 (

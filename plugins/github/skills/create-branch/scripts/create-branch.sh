@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# create-branch.sh <branch-name> [base-branch]
+# create-branch.sh [--envelope <file>] <branch-name> [base-branch]
 #
 # scm.create_branch — ensure the named branch exists and is checked out, based
 # on the caller's current HEAD (or on the repo's default branch when that is
@@ -13,26 +13,72 @@
 # in the current working directory; auth comes from gh's own local, per-
 # machine credential store (`gh auth status`), never a live Claude session.
 #
+# Every envelope this script reports is spelled by the agentic-core plugin's
+# emitter (shared/lib/emit-envelope.sh), resolved as the sibling plugin of
+# this pack's root. With `--envelope <file>` the same block is left in that
+# file, so a caller that takes verdicts from files rather than from messages
+# (the route driver) reads the operation's own envelope and never transcribes
+# one. Without it the block is printed only.
+#
 # Exit codes: 0 with an envelope on stdout for every operational outcome
-# (pass or fail); 2 for a usage error (missing argument).
+# (pass, question or fail); 2 for a usage error (missing argument, `--envelope`
+# without a value, the emitter not installed beside this pack, or an envelope
+# file that could not be written -- nothing is written on a usage error).
 
 set -uo pipefail
 
-BRANCH="${1:-}"
-BASE="${2:-}"
-if [[ -z "$BRANCH" ]]; then
-  echo "usage: create-branch.sh <branch-name> [base-branch]" >&2
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EMITTER="$SCRIPT_DIR/../../../../agentic-core/shared/lib/emit-envelope.sh"
+
+usage() {
+  echo "usage: create-branch.sh [--envelope <file>] <branch-name> [base-branch]" >&2
+  if [[ $# -gt 0 ]]; then echo "$1" >&2; fi
   exit 2
-fi
+}
+
+ENVELOPE_FILE=""
+BRANCH=""
+BASE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --envelope)
+      [[ $# -ge 2 ]] || usage "--envelope needs a value"
+      ENVELOPE_FILE="$2"; shift 2 ;;
+    --envelope=*)
+      ENVELOPE_FILE="${1#--envelope=}"; shift ;;
+    *)
+      if [[ -z "$BRANCH" ]]; then BRANCH="$1"
+      elif [[ -z "$BASE" ]]; then BASE="$1"
+      else usage "unexpected argument '$1'"
+      fi
+      shift ;;
+  esac
+done
+[[ -n "$BRANCH" ]] || usage
+[[ -f "$EMITTER" ]] || usage "the agentic-core plugin's emit-envelope.sh was not found beside this pack: $EMITTER"
+
+# emit <emitter options...> -- spells the block with the core emitter, prints
+# it as this script's final output and, when the caller named an envelope
+# file, leaves the same block there. The emitter refuses a malformed request
+# whole, so a block that reaches stdout or the file is always conformant.
+emit() {
+  local out
+  if [[ -n "$ENVELOPE_FILE" ]]; then
+    out="$ENVELOPE_FILE"
+  else
+    out="$(mktemp "${TMPDIR:-/tmp}/create-branch-envelope.XXXXXX")" || usage "could not create a temporary file"
+  fi
+  bash "$EMITTER" "$out" "$@" >/dev/null 2>&1
+  if [[ ! -s "$out" ]]; then
+    [[ -n "$ENVELOPE_FILE" ]] || rm -f "$out"
+    usage "could not write the result envelope to '$out'"
+  fi
+  cat "$out"
+  [[ -n "$ENVELOPE_FILE" ]] || rm -f "$out"
+}
 
 envelope_fail() {
-  cat <<RESULT
-## Result
-verdict: fail
-summary: $1
-artifacts: []
-next_action: none
-RESULT
+  emit --verdict fail --summary "$1"
   exit 0
 }
 
@@ -121,16 +167,11 @@ if [[ "$LOCAL_EXISTS" -eq 1 || "$REMOTE_EXISTS" -eq 1 ]]; then
   # asked.
   if ! git merge-base --is-ancestor HEAD "$EXISTING_REF" >/dev/null 2>&1; then
     BEHIND="$(git rev-list --count "${EXISTING_REF}..HEAD" 2>/dev/null || echo unknown)"
-    cat <<RESULT
-## Result
-verdict: question
-summary: Branch ${BRANCH} already exists but does not contain the current HEAD, so checking it out would discard work.
-artifacts: []
-next_action: none
-question: Branch ${BRANCH} exists and is missing ${BEHIND} commit(s) that HEAD has. Should it be used, or should a differently named branch be created for this work?
-blocker: Checking out ${BRANCH} would discard ${BEHIND} commit(s) present on HEAD. Delete or rename the existing ${BRANCH}, or name a different branch for this work.
-metrics: branch_action=stale behind=${BEHIND}
-RESULT
+    emit --verdict question \
+      --summary "Branch ${BRANCH} already exists but does not contain the current HEAD, so checking it out would discard work." \
+      --question "Branch ${BRANCH} exists and is missing ${BEHIND} commit(s) that HEAD has. Should it be used, or should a differently named branch be created for this work?" \
+      --blocker "Checking out ${BRANCH} would discard ${BEHIND} commit(s) present on HEAD. Delete or rename the existing ${BRANCH}, or name a different branch for this work." \
+      --metrics "branch_action=stale behind=${BEHIND}"
     exit 0
   fi
 
@@ -169,11 +210,4 @@ else
   SUMMARY="Branch ${BRANCH} already existed; it is checked out and pushed to origin."
 fi
 
-cat <<RESULT
-## Result
-verdict: pass
-summary: ${SUMMARY}
-artifacts: []
-next_action: none
-metrics: branch_action=${BRANCH_ACTION}
-RESULT
+emit --verdict pass --summary "${SUMMARY}" --metrics "branch_action=${BRANCH_ACTION}"
