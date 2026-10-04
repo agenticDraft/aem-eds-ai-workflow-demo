@@ -601,7 +601,8 @@ The two allowed paths are the gate's own two files, and nothing else.
   as a contract violation, with the script's message.
 
 A gate that reports `isolation: absent` but changed nothing passes here. Being unisolated alone
-never fails a stage; the gate's own verdict, at most `warn` in that case, says so.
+never fails, lowers or caps a stage: the isolation line is information for a reader, and the gate's
+verdict is its review's. This guard is the only consequence isolation has.
 
 ### Validate envelope
 
@@ -830,4 +831,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: 1e1ea7d441cd -->
+<!-- instructions-stamp: 3481d36ea60d -->
