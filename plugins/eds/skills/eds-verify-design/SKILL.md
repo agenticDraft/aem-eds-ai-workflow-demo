@@ -162,6 +162,11 @@ Same resolution `eds-verify` performs for itself:
 3. Read that manifest's `operations.render`, `operations.capture` and `operations.measure` values.
    Any of the three absent or listed under `unsupported` — go straight to **Report fail** naming the
    missing operation(s); this is a configuration error pre-flight should have already caught.
+4. Read `${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/role-operations.md` before the first browser
+   call. It says how each call is made — one invocation per call, one script per invocation, on every
+   check — and this stage's later checks repeat the same calls, which is exactly where reusing an
+   earlier invocation looks harmless and is not: the run's record then cannot show which call the
+   operation made.
 
 Every browser call this stage makes, on every check, goes through the resolved operation's skill,
 and the operation's `fail` envelope is this stage's input, never a reason to run the pack's script

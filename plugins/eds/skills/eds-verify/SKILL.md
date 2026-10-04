@@ -135,6 +135,11 @@ answers when a reviewer opens it; only `eds-serve`'s cleanup stops it
    `render_script`. Absent — carry forward `render_script: none` and continue either way; this is
    never a reason to fail this stage, only a reason **Report warn**'s reachability check below falls
    back to a weaker one.
+6. Read `${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/role-operations.md` before the first browser
+   call. It says how each call is made — one invocation per call, one script per invocation — and
+   this stage captures several widths and attaches several files, which is exactly where looping one
+   invocation over many inputs looks harmless and is not: the run's record then cannot show which
+   call the operation made.
 
 Every browser and tracker call this stage makes goes through the resolved operation's skill, and
 the operation's `fail` envelope is this stage's input, never a reason to run the pack's script
