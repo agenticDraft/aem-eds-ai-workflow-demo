@@ -11,7 +11,9 @@
 #
 # Each variant's rows are the rows design-context-values.py reads from that
 # variant's `context` file: the same classes, the same properties, the same
-# node ids. Elements are matched across variants by their layer path inside
+# node ids, with the same spill translation over that variant's own code (a
+# zero-leading wrapper's padding and line-height, border-box sizes) and its
+# `spill:` lines on stderr. Elements are matched across variants by their layer path inside
 # the variant: from the exported frame's root element down, each element
 # carrying a `data-node-id` is one segment, named by its `data-name`, or by
 # its tag in angle brackets when it has none, plus `#<n>` for the n-th sibling
@@ -165,6 +167,9 @@ def variant_table(path):
         segment = escape(e[2]) if e[2] is not None else "<" + e[3] + ">"
         n = counts[(e[4], segment)] = counts.get((e[4], segment), 0) + 1
         keys[k] = (parent_key.rstrip("/")) + "/" + segment + "#" + str(n)
+    pads, leads, notes = dcv.spill(code)
+    for note in notes:
+        print(note, file=sys.stderr)
     table = {}
     order = []
     for k, e in enumerate(elements):
@@ -173,6 +178,7 @@ def variant_table(path):
         if key not in order:
             order.append(key)
         rows, conflicts = dcv.element_rows(e[5] or "")
+        rows = dcv.apply_spill(e[1], rows, pads, leads)
         dcv.report_conflicts(e[1], conflicts)
         for prop, value in rows:
             if prop not in props:
