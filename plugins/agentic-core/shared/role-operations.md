@@ -13,6 +13,11 @@ name — the operation's own script, with whatever sandbox grant the operation d
 then the stage's to run exactly as written, once per invocation. That is the whole of the stage's
 part: input lines in, the operation's `## Result` block out.
 
+One invocation runs one script, alone in its own command: never chained with another operation's
+script, never looped over several inputs. Having loaded an operation earlier licenses nothing later —
+every call, on every check, is a new invocation, including the same operation on the same target a
+second time.
+
 **Never does:** run a provider pack's script on its own account. A script run without the
 operation's instructions skips the pack's preconditions, its sandbox handling and the envelope it
 promises; the files it writes look the same, so nothing downstream can tell. An operation that

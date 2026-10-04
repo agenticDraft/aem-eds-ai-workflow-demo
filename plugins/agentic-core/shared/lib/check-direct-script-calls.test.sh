@@ -107,6 +107,15 @@ printf 'not json\n' > "$WORK/bad.jsonl"
 run platformpack "$WORK/bad.jsonl"
 [[ "$STATUS" -eq 2 ]] && ok "a line that is not JSON → exit 2" || bad "a line that is not JSON → exit 2" "got $STATUS" "$OUT"
 
+echo "# the contract states the one-call, one-script rule the checker enforces"
+CONTRACT="$SCRIPT_DIR/../role-operations.md"
+grep -qF 'One invocation runs one script, alone in its own command' "$CONTRACT" \
+  && ok "one invocation, one script, its own command" \
+  || bad "one invocation, one script, its own command" "not in $CONTRACT"
+grep -qF 'every call, on every check, is a new invocation' "$CONTRACT" \
+  && ok "every call is a new invocation" \
+  || bad "every call is a new invocation" "not in $CONTRACT"
+
 echo
 echo "=== $PASS passed, $FAIL failed ==="
 [[ "$FAIL" -eq 0 ]]
