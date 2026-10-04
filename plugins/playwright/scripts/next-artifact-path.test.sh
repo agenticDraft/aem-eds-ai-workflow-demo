@@ -8,7 +8,8 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NEXT="$SCRIPT_DIR/next-artifact-path.cjs"
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/next-artifact-path-test.XXXXXX")"
+TMP_ROOT="${TMPDIR:-/tmp}"
+WORK="$(mktemp -d "${TMP_ROOT%/}/next-artifact-path-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
 PASS=0
