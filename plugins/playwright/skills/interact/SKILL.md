@@ -42,7 +42,10 @@ least one `read:` are required — an invocation with only `read:` lines is what
    the `target` value first, then one argument per remaining line rendered as `click:<selector>`,
    `press:<key>:<selector>`, `type:<text>:<selector>`, or `read:<selector>`.
 2. Run `${CLAUDE_PLUGIN_ROOT}/skills/interact/scripts/interact.cjs <target> <op> [op...]` with that
-   argument list.
+   argument list, with `dangerouslyDisableSandbox: true` on that call, unconditionally. The script
+   launches a browser process, and the default command sandbox refuses the launch before any page
+   is loaded; a sandboxed attempt only returns a `fail` envelope whose summary names the launch,
+   not the target, so it is never tried first.
 3. Output the script's entire stdout, unchanged, as your entire response. Do not add commentary,
    reformat it, or summarize it — the script's own output already ends with the `## Result` block
    this operation must return (see the `agentic-core` plugin's `shared/result-envelope.md`, which

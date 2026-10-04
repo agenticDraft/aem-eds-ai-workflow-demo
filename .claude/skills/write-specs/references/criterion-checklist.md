@@ -80,6 +80,14 @@ three. This is the same defect the checker catches mechanically when the compoun
 semicolon or a second sentence, appearing in a form no pattern can see: a single clause that happens
 to assert several things at once.
 
+**One element per criterion.** The commonest form of that clause names two elements under one
+assertion — "every heading and cell shows its full text", "the button and the link use the token".
+That is two criteria even though the predicate is written once, because a finding against it must
+say which element failed, and "AC-3 failed" cannot. Split it, one criterion per element, each with
+the full assertion. The checker's `review:` note on an `and` is the prompt to look for this; the
+decision is yours, since the same word also joins a list of value kinds inside one rule (question 7's
+worked example in the story template), which stays one criterion.
+
 ## 8. Is the design reference the right one?
 
 When the item carries one:

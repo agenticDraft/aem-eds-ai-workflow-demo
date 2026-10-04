@@ -61,11 +61,17 @@ Target block: zoki (new)
 
 .zoki — padding-inline — 22px — source: design_context — token: none — node: 1:185
 .zoki — padding-block — 14px — source: design_context — token: none — node: 1:185
+.zoki — padding — 14px 22px 10px — source: design_context — token: none — node: 1:185
 .zoki — border-radius — 1000px — source: design_context — token: none — node: 1:185
-.zoki — background-color — var(--accent-2) — source: variables — token: --accent-2
+.zoki — gap — 8px — source: design_context — token: none — node: 1:185
+.zoki — background-color — var(--accent-2) — source: variables — token: --accent-2 — node: 1:185
 - `.zoki a — font-size — 14px — source: design_context — token: none — node: I1:185;1:543`
+- `.zoki a — line-height — 1.4 — source: design_context — token: none — node: I1:185;1:543`
+- `.zoki a — color — #1a1a1a — source: design_context — token: none — node: I1:185;1:543`
+- `.zoki a — width — 94px — source: design_context — token: none — node: I1:185;1:543`
+- `.zoki a — height — 20px — source: design_context — token: none — node: I1:185;1:543`
 
-Rows: 6.
+Rows: 11.
 
 ## Files written
 
@@ -226,7 +232,8 @@ has_line "unmeasured, naming the reason" "$D" \
 echo "a selector the measurement did not find, or did not measure"
 REPORT_NF='## Design values
 
-.missing — padding — 8px — source: design_context — token: none — node: 5:5
+.missing — padding-top — 8px — source: design_context — token: none — node: 5:5
+.missing — height — 10px — source: design_context — token: none — node: 5:5
 '
 TSV="5:5${TAB}padding-top${TAB}8px${TAB}false
 "
@@ -381,6 +388,7 @@ echo "approx aspect ratio and min-height of an image fill"
 REPORT_IMG='## Design values
 
 .card img — aspect-ratio — 16/9 — source: design_context — token: none — node: 8:2
+.card img — min-height — 180px — source: design_context — token: none — node: 8:2
 '
 TSV="8:2${TAB}aspect-ratio${TAB}16/9${TAB}true
 8:2${TAB}min-height${TAB}180px${TAB}true
@@ -404,10 +412,73 @@ has_line "no selector for the node" "$D" \
   "approx${TAB}7:7${TAB}-${TAB}width${TAB}50px: no selector recorded for this node"
 has_line "selector not on the page" "$D" \
   "approx${TAB}5:5${TAB}.missing${TAB}height${TAB}10px: selector not found on the page"
+TSV_WIDTH="5:5${TAB}width${TAB}50px${TAB}true
+"
+D="$(case_dir approxownsel "$TSV_WIDTH" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":true,"geometry":{"x":0,"y":0,"width":50,"height":10},"computed":{}}}}')"
+run_compare "$D"
+has_line "an approx property no line names is listed without a selector, never on another row's" "$D" \
+  "approx${TAB}5:5${TAB}-${TAB}width${TAB}50px: no selector recorded for this property"
 D="$(case_dir approxnobox "$TSV" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":true,"geometry":{},"computed":{}}}}')"
 run_compare "$D"
 has_line "a measurement without a box" "$D" \
   "approx${TAB}5:5${TAB}.missing${TAB}height${TAB}10px: no box in the measurement"
+
+echo "a property is measured on its own row's selector, never on another row's"
+# Two data cells share their values. The report writes the shared values once,
+# on `td` / `td p` for the first cell, and gives the third cell one line of its
+# own, for `border-color` only. The third cell's `gap` therefore has no
+# selector of its own: it is unmeasured, not measured on the border-color
+# selector (a table cell, where `gap` has no effect).
+TSV_OWN="1:199${TAB}border-color${TAB}#e9e9e9${TAB}false
+1:199${TAB}gap${TAB}8px${TAB}false
+1:199${TAB}padding-inline${TAB}30px${TAB}false
+1:199${TAB}padding-block${TAB}32px${TAB}false
+1:217${TAB}border-color${TAB}#e9e9e9${TAB}false
+1:217${TAB}gap${TAB}8px${TAB}false
+1:217${TAB}padding-inline${TAB}30px${TAB}false
+1:217${TAB}padding-block${TAB}32px${TAB}false
+"
+REPORT_OWN='# Prototype report
+
+## Design values
+
+.table.comparison table td — border-color — #e9e9e9 — source: design_context — token: --dividers-divider-1 — node: 1:199
+.table.comparison table td — padding-inline — 30px — source: design_context — token: none — node: 1:199
+.table.comparison table td — padding-block — 32px — source: design_context — token: none — node: 1:199
+.table.comparison table td:nth-child(3) — border-color — #e9e9e9 — source: design_context — token: --dividers-divider-1 — node: 1:217
+.table.comparison table td p — gap — 8px — source: design_context — token: none — node: 1:199
+'
+# own_json <td:nth-child(3) gap> — the other values as the page measured them
+own_json() {
+  cat <<EOF
+{
+  "target": "http://localhost:3001/drafts/EDS-18",
+  "results": {
+    ".table.comparison table td": {"found": true, "geometry": {"x": 40, "y": 160, "width": 381.703125, "height": 81.796875}, "computed": {"color": "rgb(19, 19, 19)", "background-color": "rgb(255, 255, 255)", "font-family": "roboto, roboto-fallback, sans-serif", "font-size": "18px", "font-weight": "400", "line-height": "normal", "padding-top": "32px", "padding-right": "30px", "padding-bottom": "32px", "padding-left": "30px", "gap": "normal", "border-radius": "0px"}, "holds_text": true},
+    ".table.comparison table td:nth-child(3)": {"found": true, "geometry": {"x": 847.953125, "y": 160, "width": 392.046875, "height": 81.796875}, "computed": {"color": "rgb(19, 19, 19)", "background-color": "rgba(0, 0, 0, 0)", "font-family": "roboto, roboto-fallback, sans-serif", "font-size": "18px", "font-weight": "400", "line-height": "normal", "padding-top": "32px", "padding-right": "30px", "padding-bottom": "32px", "padding-left": "30px", "gap": "$1", "border-radius": "0px"}, "holds_text": true},
+    ".table.comparison table td p": {"found": true, "geometry": {"x": 71, "y": 192, "width": 319.703125, "height": 16.796875}, "computed": {"color": "rgb(0, 0, 0)", "background-color": "rgba(0, 0, 0, 0)", "font-family": "\"Roboto Mono\", monospace", "font-size": "12px", "font-weight": "400", "line-height": "16.8px", "padding-top": "0px", "padding-right": "0px", "padding-bottom": "0px", "padding-left": "0px", "gap": "8px", "border-radius": "0px"}, "holds_text": true}
+  }
+}
+EOF
+}
+D="$(case_dir ownsel1 "$TSV_OWN" "$REPORT_OWN" "$(own_json normal)")"
+run_compare "$D"
+exit_is "the cell's gap is no mismatch (exit 0)" 0
+has_line "the first cell's gap matches on the selector its own row names" "$D" \
+  "match${TAB}1:199${TAB}.table.comparison table td p${TAB}gap${TAB}8px"
+has_line "the third cell's gap is unmeasured, naming the missing selector" "$D" \
+  "unmeasured${TAB}1:217${TAB}-${TAB}gap${TAB}8px: no selector recorded for this property"
+no_line_matching "nothing is measured on the border-color selector" "$D" \
+  "${TAB}1:217${TAB}\.table\.comparison table td:nth-child\(3\)${TAB}"
+has_line "the third cell's padding is unmeasured too (its row has no selector)" "$D" \
+  "unmeasured${TAB}1:217${TAB}-${TAB}padding-inline${TAB}30px: no selector recorded for this property"
+# After an edit that set `gap: 8px` on the cell, nothing changes: the value was
+# never the cell's to show.
+D="$(case_dir ownsel2 "$TSV_OWN" "$REPORT_OWN" "$(own_json 8px)")"
+run_compare "$D"
+exit_is "still exit 0" 0
+no_line_matching "the cell's gap is not reported as a match either" "$D" \
+  "^match${TAB}1:217${TAB}"
 
 echo "selectors mode"
 D="$(case_dir selectors "" "$REPORT" "{}")"
@@ -418,6 +489,117 @@ got="$(cat "$D/stdout")"
 want=".zoki
 .zoki a"
 if [ "$got" = "$want" ]; then ok "one selector per node-bearing line, once, in order"; else bad "one selector per node-bearing line, once, in order" "want: $want" "got: $got"; fi
+
+echo "size mode: a size difference follows an approx line on the same selector and the same dimension only"
+# The run's header cells: three approx lines name `th` for `height`. A width
+# difference on `th` is not covered by them (the design's columns are equal by
+# layout, not by content); a height difference is.
+REPORT_SIZE='## Design values
+
+.t th — height — 96px — source: design_context — token: none — node: 1:197
+.t th — height — 96px — source: design_context — token: none — node: 1:206
+.t th — padding-top — 40px — source: design_context — token: none — node: 1:197
+.card img — aspect-ratio — 16/9 — source: design_context — token: none — node: 8:2
+'
+TSV_SIZE="1:197${TAB}height${TAB}96px${TAB}true
+1:206${TAB}height${TAB}96px${TAB}true
+1:197${TAB}padding-top${TAB}40px${TAB}false
+8:2${TAB}aspect-ratio${TAB}16/9${TAB}true
+"
+SIZE_JSON='{"target":"x","results":{".t th":{"found":true,"geometry":{"x":40,"y":64,"width":381.703125,"height":96},"computed":{"padding-top":"40px"}},".card img":{"found":true,"geometry":{"x":0,"y":0,"width":320,"height":180},"computed":{}}}}'
+D="$(case_dir size "$TSV_SIZE" "$REPORT_SIZE" "$SIZE_JSON")"
+# run_size <case-dir> <selector> <dimension> — sets STATUS, writes stdout
+run_size() {
+  python3 "$CMP" size "$1/values.tsv" "$1/report.md" "$1/measure.json" "$2" "$3" >"$1/stdout" 2>"$1/stderr"
+  STATUS=$?
+}
+run_size "$D" ".t th" width
+exit_is "th width: no approx line names width on th → fixable (exit 1)" 1
+has_line "th width is fixable, saying why" "$D" \
+  "fixable${TAB}.t th${TAB}width${TAB}no approx line names width on this selector"
+run_size "$D" ".t th" height
+exit_is "th height: an approx line names it → content-dependent (exit 0)" 0
+has_line "th height follows the approx line, quoted" "$D" \
+  "content-dependent${TAB}.t th${TAB}height${TAB}follows approx line: .t th height: expected 96px, measured box 381.7x96px (node 1:197)"
+run_size "$D" ".t td" height
+exit_is "a selector no approx line names → fixable" 1
+has_line "td height is fixable" "$D" \
+  "fixable${TAB}.t td${TAB}height${TAB}no approx line names height on this selector"
+run_size "$D" ".card img" width
+exit_is "aspect-ratio covers width" 0
+has_line "img width follows the aspect-ratio line" "$D" \
+  "content-dependent${TAB}.card img${TAB}width${TAB}follows approx line: .card img aspect-ratio: expected 16/9, measured box 320x180px (node 8:2)"
+run_size "$D" ".card img" height
+exit_is "aspect-ratio covers height" 0
+run_size "$D" ".t th" depth
+exit_is "a dimension other than width or height is a usage error" 2
+run_size "$D" "" width
+exit_is "an empty selector is a usage error" 2
+
+echo "variables mode: a design variable is compared on the element its token is written on, never on the wrapper"
+# From the run: Text/Headline is written as `--text-headline` on the heading
+# text; the wrapper `.table` inherits the body's colour and has no design node.
+# Four variables have no line carrying their token and one is a composite.
+VARS_REF='{"has_values": true, "variables": {"Accent/Accent 1": "#485C11", "Accent/Accent 4": "#000000", "Background/Background 1": "#FFFFFF", "Captions": "Font(family: \"Roboto Mono\", style: Regular, size: 12, weight: 400, lineHeight: 1.399999976158142, letterSpacing: -1)", "Dividers/Divider 1": "#E9E9E9", "Text/Headline": "#000000"}}'
+REPORT_VARS='## Design values
+
+.table.comparison — border-radius — 20px — source: design_context — token: none — node: 1:195
+.table.comparison table th:first-child p — color — #000000 — source: variables — token: --text-headline
+.table.comparison table th:first-child — background-color — #FFFFFF — source: variables — token: --background-background-1
+.table.comparison table td p — color — #000000 — source: variables — token: --accent-accent-4
+.table.comparison table td — border-color — #e9e9e9 — source: variables — token: --dividers-divider-1
+.table.comparison table th:nth-child(2) p — color — #6f6f6f — source: design_context — token: --text-paragraph — node: 1:207
+'
+VARS_JSON='{"target":"x","results":{".table":{"found":true,"geometry":{},"computed":{"color":"rgb(19, 19, 19)","background-color":"rgba(0, 0, 0, 0)"}},".table.comparison table th:first-child p":{"found":true,"geometry":{},"computed":{"color":"rgb(0, 0, 0)"}},".table.comparison table th:first-child":{"found":true,"geometry":{},"computed":{"background-color":"rgb(255, 255, 255)"}},".table.comparison table td p":{"found":true,"geometry":{},"computed":{"color":"rgb(0, 0, 0)"}},".table.comparison table td":{"found":true,"geometry":{},"computed":{"color":"rgb(19, 19, 19)"}}}}'
+D="$(case_dir vars "" "$REPORT_VARS" "$VARS_JSON")"
+printf '%s' "$VARS_REF" > "$D/reference.json"
+run_vars() {
+  python3 "$CMP" variables "$1/reference.json" "$1/report.md" "$1/measure.json" >"$1/stdout" 2>"$1/stderr"
+  STATUS=$?
+}
+run_vars "$D"
+exit_is "every linked variable matches → exit 0" 0
+has_line "Text/Headline matches on the heading text" "$D" \
+  "match${TAB}Text/Headline${TAB}.table.comparison table th:first-child p${TAB}color${TAB}#000000"
+has_line "Background/Background 1 matches on the header cell" "$D" \
+  "match${TAB}Background/Background 1${TAB}.table.comparison table th:first-child${TAB}background-color${TAB}#FFFFFF"
+has_line "Accent/Accent 4 matches on the cell text" "$D" \
+  "match${TAB}Accent/Accent 4${TAB}.table.comparison table td p${TAB}color${TAB}#000000"
+no_line_matching "the wrapper is never a comparison element" "$D" "${TAB}\.table${TAB}"
+has_line "a variable written as a property measure does not report is unmeasured" "$D" \
+  "unmeasured${TAB}Dividers/Divider 1${TAB}.table.comparison table td${TAB}border-color${TAB}#E9E9E9: not in measure's property set"
+has_line "a variable no line carries is unmeasured" "$D" \
+  "unmeasured${TAB}Accent/Accent 1${TAB}-${TAB}-${TAB}#485C11: no design-values line carries its token"
+has_line "a composite variable is unmeasured" "$D" \
+  "unmeasured${TAB}Captions${TAB}-${TAB}-${TAB}Font(family: \"Roboto Mono\", style: Regular, size: 12, weight: 400, lineHeight: 1.399999976158142, letterSpacing: -1): no design-values line carries its token"
+no_line_matching "a design_context line with a token is the value table's, not a variable's" "$D" \
+  "th:nth-child\(2\) p"
+# the wrapper rule would have failed Text/Headline: rgb(19, 19, 19) is not #000000
+D2="$(case_dir varsmis "" "$REPORT_VARS" "${VARS_JSON//rgb(0, 0, 0)/rgb(19, 19, 19)}")"
+printf '%s' "$VARS_REF" > "$D2/reference.json"
+run_vars "$D2"
+exit_is "a variable mismatch on its own element exits 1" 1
+has_line "the mismatch names the element and both values" "$D2" \
+  "mismatch${TAB}Text/Headline${TAB}.table.comparison table th:first-child p${TAB}color${TAB}expected #000000, measured rgb(19, 19, 19)"
+D3="$(case_dir varsnone "" "$REPORT_VARS" "$VARS_JSON")"
+printf '{"has_values": false}' > "$D3/reference.json"
+run_vars "$D3"
+exit_is "a reference without variables exits 0 and prints nothing" 0
+if [ ! -s "$D3/stdout" ]; then ok "no variables, no lines"; else bad "no variables, no lines" "got: $(cat "$D3/stdout")"; fi
+
+echo "selectors mode lists the selectors of variables-sourced lines too"
+D="$(case_dir selvars "" "$REPORT_VARS" "{}")"
+python3 "$CMP" selectors "$D/report.md" >"$D/stdout" 2>"$D/stderr"
+STATUS=$?
+exit_is "exits 0" 0
+got="$(cat "$D/stdout")"
+want=".table.comparison
+.table.comparison table th:first-child p
+.table.comparison table th:first-child
+.table.comparison table td p
+.table.comparison table td
+.table.comparison table th:nth-child(2) p"
+if [ "$got" = "$want" ]; then ok "node-bearing and variables-sourced selectors, once, in order"; else bad "node-bearing and variables-sourced selectors, once, in order" "want: $want" "got: $got"; fi
 
 echo "usage errors"
 D="$(case_dir usage "" "$REPORT" "not json")"
