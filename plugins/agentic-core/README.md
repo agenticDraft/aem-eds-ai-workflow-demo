@@ -113,8 +113,9 @@ under `shared/lib/` make the contracts executable.
 | Safety and neutrality | `external-content-safety.md`, `naming-rule.md`, `skill-authoring.md` | `check-external-content-safety.sh`, `validate-naming-rule.sh`, `validate-contracts.sh` |
 
 Also under `shared/`: `fact-record.md`, `fix-loop.md`, `error-handling.md`,
-`evidence-manifest.md`, `artifact-registry.md`, `analytics.md`, and the fixtures every test
-reads under `shared/fixtures/`.
+`evidence-manifest.md`, `artifact-registry.md`, `analytics.md`, `role-operations.md` (a stage calls
+another pack only through its operation's skill; `check-direct-script-calls.sh` reads a transcript
+for the exceptions), and the fixtures every test reads under `shared/fixtures/`.
 
 ## What it looks like
 
