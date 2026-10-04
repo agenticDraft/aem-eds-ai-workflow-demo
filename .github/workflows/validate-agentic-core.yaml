@@ -141,6 +141,8 @@ jobs:
         run: bash plugins/agentic-core/shared/lib/validate-contracts.test.sh
       - name: Check driver read allowlist
         run: bash plugins/agentic-core/skills/run-route/scripts/check-driver-read.test.sh
+      - name: Check tree unchanged around a gate
+        run: bash plugins/agentic-core/shared/lib/check-tree-unchanged.test.sh
       - name: Check direct script calls
         run: bash plugins/agentic-core/shared/lib/check-direct-script-calls.test.sh
       - name: Validate plugin manifest

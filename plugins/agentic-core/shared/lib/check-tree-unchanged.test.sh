@@ -187,6 +187,20 @@ run_case "$W" "echo x >>a.txt" "$REPORT" "$ENVELOPE"
 assert_exit "linked worktree edit → exit 1" 1 "$CODE" "$OUT"
 assert_contains "linked worktree edit → names the path" "changed: a.txt" "$OUT"
 
+echo "# the guard is the only consequence of isolation"
+# The driver's text around this guard and the gate contract both describe an
+# unisolated gate. Neither may tie a verdict to the isolation line: the verdict
+# is the review's, and this guard alone fails a gate that wrote elsewhere.
+DRIVER="$SCRIPT_DIR/../../skills/run-route/SKILL.md"
+CONTRACT="$SCRIPT_DIR/../gate-contract.md"
+CAPS=0
+for f in "$DRIVER" "$CONTRACT"; do
+  n="$(grep -i -B1 -A1 'isolat' "$f" | grep -c -E 'at most `?(warn|pass)`?|capped|lowered to')"
+  [[ "$n" -gt 0 ]] && { CAPS=$((CAPS + n)); echo "    cap in $(basename "$f")"; }
+done
+if [[ "$CAPS" -eq 0 ]]; then ok "no text caps a gate's verdict on its isolation"
+else fail "no text caps a gate's verdict on its isolation" "found $CAPS capping line(s)"; fi
+
 echo "# usage errors"
 OUT="$(bash "$CHECK" 2>&1)"; CODE=$?
 assert_exit "no arguments → exit 2" 2 "$CODE" "$OUT"
