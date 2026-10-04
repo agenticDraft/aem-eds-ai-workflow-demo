@@ -341,6 +341,21 @@ no_match "no override width for a conflicting node" "$D" "^value${TAB}900${TAB}1
 has_line "the agreeing height is in the base" "$D" value base 1:700 height 14px 1:700 '/Icon#1'
 if grep -qxF "conflict: 1:700 width 10px 14px" "$D/stderr"; then ok "stderr names the conflict"; else bad "stderr names the conflict" "got: $(cat "$D/stderr")"; fi
 
+echo "G148: each variant's rows pass through the spill translation (D116)"
+D="$(new_case spill)"
+add_variant "$D" Mobile 5:1 375 '<section data-node-id="5:1"><div className="border border-[#ccc] h-[50px] pt-[10px]" data-node-id="5:2"><div className="leading-[0] text-[16px]" data-node-id="5:3"><p className="leading-[24px]">B</p></div></div></section>'
+add_variant "$D" Desktop 6:1 1440 '<section data-node-id="6:1"><div className="border border-[#ccc] h-[60px] pt-[10px]" data-node-id="6:2"><div className="leading-[0] text-[16px]" data-node-id="6:3"><p className="leading-[24px]">B</p></div></div></section>'
+write_ref "$D"
+run_overrides "$D" 900
+status_is "exits 0" "$D" 0
+has_line "base: the spilled padding-bottom, 50 - 10 - 2 - 24" "$D" value base 5:2 padding-bottom 14px 5:2 '/<div>#1'
+has_line "base: the node keeps its top padding" "$D" value base 5:2 padding-top 10px 5:2 '/<div>#1'
+has_line "base: the wrapper takes the inner line-height" "$D" value base 5:3 line-height 24px 5:3 '/<div>#1/<div>#1'
+has_line "base: the fixed-height node is border-box" "$D" value base 5:2 box-sizing border-box 5:2 '/<div>#1'
+has_line "override: the desktop variant's own spill, 60 - 10 - 2 - 24" "$D" value 900 5:2 padding-bottom 24px 6:2 '/<div>#1'
+no_match "no leading-[0] line-height reaches any value" "$D" "^value${TAB}[^${TAB}]*${TAB}[^${TAB}]*${TAB}line-height${TAB}0${TAB}"
+if grep -qF "spill: 5:2 padding-bottom 14px" "$D/stderr" && grep -qF "spill: 6:2 padding-bottom 24px" "$D/stderr"; then ok "stderr carries each variant's spill line"; else bad "stderr carries each variant's spill line" "got: $(cat "$D/stderr")"; fi
+
 echo
 echo "passed: $PASS, failed: $FAIL"
 [ "$FAIL" -eq 0 ]
