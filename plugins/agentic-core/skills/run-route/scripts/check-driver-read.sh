@@ -43,8 +43,8 @@ REL="${REL#./}"
 
 # The hook stays registered for the rest of the session once the driver skill
 # has loaded, but the driver's discipline holds only while a run is live, and
-# a run is live exactly while its orchestration marker exists (written before
-# the first stage, removed at every terminal state). With no marker, the read
+# a run is live exactly while its orchestration marker exists (written with
+# the first run state, removed at every terminal state). With no marker, the read
 # is not the driver's: let it proceed, and log it apart from the run's own
 # ALLOW and DENY lines so the run's record stays the run's.
 if [ ! -e "$PROJECT_DIR/.ai/run-context/orchestrating.flag" ]; then

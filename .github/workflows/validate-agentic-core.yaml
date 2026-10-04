@@ -143,5 +143,9 @@ jobs:
         run: bash plugins/agentic-core/skills/run-route/scripts/check-driver-read.test.sh
       - name: Check item satisfied
         run: bash plugins/agentic-core/shared/lib/check-item-satisfied.test.sh
+      - name: Check tree unchanged around a gate
+        run: bash plugins/agentic-core/shared/lib/check-tree-unchanged.test.sh
+      - name: Check direct script calls
+        run: bash plugins/agentic-core/shared/lib/check-direct-script-calls.test.sh
       - name: Validate plugin manifest
         run: claude plugin validate plugins/agentic-core --strict
