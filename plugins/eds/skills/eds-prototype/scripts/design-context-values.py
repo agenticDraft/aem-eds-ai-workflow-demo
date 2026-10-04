@@ -38,6 +38,9 @@
 #   leading tracking opacity       line-height, letter-spacing, opacity
 #   text                           font-size for a length, color for a colour
 #   border                         border-width for a length, border-color for a colour
+#   border-t/r/b/l/x/y/s/e         border-<side>-width / -color the same way; x and y are inline and
+#                                  block, s and e inline-start and inline-end
+#   border border-<side> border-N  without a bracketed value: a width row, 1px bare, N px for a step
 #   bg                             background-color for a colour
 #   font                           font-weight for an integer
 #   [<property>:<value>]           the property it names
@@ -116,6 +119,9 @@ VECTOR_MIME = "image/svg+xml"
 BY_FORM = {
     "text": {"length": "font-size", "color": "color"},
     "border": {"length": "border-width", "color": "border-color"},
+    **{f"border-{s}": {"length": f"border-{side}-width", "color": f"border-{side}-color"}
+       for s, side in (("t", "top"), ("r", "right"), ("b", "bottom"), ("l", "left"), ("x", "inline"),
+                       ("y", "block"), ("s", "inline-start"), ("e", "inline-end"))},
     "bg": {"color": "background-color"},
     "font": {"integer": "font-weight"},
 }
@@ -129,6 +135,7 @@ DEPRECATED = {
     ("word-break", "break-word"): [("overflow-wrap", "anywhere")],
 }
 
+BORDER_WIDTH = re.compile(r"^border(?:-([trblxyse]))?(?:-(\d+))?$")
 ARBITRARY_VALUE = re.compile(r"^([a-z]+(?:-[a-z]+)*)-\[([^\[\]]+)\]$")
 ARBITRARY_PROPERTY = re.compile(r"^\[(-{0,2}[a-z][a-z0-9-]*):([^\[\]]+)\]$")
 LENGTH = re.compile(
@@ -170,6 +177,10 @@ def class_rows(cls):
     if m:
         pair = (m.group(1), decode(m.group(2)))
         return DEPRECATED.get(pair, [pair])
+    m = BORDER_WIDTH.match(cls)
+    if m:
+        prefix = "border" if m.group(1) is None else f"border-{m.group(1)}"
+        return [(BY_FORM[prefix]["length"], f"{m.group(2) or 1}px")]
     m = ARBITRARY_VALUE.match(cls)
     if not m:
         return []
