@@ -365,6 +365,27 @@ run_table "$D"
 if [ "$STATUS" -eq 3 ]; then ok "exits 3"; else bad "exits 3" "got: $STATUS"; fi
 row_count "prints no rows — the stale file is not read" "$D" 0
 
+echo "G147: a bare or per-side border class gives its width row"
+D="$(case_dir borders '<section className="border border-[#e9e9e9] border-solid" data-node-id="1:196">
+  <div className="border-[#929292] border-b border-solid" data-node-id="1:197">A</div>
+  <div className="border-b-[2px] border-t-[#ff0000]" data-node-id="9:1">B</div>
+  <div className="border-x border-y-[3px]" data-node-id="9:2">C</div>
+  <div className="border-2 border-s border-e-[4px]" data-node-id="9:3">D</div>
+</section>')"
+run_table "$D"
+has_row "a bare border is a 1px border-width" "$D" "1:196" "border-width" "1px"
+has_row "its colour row stays" "$D" "1:196" "border-color" "#e9e9e9"
+has_row "border-b is a 1px border-bottom-width" "$D" "1:197" "border-bottom-width" "1px"
+no_row_for "border-b sets no all-sides width" "$D" "1:197" "border-width"
+has_row "border-b-[2px] is border-bottom-width" "$D" "9:1" "border-bottom-width" "2px"
+has_row "border-t-[#ff0000] is border-top-color" "$D" "9:1" "border-top-color" "#ff0000"
+has_row "border-x is a 1px border-inline-width" "$D" "9:2" "border-inline-width" "1px"
+has_row "border-y-[3px] is border-block-width" "$D" "9:2" "border-block-width" "3px"
+has_row "border-2 is a 2px border-width" "$D" "9:3" "border-width" "2px"
+has_row "border-s is a 1px border-inline-start-width" "$D" "9:3" "border-inline-start-width" "1px"
+has_row "border-e-[4px] is border-inline-end-width" "$D" "9:3" "border-inline-end-width" "4px"
+no_row_for "border-solid gives no row" "$D" "1:196" "border-style"
+
 echo "design_context names a code file that does not exist"
 D="$(case_dir missing '')"
 jq '.design_context.code_file = ".ai/run-context/absent.txt"' "$D/.ai/run-context/design-reference.json" > "$D/ref.json" \
