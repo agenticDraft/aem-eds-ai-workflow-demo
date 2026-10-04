@@ -78,9 +78,14 @@
   border-radius: 20px;
 }
 
+/* every column takes an equal share of the table, whatever its heading or cell text holds;
+   fixed layout ignores a cell's min-width, so the table keeps the three column frames' 200px
+   minimum itself and scrolls inside the block below that */
 .table.comparison table {
+  min-width: calc(3 * 200px);
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: fixed;
 }
 
 .table.comparison table th {
