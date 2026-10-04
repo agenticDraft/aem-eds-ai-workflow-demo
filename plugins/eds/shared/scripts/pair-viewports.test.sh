@@ -246,6 +246,60 @@ run targets "$REF" 1440
 exits 0
 same "the given width and the one image" "1440${TAB}-${TAB}-${TAB}.ai/run-context/design-reference.png${TAB}unknown${TAB}-"
 
+echo "widths: a single-width reference at 1440, the stage's widths, one breakpoint"
+REF="$(reference widths-single none)"
+run widths "$REF" 1440 375,768,1440 900
+exits 0
+same "every width once, ascending" "375
+768
+1440"
+
+echo "widths: each variant's own capture width joins the stage's widths"
+REF="$(reference widths-zoki "$ZOKI")"
+run widths "$REF" 1440 375,768,1440 900
+exits 0
+same "variant widths and stage widths, once each, ascending" "375
+768
+800
+1280
+1440"
+
+echo "widths: a fractional variant width is captured at the nearest whole pixel"
+REF="$(reference widths-frac "[$(vp Desktop 11-1 1440), $(vp Tablet 11-2 767.5)]")"
+run widths "$REF" 1440 375,1440 -
+exits 0
+same "767.5 is 768; no breakpoints, no width added" "375
+768
+1440"
+
+echo "widths: a breakpoint interval no width falls in gets its lower bound"
+REF="$(reference widths-gap none)"
+run widths "$REF" 1440 375,1440 400,700
+exits 0
+same "400 to 700 had no width, so 400 is added" "375
+400
+1440"
+
+echo "widths: the interval below the lowest breakpoint gets that breakpoint less one"
+REF="$(reference widths-low none)"
+run widths "$REF" 1440 768,1440 600
+exits 0
+same "nothing below 600, so 599 is added" "599
+768
+1440"
+
+echo "widths: refusals"
+REF="$(reference widths-bad none)"
+run widths "$REF" 1440 375,abc 900
+exits 2
+no_output
+run widths "$REF" 1440 375 900,x
+exits 2
+run widths "$REF" 1440 375
+exits 2
+run widths "$WORK/absent.json" 1440 375 900
+exits 2
+
 echo "refusals"
 REF="$(reference ok "$ZOKI")"
 run pair "$REF" 375,abc 900

@@ -5,6 +5,7 @@ Usage:
   pair-viewports.py breakpoints <stylesheet>
   pair-viewports.py targets <design-reference.json> <default-width>
   pair-viewports.py pair <design-reference.json> <widths> <breakpoints>
+  pair-viewports.py widths <design-reference.json> <default-width> <widths> <breakpoints>
 
 breakpoints prints the project's adopted breakpoints: every N in an
 `@media (width >= Npx)` rule of <stylesheet>, unique, ascending, joined by
@@ -29,6 +30,12 @@ width, the wider on a tie. status is:
   none     no variant is in the capture's interval; every other field is `-`
   single   the reference has one width; its one image is paired with every capture
 <also at> names the other capture widths paired with the same image, or `-`.
+
+widths prints every width a design check captures and measures, one per line,
+ascending, each once: every capture width `targets` prints, every width in
+<widths>, and one more for each breakpoint interval none of those falls in --
+the interval's lower bound, or for the interval below the lowest breakpoint,
+that breakpoint less one.
 
 <node id> is the colon form (`1-118` is printed `1:118`). <resolution> is
 `full` or `reduced` from the reference's `screenshots` entry for that image
@@ -178,12 +185,37 @@ def pair_mode(argv):
     return 0
 
 
+def widths_mode(argv):
+    if len(argv) != 6:
+        die("usage: pair-viewports.py widths <design-reference.json> <default-width> <widths> <breakpoints>")
+    default = whole(argv[3], "the default width")
+    given = width_list(argv[4], "a capture width", False)
+    breakpoints = sorted(set(width_list(argv[5], "a breakpoint", True)))
+    _, viewports, _ = load(argv[2])
+    found = set(given)
+    if viewports:
+        found.update(int(v["width"] + 0.5) for v in viewports)
+    else:
+        found.add(default)
+    covered = {interval(w, breakpoints) for w in found}
+    for i in range(len(breakpoints) + 1):
+        if i not in covered:
+            lower = breakpoints[0] - 1 if i == 0 else breakpoints[i - 1]
+            if lower > 0:
+                found.add(lower)
+    for width in sorted(found):
+        print(width)
+    return 0
+
+
 def main(argv):
-    modes = {"breakpoints": breakpoints_mode, "targets": targets_mode, "pair": pair_mode}
+    modes = {"breakpoints": breakpoints_mode, "targets": targets_mode, "pair": pair_mode,
+             "widths": widths_mode}
     if len(argv) < 2 or argv[1] not in modes:
         die("usage: pair-viewports.py breakpoints <stylesheet> | "
             "targets <design-reference.json> <default-width> | "
-            "pair <design-reference.json> <widths> <breakpoints>")
+            "pair <design-reference.json> <widths> <breakpoints> | "
+            "widths <design-reference.json> <default-width> <widths> <breakpoints>")
     return modes[argv[1]](argv)
 
 

@@ -50,8 +50,10 @@ conventions.md`/`plan.yaml` (D76), since it is prose, not machine-parseable key/
 
 It also reads `.ai/run-context/design-context-values.tsv` (written by `eds-prototype`) when that
 file exists and is non-empty, only through `scripts/compare-design-values.py` — never parsed here.
-Which widths it captures, and which reference image each capture is compared against, come only
-from `../shared/scripts/pair-viewports.py targets` — never from reading `viewports` here. Which
+Which widths it captures and measures come only from `../shared/scripts/pair-viewports.py widths`,
+and which reference image a capture is compared against only from `pair-viewports.py targets` —
+never from reading `viewports` here. Whether the block regressed at any width comes only from
+`../shared/scripts/check-breakpoint-regressions.py` (D123). Which
 design font families the project does not declare comes only from `../shared/scripts/design-fonts.py`
 (D530). Which fixed sizes on text no design node carries comes only from
 `../shared/scripts/check-size-origin.py` (D541).
@@ -101,9 +103,12 @@ digraph eds_verify_design {
     "Capture and measure the draft page" -> "Compare against the design reference";
     "Capture and measure the draft page" -> "Report fail" [label="targets script: exit 2"];
     "Capture and measure the draft page" -> "Report fail" [label="size selectors: exit 2"];
+    "Capture and measure the draft page" -> "Report fail" [label="widths script: exit 2"];
+    "Capture and measure the draft page" -> "Report fail" [label="min-width selectors: exit 2"];
     "Compare against the design reference" -> "Any mismatch found?";
     "Compare against the design reference" -> "Report fail" [label="comparison script: exit 2"];
     "Compare against the design reference" -> "Report fail" [label="size-origin script: exit 2"];
+    "Compare against the design reference" -> "Report fail" [label="regression script: exit 2"];
     "Any mismatch found?" -> "Any degradation to report?" [label="no"];
     "Any mismatch found?" -> "Anything fixable left?" [label="yes"];
     "Anything fixable left?" -> "Attempts exhausted or no improvement?" [label="yes"];
@@ -250,11 +255,26 @@ Read the captured envelope's `verdict`.
    variant's own width, each with that variant's own image. Without, there is one line at `1440` —
    this stage's own desktop convention — against the one reference image. Exit `2` — go to
    **Report fail**, naming the script's stderr reason. Keep the lines, in order, for this check.
-2. Invoke `Skill(<packs.browser>:<capture skill name>)` once per line, at that line's capture
-   width, against the same target. Record each resulting screenshot path against its line. Every
-   check captures every line; a design is checked at each width it was drawn at, never at one width
-   standing in for another.
-3. List the selectors the prototype report ties to design nodes:
+   The first line's capture width is this check's **reference width**.
+2. List every width this check captures and measures (D123). The project's breakpoints first, then
+   the widths:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py breakpoints styles/styles.css
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py widths \
+     .ai/run-context/design-reference.json 1440 375,768,1440 <the line the first command printed>
+   ```
+
+   The second prints one width per line, ascending: every capture width step 1 listed, `375`, `768`
+   and `1440` — the widths `eds-verify` captures — and one more for any breakpoint interval none of
+   those falls in. Exit `2` from either — go to **Report fail**, naming the script's stderr reason.
+   Keep the widths, in order, for this check.
+3. Invoke `Skill(<packs.browser>:<capture skill name>)` once per width step 2 printed, against the
+   same target. Record each resulting screenshot path against its width; a step 1 line uses the
+   screenshot at its own capture width. Every check captures every width; a design is checked at
+   each width it was drawn at, never at one width standing in for another, and the block is checked
+   for a regression at every width, drawn or not.
+4. List the selectors the prototype report ties to design nodes:
 
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
@@ -262,7 +282,7 @@ Read the captured envelope's `verdict`.
    ```
 
    It prints one selector per line, possibly none.
-4. List the selectors that carry a fixed width or height in the block's CSS, as it is on disk for
+5. List the selectors that carry a fixed width or height in the block's CSS, as it is on disk for
    this check:
 
    ```
@@ -272,12 +292,24 @@ Read the captured envelope's `verdict`.
 
    It prints one selector per line, possibly none. Exit `2` — go to **Report fail**, naming the
    script's stderr reason.
-5. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and these
-   selectors: `.<block name>` — the block wrapper's own convention, the same one `eds-verify` uses —
-   then every selector step 3 printed that is not `.<block name>`, in its order, then every selector
-   step 4 printed that is not already in the list, in its order. Record the measurement file path
-   from the envelope's `artifacts:` and the resulting measurements, including `found: false` for a
-   selector that did not match.
+6. List the selectors that declare a `min-width` in the block's CSS, as it is on disk for this
+   check:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-breakpoint-regressions.py \
+     selectors blocks/<block name>/<block name>.css
+   ```
+
+   It prints one selector per line, possibly none. Exit `2` — go to **Report fail**, naming the
+   script's stderr reason.
+7. Invoke `Skill(<packs.browser>:<measure skill name>)` once per width step 2 printed, each with
+   that width as its `width:` line, the same target, and these selectors: `.<block name>` — the
+   block wrapper's own convention, the same one `eds-verify` uses — then every selector step 4
+   printed that is not `.<block name>`, in its order, then every selector step 5 and then step 6
+   printed that is not already in the list, in its order. Each width is its own invocation. Record
+   each measurement file path from its envelope's `artifacts:` against its width, and the resulting
+   measurements, including `found: false` for a selector that did not match. The file recorded at
+   the reference width is this check's **reference measurement**.
 
 ### Compare against the design reference
 
@@ -306,14 +338,16 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
 2. **Value comparison, when `has_values` is `true`.** `measure`'s own fixed property list is
    `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `line-height`,
    `padding-top`, `padding-right`, `padding-bottom`, `padding-left`, `gap`, `border-radius` —
-   geometry (a bounding box) is separate. Compare no property outside this list. A variable is
+   geometry (a bounding box) is separate. Compare no property outside this list against the design.
+   `measure` also reports `min-width` and `broken_words`; only step 5's script reads them, against
+   the selector's own width, never against a design value. A variable is
    compared on the element `eds-prototype` wrote it on — the `## Design values` line carrying its
    token — never on `.<block name>`, which only inherits and has no design node of its own. Run:
 
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
      variables .ai/run-context/design-reference.json .ai/run-context/prototype-report.md \
-     <the measurement file step 5 of **Capture and measure the draft page** recorded>
+     <the reference measurement step 7 of **Capture and measure the draft page** recorded>
    ```
 
    Each line is `<status> TAB <variable> TAB <selector> TAB <property> TAB <detail>`; take them as
@@ -329,7 +363,7 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
      compare .ai/run-context/design-context-values.tsv .ai/run-context/prototype-report.md \
-     <the measurement file step 5 of **Capture and measure the draft page** recorded>
+     <the reference measurement step 7 of **Capture and measure the draft page** recorded>
    ```
 
    The script owns shorthand expansion, value normalisation and which properties are compared;
@@ -370,7 +404,7 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-size-origin.py \
      check blocks/<block name>/<block name>.css .ai/run-context/prototype-report.md \
      .ai/run-context/design-context-values.tsv \
-     <the measurement file step 5 of **Capture and measure the draft page** recorded>
+     <the reference measurement step 7 of **Capture and measure the draft page** recorded>
    ```
 
    When `design-context-values.tsv` is absent, pass `-` in its place: with no value table no size is
@@ -382,13 +416,28 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
      `<selector> <property>: <detail>`. The script alone decides both; a derived value (a design
      size minus its padding, say) is not from the design however it was reached.
    - Exit `2` — go to **Report fail**, naming the script's stderr reason.
-5. Write this check's mismatch list to `.ai/run-context/verify-design-check-<n>.txt`, where `<n>`
+5. **Breakpoint regressions, always (D123).** A change made to match the reference at one width can
+   squeeze the block at another, and no reference image shows that width. Run, naming every
+   measurement step 7 of **Capture and measure the draft page** recorded, in its width order:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-breakpoint-regressions.py \
+     check <the measurement file at each width>…
+   ```
+
+   Each line already starts with `[fixable]`: a word broken across lines, or a box narrower than its
+   own `min-width`, at a named width. The script alone decides both; take its lines as given, never
+   reworded, never dropped, never retagged.
+   - Exit `0` — nothing regressed; record that every width was checked.
+   - Exit `1` — every line is a mismatch, copied into this check's list unchanged.
+   - Exit `2` — go to **Report fail**, naming the script's stderr reason.
+6. Write this check's mismatch list to `.ai/run-context/verify-design-check-<n>.txt`, where `<n>`
    is this check's number, starting at `1`. Replace any file already at that path. One line per
    mismatch, starting with its tag: `[fixable] <mismatch>`, `[content-asset gap] <mismatch>` or
    `[content-dependent] <mismatch>`. No headings, bullets or blank lines between entries. An empty
    list is an empty file. This file is what **Anything fixable left?** counts, so a tag that is
    missing or placed mid-line counts as `[fixable]`.
-6. Keep this check's own list of mismatches (or "none") only long enough to compare against the
+7. Keep this check's own list of mismatches (or "none") only long enough to compare against the
    next check's, the same "kept only long enough to compare" scope `eds-lint` gives its own
    output, and to write into the report below.
 
@@ -470,6 +519,10 @@ to its own fix step.
 Answer `[fixable]` and untagged mismatches only; a `[content-dependent]` or `[content-asset gap]`
 entry gets no change.
 
+A breakpoint-regression line names the width it fired at. Answer it so that the block still matches
+the reference at the reference width: the next check measures every width again, and a fix that
+moves the reference width is a new mismatch there.
+
 Never answer a mismatch by writing a fixed `width` or `height` on an element that holds text unless
 that exact value is on that element's node in the value table. A size-origin mismatch is answered by
 removing the fixed size, or by writing the node's own value: the element then grows with its text,
@@ -548,7 +601,7 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 Write `.ai/run-context/verify-design-report.md` when at least one check
 completed: the target block name and new/existing state, then per check each comparison it made
 (capture width, variant name and node id or "the reference", the reference image path, and its
-resolution), then its mismatch list, and
+resolution), each width it measured with its measurement file, then its mismatch list, and
 after it the edit that followed — each change made, the mismatch it answered, and the file it
 touched — then which of **Attempts exhausted or no improvement?**'s answers ended the loop (budget
 exhausted, with `edits-made`; no improvement; or the budget script's contract violation), or the
@@ -582,7 +635,8 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 Write `.ai/run-context/verify-design-report.md`: the target block name and
 new/existing state, per check each comparison it made (capture width, variant name and node id or
 "the reference", the reference image path, and its resolution — a `reduced` one stated as a
-comparison at reduced resolution), its mismatch list and the edit that followed it (each change, the
+comparison at reduced resolution), each width it measured with its measurement file and whether the
+regression script fired there, its mismatch list and the edit that followed it (each change, the
 mismatch it answered, the file it touched), the final check's list (empty, unless reached via
 **Every remaining mismatch a content-asset gap?**, in which case every remaining `[content-asset
 gap]` entry), how the loop ended, and which degradation(s) applied. How the loop ended is one
@@ -629,7 +683,8 @@ the first check found no mismatch. Then a section headed `## Content-dependent, 
 - `attachments`: one entry per screenshot **Capture and measure the draft page** wrote, across
   every check — `{ "path": "<the file>", "width": <its capture width>, "label": "design
   comparison, <name> at <capture width>, check <n>" }`, `reference` in place of `<name>` when the
-  line's name is `-`.
+  line's name is `-`; a width no comparison line names is labelled `"breakpoint check at <width>,
+  check <n>"`.
   Never the measurement file, which carries no natural width.
 
 If `.ai/run-context/evidence-manifest.json` already exists (unusual for this stage, which normally
@@ -729,6 +784,12 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
   overall visual comparison, never measured. So is a value whose form the comparison script cannot
   decide against the computed value: a unitless `line-height`, `rem`/`em`/`%` lengths, `var()` and
   `calc()`.
+- **A regression at a width the design does not show is found by two signals only (D123).** A word
+  broken across lines, and a box narrower than its own `min-width`, at a width
+  `pair-viewports.py widths` lists. A squeeze that breaks no word on an element with no `min-width`,
+  an overflow, and anything else wrong at that width that neither signal reads is not found here;
+  `eds-verify`'s checks are still the next to see it. `min-width` is read on a selector's first
+  match only, so a squeezed later match of the same selector is caught only through its words.
 - **A content-dependent value is listed, never graded.** A width, height, min-height or
   aspect-ratio on a node that holds copy or an image fill follows the content, so the comparison
   script lists it beside the element's measured box and no edit is spent on it. Which values those
