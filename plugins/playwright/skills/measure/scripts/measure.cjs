@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// measure.cjs <target-url> <selector> [selector...]
+// measure.cjs [--width <n>] <target-url> <selector> [selector...]
 //
 // browser.measure — load a target URL and return each named selector's
 // geometry and a fixed set of computed style values from a real headless
-// Chromium, plus whether any element each selector matches holds text,
-// then print the result envelope. Same standalone precondition as
+// Chromium, plus whether any element each selector matches holds text and
+// which of its words are broken across lines, then print the result
+// envelope. With --width the viewport is that wide (the height capture uses);
+// without, the browser's default. The measurement records the width read at. Same standalone precondition as
 // render.cjs. A selector matching no element is a normal, successful result
 // (found: false) — not a reason to fail the whole read, the same reading
 // the design pack's fetch_reference gives an empty variable map.
@@ -32,7 +34,33 @@ const { settle, notVisible } = require('../../../scripts/settle.cjs');
 const PROPERTIES = [
   'color', 'background-color', 'font-family', 'font-size', 'font-weight', 'line-height',
   'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'gap', 'border-radius',
+  'min-width',
 ];
+
+// The viewport height a capture uses, so a measure and a capture given the
+// same width read the same viewport.
+const VIEWPORT_HEIGHT = 800;
+
+// [--width <n>] anywhere, then the target, then the selectors in order.
+// `error` is `usage` for a missing argument, `width` for a width that is not
+// a positive integer (with `raw`, the value given).
+function parseArgs(argv) {
+  const rest = [];
+  let width = null;
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] === '--width') {
+      if (i + 1 >= argv.length) return { error: 'usage' };
+      const raw = argv[i + 1];
+      i += 1;
+      if (!/^[1-9][0-9]*$/.test(raw)) return { error: 'width', raw };
+      width = Number(raw);
+    } else {
+      rest.push(argv[i]);
+    }
+  }
+  if (rest.length < 2) return { error: 'usage' };
+  return { width, target: rest[0], selectors: rest.slice(1) };
+}
 
 function printEnvelope(fields) {
   const lines = ['## Result', `verdict: ${fields.verdict}`, `summary: ${fields.summary}`];
@@ -71,13 +99,39 @@ function slugify(url) {
 }
 
 // Runs in the page: every selector's reading in the output shape, and what
-// the settle check needs to decide visibility. `holds_text` reads every match;
-// geometry and computed values are the first match's.
+// the settle check needs to decide visibility. `holds_text` and
+// `broken_words` read every match; geometry and computed values are the
+// first match's. A word is a run between whitespace, split again after a
+// hyphen; it is broken when its client rects sit on more than one line.
 function readSelectors({ sels, props }) {
   const hasText = (node) => Array.from(node.childNodes).some((child) => (
     (child.nodeType === 3 && child.nodeValue.trim() !== '')
     || (child.nodeType === 1 && hasText(child))
   ));
+  const textNodes = (node, into) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === 3) into.add(child);
+      else if (child.nodeType === 1) textNodes(child, into);
+    }
+    return into;
+  };
+  const brokenWords = (matches) => {
+    const nodes = new Set();
+    for (const m of matches) textNodes(m, nodes);
+    const out = [];
+    for (const node of nodes) {
+      for (const word of node.nodeValue.matchAll(/[^\s-]*-+|[^\s-]+/g)) {
+        const range = document.createRange();
+        range.setStart(node, word.index);
+        range.setEnd(node, word.index + word[0].length);
+        const tops = Array.from(range.getClientRects())
+          .filter((r) => r.width > 0 && r.height > 0)
+          .map((r) => Math.round(r.top));
+        if (new Set(tops).size > 1) out.push(word[0]);
+      }
+    }
+    return out;
+  };
   const out = {};
   const vis = {};
   for (const sel of sels) {
@@ -96,6 +150,7 @@ function readSelectors({ sels, props }) {
         geometry: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
         computed,
         holds_text: Array.from(all).some(hasText),
+        broken_words: brokenWords(Array.from(all)),
       };
       vis[sel] = {
         found: true, width: rect.width, height: rect.height, hidden: style.visibility === 'hidden',
@@ -120,12 +175,16 @@ async function probe(page, selectors) {
 }
 
 async function main() {
-  const target = process.argv[2];
-  const selectors = process.argv.slice(3);
-  if (!target || selectors.length === 0) {
-    console.error('usage: measure.cjs <target-url> <selector> [selector...]');
+  const args = parseArgs(process.argv.slice(2));
+  if (args.error === 'usage') {
+    console.error('usage: measure.cjs [--width <n>] <target-url> <selector> [selector...]');
     process.exit(2);
   }
+  if (args.error === 'width') {
+    fail(`the given width is not a positive integer: ${args.raw}`);
+    return;
+  }
+  const { target, selectors } = args;
 
   let parsedUrl;
   try {
@@ -157,7 +216,10 @@ async function main() {
     return;
   }
 
-  const page = await browser.newPage();
+  const page = await browser.newPage(
+    args.width ? { viewport: { width: args.width, height: VIEWPORT_HEIGHT } } : {},
+  );
+  const width = page.viewportSize().width;
 
   try {
     await page.goto(target, { waitUntil: 'load', timeout: 15000 });
@@ -182,18 +244,18 @@ async function main() {
   const outDir = '.ai/playwright';
   fs.mkdirSync(outDir, { recursive: true });
   const outFile = nextArtifactPath(outDir, `measure-${slugify(target)}`, 'json');
-  fs.writeFileSync(outFile, JSON.stringify({ target, results }, null, 2));
+  fs.writeFileSync(outFile, JSON.stringify({ target, width, results }, null, 2));
 
   printEnvelope({
     verdict: 'pass',
-    summary: `Measured ${selectors.length} selector(s) on ${target}: ${foundCount} found.`,
+    summary: `Measured ${selectors.length} selector(s) on ${target} at width ${width}: ${foundCount} found.`,
     artifacts: [outFile],
     next_action: 'none',
-    metrics: `selectors=${selectors.length} found=${foundCount}`,
+    metrics: `width=${width} selectors=${selectors.length} found=${foundCount}`,
   });
 }
 
-module.exports = { PROPERTIES, readSelectors };
+module.exports = { PROPERTIES, parseArgs, readSelectors };
 
 if (require.main === module) {
   main().catch((err) => {

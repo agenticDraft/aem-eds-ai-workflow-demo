@@ -44,13 +44,15 @@ them as data at fixed paths, and it needs a clear answer when the browser is not
    no named target to be blocked, so a measurement is taken on a page that has stopped moving.
 5. **Artifacts get the next free name.** `scripts/next-artifact-path.cjs` names each file an
    operation writes so a re-run never overwrites an earlier capture.
-6. **`measure` returns a fixed set of values.** Geometry plus `color`, `background-color`,
-   `font-family`, `font-size`, `font-weight`, `line-height`, the four `padding-*` values, `gap`
-   and `border-radius`, per selector, plus `holds_text`: whether any element the selector matches
-   has a non-whitespace text node inside it.
+6. **`measure` returns a fixed set of values, at the width it is given.** Geometry plus `color`,
+   `background-color`, `font-family`, `font-size`, `font-weight`, `line-height`, the four
+   `padding-*` values, `gap`, `border-radius` and `min-width`, per selector, plus `holds_text`
+   (whether any element the selector matches has a non-whitespace text node inside it) and
+   `broken_words` (the words whose line boxes lie on more than one line). An optional `width` sets
+   the viewport, as tall as `capture`'s; the measurement records the width it was read at.
 7. **`interact` snapshots before and after.** Every `read:` selector is captured once before the
-   first action and once after the last, with geometry, the same style set, every `aria-*`
-   attribute and `class`.
+   first action and once after the last, with geometry, `color`, `background-color`,
+   `font-family`, `font-size`, `font-weight`, `line-height`, every `aria-*` attribute and `class`.
 
 ## The flow
 
@@ -65,7 +67,7 @@ skills/<operation>/scripts/<operation>.cjs
   └── read or act
         render   → final URL, HTTP status, title, console errors
         capture  → full-page PNG at <width>, path from next-artifact-path.cjs
-        measure  → per-selector geometry, computed styles and holds_text
+        measure  → per-selector geometry, computed styles, holds_text and broken_words
         interact → per-selector state before and after the actions
   ↓
 ## Result on stdout, exit 0; the skill returns stdout unchanged
@@ -77,7 +79,7 @@ skills/<operation>/scripts/<operation>.cjs
 | ---------- | ---------- | --------------------------------------------------------------- |
 | `render`   | `render`   | `target`                                                        |
 | `capture`  | `capture`  | `target`, `width`                                               |
-| `measure`  | `measure`  | `target`, one or more `selector`                                |
+| `measure`  | `measure`  | `target`, optional `width`, one or more `selector`              |
 | `interact` | `interact` | `target`, one or more of `click` / `press` / `type`, one or more `read` |
 
 `pack.yaml` maps each operation to its skill, declares `unsupported: []`, and names
@@ -121,7 +123,7 @@ next_action: none
 
 ```text
 $ node plugins/playwright/skills/measure/scripts/measure.cjs
-usage: measure.cjs <target-url> <selector> [selector...]
+usage: measure.cjs [--width <n>] <target-url> <selector> [selector...]
 ```
 
 Exit status 2.
@@ -134,7 +136,7 @@ passed: 13, failed: 0
 $ bash plugins/playwright/scripts/settle.test.sh
 passed: 34, failed: 0
 $ bash plugins/playwright/skills/measure/scripts/measure.test.sh
-passed: 5, failed: 0
+passed: 13, failed: 0
 ```
 
 ## Running it yourself
@@ -183,6 +185,8 @@ To make this pack the project's browser, set `packs.browser: playwright` in
 - **A local preview needs loopback.** The operations connect to whatever URL they are given;
   a sandbox that denies loopback connections denies them too.
 - **The style set is fixed.** A value outside the list under `measure` is not returned.
+- **`broken_words` reads one text node at a time.** A word an inline element splits into two text
+  nodes (`<b>Web</b>Surge`) is read as two words, and a break between them is not reported.
 
 ## Design rules this pack follows
 
