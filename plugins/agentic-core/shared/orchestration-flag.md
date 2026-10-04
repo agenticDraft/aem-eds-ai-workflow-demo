@@ -17,8 +17,10 @@ mtime is refreshed, and when it is removed.
 
 ## Lifecycle
 
-- **Created** by whichever skill drives a full route, once, before the first stage of a run — the
-  same moment `run-state.md`'s `run-state.json` is first written.
+- **Created** by whichever skill drives a full route, once, in the same step as `run-state.md`'s
+  `run-state.json` is first written — after the first stage returns, never before it. A marker
+  with no run state beside it would be a run nothing can resume and nothing can finish; writing
+  the two together means a run interrupted during its first stage leaves neither.
 - **Refreshed** — its mtime touched forward — after every stage, alongside `run-state.json`'s own
   full rewrite. There is no separate schedule; a caller that refreshes `run-state.json` on a stage
   boundary refreshes this file at the same boundary.

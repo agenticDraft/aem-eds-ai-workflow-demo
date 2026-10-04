@@ -49,7 +49,7 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
   rest of the session, and after a terminal state the session's reads are no longer yours
 - `.ai/logs/run-context-<date>-<time>/` — where a fresh start moves everything the previous run
   left in `.ai/run-context/`, plus `.ai/progress.md` and `.ai/route-progress.txt`, written only by
-  `archive-run-context.sh` (**Fresh start: write flag, run intake**, step 3) and read by nobody
+  `archive-run-context.sh` (**Fresh start: run intake**, step 3) and read by nobody
   in a run
 
 **`.ai/run-context/` — crosses the driver↔stage boundary. A stage adapter reads these as its own
@@ -104,7 +104,7 @@ item_id: <item_id>
 ```
 
 — `<item_id>` is `$ARGUMENTS` with the mode token, when one was present, already stripped (see
-**Determine mode** in **Fresh start: write flag, run intake** below); `intake` is what turns it
+**Determine mode** in **Fresh start: run intake** below); `intake` is what turns it
 into a fact record, so it is the only stage that has not read one yet, and it is never told which
 mode the run is in — mode is this skill's own concern, consumed at the question boundary, not a
 stage's input.
@@ -230,7 +230,7 @@ digraph run_route {
     "Check run-state" [shape=box];
     "Run-state status?" [shape=diamond];
     "Resume or start fresh?" [shape=diamond];
-    "Fresh start: write flag, run intake" [shape=box];
+    "Fresh start: run intake" [shape=box];
     "Intake decision?" [shape=diamond];
     "Evaluate stage conditions" [shape=box];
     "Record intake stage" [shape=box];
@@ -265,11 +265,11 @@ digraph run_route {
     "Pre-flight passed?" -> "Check run-state" [label="yes"];
     "Check run-state" -> "Run-state status?";
     "Run-state status?" -> "Resume or start fresh?" [label="resume (fresh, <2h)"];
-    "Run-state status?" -> "Fresh start: write flag, run intake" [label="none, or stale-deleted"];
+    "Run-state status?" -> "Fresh start: run intake" [label="none, or stale-deleted"];
     "Resume or start fresh?" -> "Resume: re-evaluate stage conditions" [label="resume"];
-    "Resume or start fresh?" -> "Fresh start: write flag, run intake" [label="start fresh"];
-    "Fresh start: write flag, run intake" -> "blocked" [label="tree not clean"];
-    "Fresh start: write flag, run intake" -> "Intake decision?";
+    "Resume or start fresh?" -> "Fresh start: run intake" [label="start fresh"];
+    "Fresh start: run intake" -> "blocked" [label="tree not clean"];
+    "Fresh start: run intake" -> "Intake decision?";
     "Intake decision?" -> "failed" [label="terminate-failed / terminate-contract-violation"];
     "Intake decision?" -> "Evaluate stage conditions" [label="continue / continue-warn"];
     "Evaluate stage conditions" -> "Record intake stage";
@@ -375,8 +375,8 @@ Run `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-run-state.sh .ai/run-state.json`.
 - **`status: resume`** — a previous run exists inside the 2-hour window. Go to **Resume or start
   fresh?**.
 - **`status: stale-deleted`** — the file was 2 hours old or older and is already removed. Note this
-  plainly in your report, then go to **Fresh start: write flag, run intake**.
-- **`status: none`** — go to **Fresh start: write flag, run intake**.
+  plainly in your report, then go to **Fresh start: run intake**.
+- **`status: none`** — go to **Fresh start: run intake**.
 
 ### Resume or start fresh?
 
@@ -384,11 +384,10 @@ Ask, with `AskUserQuestion`: *"Previous run found at stage {last_stage}/{total} 
 fresh?"* using the fields `check-run-state.sh` reported.
 
 - **resume** — go to **Resume: re-evaluate stage conditions**.
-- **start fresh** — treat exactly as `status: none`, and go to **Fresh start: write flag, run
-  intake**. Nothing deletes the old `run-state.json` for you here; overwrite it there the same way
+- **start fresh** — treat exactly as `status: none`, and go to **Fresh start: run intake**. Nothing deletes the old `run-state.json` for you here; overwrite it there the same way
   a fresh run always does.
 
-### Fresh start: write flag, run intake
+### Fresh start: run intake
 
 1. **Determine mode.** This skill's own frontmatter declares
    `argument-hint: "<work item id or URL> [autonomous]"`. Core contract §8 requires mode to be
@@ -433,22 +432,24 @@ fresh?"* using the fields `check-run-state.sh` reported.
    merged manifest from the last run as its own — the stage reading it cannot tell the difference,
    and neither can you. This step belongs to a fresh start only; **Resume: re-evaluate stage
    conditions** never runs it, because the directory then holds the very run being resumed.
-4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-5. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
+4. Invoke the `intake` stage adapter (see "How a stage adapter is invoked" above) with the
    invocation argument `item_id: <item_id>`; `intake` needs no `fact_record`/`route`/mode input
    yet, since it is what produces the fact record. Get its envelope onto
    `.ai/run-context/envelope-intake.txt` by the three steps in "Getting a stage's envelope onto
-   disk", running `reset-envelope.sh` on that path **before** invoking the adapter.
-6. `${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-intake.txt`
-7. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
+   disk", running `reset-envelope.sh` on that path **before** invoking the adapter. No
+   orchestration marker exists yet: it is first written in **Record intake stage**, together with
+   the first run state, so a run interrupted during `intake` leaves neither behind
+   (`shared/orchestration-flag.md`).
+5. `${CLAUDE_PLUGIN_ROOT}/shared/lib/capture-envelope.sh .ai/run-context/envelope-intake.txt`
+6. `${CLAUDE_PLUGIN_ROOT}/shared/lib/run-stage.sh <platform pack.yaml> intake .ai/run-context/envelope-intake.txt`
    → go to **Intake decision?**.
 
 ### Intake decision?
 
 `terminate-failed` or `terminate-contract-violation` here means core contract §4's guarantee
-already held — no branch, file, or route exists — so route to **failed**, after removing the
-marker you just wrote (`finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag`); no
-run state was ever written, so there is nothing else to finalize.
+already held — no branch, file, or route exists — so route to **failed**. No marker and no run
+state exist yet (both are first written in **Record intake stage**), so there is nothing to
+finalize; the `finalize-orchestration-flag.sh` call on that path reports `status: not-found`.
 
 On `continue`/`continue-warn`: `intake`'s envelope must list the fact record among its
 `artifacts:` at `.ai/run-context/fact-record.yaml` (`shared/fact-record.md`). Go to **Evaluate
@@ -475,7 +476,8 @@ stages** above. Then go to **Record intake stage**.
    one.
 3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-progress-row.sh .ai/progress.md intake done`
 4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/write-orchestration-flag.sh .ai/run-context/orchestrating.flag`
-   (refresh)
+   — the marker's first write, in the same step as the first run state; every later stage refreshes
+   it (`shared/orchestration-flag.md`).
 
 If `intake` returned `verdict: question`, go to **Handle question**, with `intake` as the asking
 stage. Otherwise go to **Drive next stage**, starting at the stage after `intake` in
@@ -829,4 +831,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: 043099ddae99 -->
+<!-- instructions-stamp: 3481d36ea60d -->
