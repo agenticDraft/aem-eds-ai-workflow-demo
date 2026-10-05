@@ -149,8 +149,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/design-fonts.py .ai/run-cont
 
 Exit `1` — keep each printed line as a **missing family** for every check this stage makes, even if
 an edit later adds an `@font-face`: a declaration with no font file behind it changes nothing on
-screen. Exit `0` — none. Exit `2` — go to **Report fail**, naming the script's stderr reason. Then
-continue to **Resolve the browser pack**. Either missing — go to **Report fail**: `extract` runs earlier in
+screen. Exit `3` — keep each printed line as an **out-of-scope family**: this project has declared
+design fonts out of scope (`.ai/design/fonts.yaml`, read by the script), so such a family is never a
+missing family, and a difference it alone explains is never a mismatch (step 1 of **Compare against
+the design reference**). Exit `0` — none. Exit `2` — go to **Report fail**, naming the script's stderr
+reason. Then continue to **Resolve the browser pack**. Either missing — go to **Report fail**: `extract` runs earlier in
 this pack's own route under the identical `design_source`/`design_mentioned` condition this stage
 shares, and `prototype` runs immediately before this stage under the same condition, so a missing
 file here means either a standalone invocation started out of route order, `prototype`'s own
@@ -329,8 +332,13 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    is a missing family, a mismatch whose only difference is text geometry — where text sits inside
    its box, or the height of its line box — is `[content-asset gap]`, naming the missing families
    ("text geometry, with DM Sans, Roboto Mono not declared"), because fallback-font metrics move text
-   and no block edit can load the font. A wrong `font-family`, size, weight or colour, or a box that
-   is the wrong size for a reason other than its text, stays `[fixable]`. Each mismatch names its comparison — `<capture width> vs
+   and no block edit can load the font. While there is an **out-of-scope family** (and no missing
+   family), a mismatch whose only difference is text geometry is not a mismatch at all: it goes into
+   neither this check's list nor the check file, and the report names it under **Out of scope by
+   declaration** with the families — the project decided fonts are not a run's work, so the geometry
+   they move is neither fixable nor a gap anyone must act on. A wrong `font-family`, size, weight or
+   colour, or a box that is the wrong size for a reason other than its text, stays `[fixable]` in
+   every case. Each mismatch names its comparison — `<capture width> vs
    <name> (<node id>)`, or `<capture width> vs the reference` when the node id is `-`. A line whose
    resolution is `reduced` was compared against an image the design tool rendered smaller than the
    design: record that the comparison at that width is at reduced resolution, so fine detail
@@ -646,6 +654,10 @@ naming that check's file and its `gaps=` count; `Loop end: budget exhausted` wit
 the first check found no mismatch. Then a section headed `## Content-dependent, not graded`: every
 `approx` line of the final check, every size-origin `grown` line of it, and every
 `[content-dependent]` entry of its list, one per line; `none` when there is none. Such a value is listed, never dropped and never graded.
+When the font check exited `3`, then a section headed `## Out of scope by declaration`: the
+out-of-scope families, and under them each text-geometry difference set aside because of them (its
+comparison and what moved), one per line — recorded so the report says what was seen, never graded,
+never a degradation, never a coverage gap.
 
 **Write the evidence manifest**, `.ai/run-context/evidence-manifest.json`, in the shape
 `../../../agentic-core/shared/evidence-manifest.md` fixes:

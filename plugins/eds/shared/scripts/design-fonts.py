@@ -23,8 +23,21 @@
 # `dm-sans`). A generic family (`sans-serif`, `monospace`, `system-ui`, ...)
 # and a CSS-wide keyword are never named.
 #
+# A project may declare design fonts out of scope, once, in
+# `<project-root>/.ai/design/fonts.yaml`:
+#
+#   version: 1
+#   design_fonts: out-of-scope
+#
+# With that file present, an undeclared family is still named, but the exit
+# code says it is not a warning (3, below): the project has decided that no
+# run adds, loads or asks for a font. Any other content in that file is a
+# usage error — `out-of-scope` is the only value defined.
+#
 # Exit codes: 0 — every family is declared (nothing printed); 1 — at least one
-# is missing; 2 — usage error (missing or unreadable file, malformed record).
+# is missing; 3 — at least one is missing and the project declares design
+# fonts out of scope; 2 — usage error (missing or unreadable file, malformed
+# record, a declaration file with other content).
 
 import glob
 import json
@@ -99,6 +112,36 @@ def design_families(ref):
             yield from code_families(read_code(variant["context"]))
 
 
+DECLARATION = os.path.join(".ai", "design", "fonts.yaml")
+KEY_VALUE = re.compile(r"^([A-Za-z_][\w-]*):\s*(.*)$")
+
+
+def fonts_out_of_scope(root):
+    """True when the project declares design fonts out of scope; False when it
+    declares nothing; a usage error for a declaration saying anything else."""
+    path = os.path.join(root, DECLARATION)
+    if not os.path.isfile(path):
+        return False
+    values = {}
+    with open(path, encoding="utf-8") as f:
+        for raw in f:
+            line = raw.split("#", 1)[0].strip()
+            if not line:
+                continue
+            m = KEY_VALUE.match(line)
+            if not m:
+                usage_error(f"'{path}': unreadable line: {raw.rstrip()}")
+            values[m.group(1)] = m.group(2).strip().strip("'\"")
+    if values.get("version") != "1":
+        usage_error(f"'{path}': version must be 1")
+    scope = values.get("design_fonts")
+    if scope is None:
+        usage_error(f"'{path}': design_fonts is missing; the only defined value is out-of-scope")
+    if scope != "out-of-scope":
+        usage_error(f"'{path}': design_fonts must be out-of-scope, got '{scope}'")
+    return True
+
+
 def declared_families(root):
     declared = set()
     for area in ("styles", "blocks"):
@@ -126,6 +169,7 @@ def main():
     if not isinstance(ref, dict):
         usage_error(f"'{ref_path}' is not a design reference object")
 
+    out_of_scope = fonts_out_of_scope(root)
     declared = declared_families(root)
     seen = set()
     missing = []
@@ -137,7 +181,9 @@ def main():
         missing.append(name.strip())
     for name in missing:
         print(name)
-    sys.exit(1 if missing else 0)
+    if not missing:
+        sys.exit(0)
+    sys.exit(3 if out_of_scope else 1)
 
 
 if __name__ == "__main__":
