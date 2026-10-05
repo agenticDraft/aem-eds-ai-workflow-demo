@@ -646,47 +646,30 @@ generated content makes every later run's evidence untrustworthy.
   `{ "path": "<the file>", "width": 375|768|1440, "label": "mobile width"|"tablet width"|"desktop
   width" }` — never the measurement or interaction output files, which carry no natural width.
 
-If `.ai/run-context/evidence-manifest.json` already exists (a design-verification stage earlier in
-this same run may have written it — `../../../agentic-core/shared/evidence-manifest.md`'s merge
-rule), merge into it rather than overwriting: union `attachments`, union `coverage_gaps`, and this
-stage's own `target`/`target_reachable`/`target_reachable_reason`/`item_id` win as the more recent
-measurement.
+Write the `coverage_gaps` strings, one per line, to `.ai/run-context/verify-gaps.txt`, and the
+`attachments` entries as one JSON array to `.ai/run-context/verify-attachments.json`. Then write the
+manifest through the pack's merge script. A design-verification stage earlier in this same run
+normally wrote the file already; the script merges into it per
+`../../../agentic-core/shared/evidence-manifest.md`'s rule — union `attachments` (each path once),
+union `coverage_gaps` (each string once, first occurrence kept, order kept), and this stage's own
+`item_id`/`target`/`target_reachable`/`target_reachable_reason` win as the more recent measurement —
+and creates it when none exists. Never write or merge the file by hand; the script is what keeps both
+writing stages' merges identical.
 
 ```bash
-if [[ -f .ai/run-context/evidence-manifest.json ]]; then
-  jq --slurpfile existing .ai/run-context/evidence-manifest.json \
-     --arg item_id "<item id>" \
-     --arg target "<target URL>" \
-     --argjson target_reachable <true or false> \
-     --arg target_reachable_reason "<reason>" \
-     --argjson new_gaps '[<coverage gap strings>]' \
-     --argjson new_attachments '[<attachment objects>]' \
-     -n '$existing[0] * {
-       item_id: $item_id, target: $target,
-       target_reachable: $target_reachable,
-       target_reachable_reason: $target_reachable_reason,
-       coverage_gaps: ($existing[0].coverage_gaps + $new_gaps),
-       attachments: ($existing[0].attachments + $new_attachments)
-     }' > .ai/run-context/evidence-manifest.json.tmp
-  mv .ai/run-context/evidence-manifest.json.tmp .ai/run-context/evidence-manifest.json
-else
-  jq -n --arg item_id "<item id>" --arg target "<target URL>" \
-     --argjson target_reachable <true or false> \
-     --arg target_reachable_reason "<reason>" \
-     --argjson coverage_gaps '[<coverage gap strings>]' \
-     --argjson attachments '[<attachment objects>]' \
-     '{version: "1.0", item_id: $item_id, target: $target,
-       target_reachable: $target_reachable,
-       target_reachable_reason: $target_reachable_reason,
-       coverage_gaps: $coverage_gaps, attachments: $attachments}' \
-     > .ai/run-context/evidence-manifest.json
-fi
+python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/evidence-manifest.py merge \
+  .ai/run-context/evidence-manifest.json \
+  --item-id "<item id>" --target "<target URL>" \
+  --target-reachable <true or false> --reason "<reason>" \
+  --gaps .ai/run-context/verify-gaps.txt \
+  --attachments .ai/run-context/verify-attachments.json
 bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/validate-evidence-manifest.sh \
   .ai/run-context/evidence-manifest.json
 ```
 
-The validator call's own exit code must be `0` before continuing — a manifest this stage itself
-cannot validate is not evidence worth carrying forward.
+The merge script prints `written: … gaps=<n> (…) attachments=<m> (…)`; exit `2` — go to **Report
+fail**, naming its stderr reason. The validator call's own exit code must be `0` before continuing
+— a manifest this stage itself cannot validate is not evidence worth carrying forward.
 
 **Attach the manifest's own `attachments:` directly, and only on this path** (D86, D88) — a `warn`
 verdict is not terminal, so `deliver` will still run later in this route, but `deliver` cannot be
@@ -744,10 +727,11 @@ would claim more than the evidence supports.
 
 Write `.ai/run-context/verify-report.md`, same content as **Report warn**'s.
 
-**Write the evidence manifest**, same *write* procedure as **Report warn**'s (the fresh-write/merge
-`jq` block and the validator call, both identical), with one difference: `coverage_gaps` is `[]` —
-a genuine pass, by construction (**Any check downgraded or skipped?** answered "no" to reach this
-node), has nothing to report as missed. `target_reachable`/`target_reachable_reason` and
+**Write the evidence manifest**, same *write* procedure as **Report warn**'s (the merge script call
+and the validator call, both identical), with one difference: `coverage_gaps` is `[]` — a genuine
+pass, by construction (**Any check downgraded or skipped?** answered "no" to reach this node), has
+nothing to report as missed, so `.ai/run-context/verify-gaps.txt` is written empty
+(`: > .ai/run-context/verify-gaps.txt`). `target_reachable`/`target_reachable_reason` and
 `attachments` are derived exactly as **Report warn** describes.
 
 **Stop there — do not attach.** Unlike **Report warn**, this node never invokes `attach_file` and

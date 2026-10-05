@@ -1,0 +1,40 @@
+unmeasured	Accent/Accent 6	.table.comparison table th	border-color	#929292: not in measure's property set
+unmeasured	Accent/Accent 6	.table.comparison table th	border-color	#929292: not in measure's property set
+unmeasured	Accent/Accent 6	.table.comparison table th	border-color	#929292: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td	border-color	#E9E9E9: not in measure's property set
+match	Accent/Accent 4	.table.comparison table td p	color	#000000
+unmeasured	-	.table.comparison table td p	font-family	'Roboto Mono', monospace: no variable matches this line
+match	Text/Paragraph	.table.comparison table th:nth-child(2) p	color	#6F6F6F
+match	Text/Paragraph	.table.comparison table th:nth-child(3) p	color	#6F6F6F
+unmeasured	Dividers/Divider 1	.table.comparison table td:nth-child(3)	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td:nth-child(3)	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td:nth-child(3)	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td:nth-child(3)	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td:nth-child(3)	border-color	#E9E9E9: not in measure's property set
+unmeasured	Dividers/Divider 1	.table.comparison table td:nth-child(3)	border-color	#E9E9E9: not in measure's property set
+match	Background/Background 1	.table.comparison table th:first-child	background-color	#FFFFFF
+unmeasured	Dividers/Divider 1	.table.comparison table th:first-child	border-color	#E9E9E9: not in measure's property set
+match	Background/Background 1	.table.comparison table td:first-child	background-color	#FFFFFF
+unmeasured	Dividers/Divider 1	.table.comparison table td:first-child	border-color	#E9E9E9: not in measure's property set
+match	Text/Headline	.table.comparison table th:first-child p	color	#000000
+unmeasured	Dividers/Divider 1	.table.comparison table tr:last-child td:first-child	border-color	#E9E9E9: not in measure's property set
+unmeasured	Accent/Accent 1	-	-	#485C11: no design-values line carries its token
+unmeasured	Accent/Accent 5	-	-	#6F6F6F: no design-values line carries its token
+unmeasured	Captions	-	-	Font(family: "Roboto Mono", style: Regular, size: 12, weight: 400, lineHeight: 1.399999976158142, letterSpacing: -1): no design-values line carries its token

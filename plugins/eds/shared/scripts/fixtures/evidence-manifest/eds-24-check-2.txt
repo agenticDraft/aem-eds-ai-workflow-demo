@@ -1,0 +1,1 @@
+[content-asset gap] 1440 vs the reference: text geometry of the three headings and every data cell (glyph shapes, where text sits in its box), with Roboto Mono, DM Sans, Rethink Sans, Reddit Mono not declared
