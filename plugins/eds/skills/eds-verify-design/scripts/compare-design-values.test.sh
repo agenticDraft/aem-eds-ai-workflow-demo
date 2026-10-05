@@ -208,12 +208,16 @@ TSV="1:185${TAB}margin-top${TAB}8px${TAB}false
 1:185${TAB}letter-spacing${TAB}-0.35px${TAB}false
 1:185${TAB}border-top-left-radius${TAB}4px${TAB}false
 1:185${TAB}width${TAB}120px${TAB}false
+1:185${TAB}min-width${TAB}200px${TAB}false
 "
 D="$(case_dir outside "$TSV" "$REPORT" "$(measure_json 22px 1000px normal)")"
 run_compare "$D"
 exit_is "exits 0" 0
 has_line "margin-top is unmeasured" "$D" \
   "unmeasured${TAB}1:185${TAB}-${TAB}margin-top${TAB}8px: not in measure's property set"
+has_line "min-width is in measure's set but excluded here on purpose, and says so" "$D" \
+  "unmeasured${TAB}1:185${TAB}-${TAB}min-width${TAB}200px: checked by the breakpoint regression check against the element's own width, not against the design value"
+no_line_matching "min-width never carries the not-in-set reason" "$D" "min-width${TAB}200px: not in measure's property set"
 has_line "column-gap is unmeasured" "$D" \
   "unmeasured${TAB}1:185${TAB}-${TAB}column-gap${TAB}12px: not in measure's property set"
 has_line "a per-corner radius is unmeasured, never inferred" "$D" \
@@ -586,6 +590,18 @@ printf '{"has_values": false}' > "$D3/reference.json"
 run_vars "$D3"
 exit_is "a reference without variables exits 0 and prints nothing" 0
 if [ ! -s "$D3/stdout" ]; then ok "no variables, no lines"; else bad "no variables, no lines" "got: $(cat "$D3/stdout")"; fi
+REPORT_VARS_MINW='# Prototype report
+
+## Design values
+
+.table.comparison table th — min-width — var(--dividers-divider-1) — source: variables — token: --dividers-divider-1 — node: 1:196
+'
+D5="$(case_dir varsminw "" "$REPORT_VARS_MINW" "$VARS_JSON")"
+printf '%s' "$VARS_REF" > "$D5/reference.json"
+run_vars "$D5"
+exit_is "a variable written on min-width exits 0" 0
+has_line "min-width on a variables line gets the regression-check reason" "$D5" \
+  "unmeasured${TAB}Dividers/Divider 1${TAB}.table.comparison table th${TAB}min-width${TAB}#E9E9E9: checked by the breakpoint regression check against the element's own width, not against the design value"
 
 echo "selectors mode lists the selectors of variables-sourced lines too"
 D="$(case_dir selvars "" "$REPORT_VARS" "{}")"
