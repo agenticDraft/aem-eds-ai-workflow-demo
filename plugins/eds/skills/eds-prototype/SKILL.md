@@ -414,7 +414,8 @@ Write a fixed `width` or `height` (a length, not `min-*`, `max-*`, `auto` or a p
 design's value). Text that needs more room than a fixed box overflows it while the box itself looks
 right, so a size the design does not put on the node is refused by **Check the size origin**. This
 stage renders nothing, so that check cannot tell an element holding text from one holding an icon,
-and refuses an untied fixed size on either.
+and refuses an untied fixed size on either — but only one this run added or changed. A fixed size the
+block already had, and this run left as it was, is not refused.
 
 With viewports, `viewport-overrides.tsv` replaces `design-context-values.tsv` as the
 `design_context` source, and the CSS is mobile-first:
@@ -532,11 +533,14 @@ Run, without a measurement, since this stage renders nothing:
 ```
 python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-size-origin.py \
   check blocks/<name>/<name>.css .ai/run-context/prototype-report.draft.md \
-  <.ai/run-context/design-context-values.tsv, or - when the design-context script exited 3>
+  <.ai/run-context/design-context-values.tsv, or - when the design-context script exited 3> \
+  --base origin/HEAD
 ```
 
-It reports every fixed width or height in the block CSS that no `## Design values` line ties to a
-node whose table row has that property and value, one `hit` line each. Take them as given.
+It reports every fixed width or height this run added or changed in the block CSS — one not in the file
+as it stood at the merge base of `origin/HEAD` and `HEAD` — that no `## Design values` line ties to a
+node whose table row has that property and value, one `hit` line each. A fixed size the block already
+had and this run left as it was is not reported. Take the hits as given.
 
 - **Exit `0`** — move `.ai/run-context/prototype-report.draft.md` to
   `.ai/run-context/prototype-report.md`, then continue to **Check the optimise flags**.
