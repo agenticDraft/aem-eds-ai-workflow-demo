@@ -215,6 +215,80 @@ assert_eq "nested rule → 2" "2" "$CODE"
 run
 assert_eq "no arguments → 2" "2" "$CODE"
 
+# --- --base: only what the run added or changed (G162, D548) ---------------
+
+REPO="$WORK/repo"
+mkdir -p "$REPO/blocks/fc"
+git -C "$REPO" init -q -b main . && git -C "$REPO" config user.email t@t && git -C "$REPO" config user.name t \
+  || { echo "git init failed" >&2; exit 1; }
+FCSS="$REPO/blocks/fc/fc.css"
+cat > "$FCSS" <<'EOF'
+.fc .content ol li::before { flex: none; width: 2em; }
+.fc .content img { width: 100%; }
+EOF
+git -C "$REPO" add -A && git -C "$REPO" commit -qm base
+git -C "$REPO" switch -qc run
+cat > "$WORK/fc-report.md" <<'EOF'
+# Prototype report
+
+## Design values
+
+.fc .content img — height — 711px — source: design_context — token: none — node: 1:187
+EOF
+printf '1:187\theight\t711px\ttrue\n' > "$WORK/fc-values.tsv"
+CHECK_BASE=(check "$FCSS" "$WORK/fc-report.md" "$WORK/fc-values.tsv" --base main)
+
+echo "[base] without --base the pre-existing 2em is a hit (the unchanged strict form)"
+run check "$FCSS" "$WORK/fc-report.md" "$WORK/fc-values.tsv"
+assert_eq "exit 1" "1" "$CODE"
+assert_eq "the 2em hit" "hit${T}.fc .content ol li::before${T}width${T}2em${T}no report line ties it to a node" "$(hits)"
+
+echo "[base] nothing changed since the base: exit 0, however many untied sizes the file already had"
+run "${CHECK_BASE[@]}"
+assert_eq "exit 0" "0" "$CODE"
+assert_eq "no output" "" "$OUT"
+
+echo "[base] the run adds a tied height; the pre-existing untied 2em is not reported"
+printf '.fc .content img { width: 100%%; height: 711px; }\n' >> "$FCSS"
+sed -i.bak 's/^\.fc \.content img { width: 100%; }$//' "$FCSS" && rm -f "$FCSS.bak"
+run "${CHECK_BASE[@]}"
+assert_eq "exit 0" "0" "$CODE"
+assert_eq "no output" "" "$OUT"
+
+echo "[base] the run adds an untied fixed width: only that one is a hit"
+printf '.fc .badge { width: 40px; }\n' >> "$FCSS"
+run "${CHECK_BASE[@]}"
+assert_eq "exit 1" "1" "$CODE"
+assert_eq "one hit, the new width" "hit${T}.fc .badge${T}width${T}40px${T}no report line ties it to a node" "$(hits)"
+
+echo "[base] a commit on the run's branch does not hide the run's own change"
+git -C "$REPO" commit -qam "run work"
+run "${CHECK_BASE[@]}"
+assert_eq "exit 1" "1" "$CODE"
+assert_eq "still the new width" "hit${T}.fc .badge${T}width${T}40px${T}no report line ties it to a node" "$(hits)"
+run check "$FCSS" "$WORK/fc-report.md" "$WORK/fc-values.tsv" --base HEAD
+assert_eq "a base of HEAD itself sees nothing (why HEAD is not the base)" "0" "$CODE"
+
+echo "[base] the run edits a pre-existing untied size: it is a hit"
+git -C "$REPO" switch -q main && git -C "$REPO" switch -qc run2
+sed -i.bak 's/width: 2em/width: 3em/' "$FCSS" && rm -f "$FCSS.bak"
+run "${CHECK_BASE[@]}"
+assert_eq "exit 1" "1" "$CODE"
+assert_eq "the edited 3em" "hit${T}.fc .content ol li::before${T}width${T}3em${T}no report line ties it to a node" "$(hits)"
+
+echo "[base] a block file the base does not have: every fixed size is the run's"
+mkdir -p "$REPO/blocks/new"
+printf '.n a { width: 5px; }\n' > "$REPO/blocks/new/new.css"
+run check "$REPO/blocks/new/new.css" "$WORK/fc-report.md" "$WORK/fc-values.tsv" --base main
+assert_eq "exit 1" "1" "$CODE"
+assert_eq "the 5px hit" "hit${T}.n a${T}width${T}5px${T}no report line ties it to a node" "$(hits)"
+
+echo "[base] an unknown base, or --base without a value, exits 2"
+run check "$FCSS" "$WORK/fc-report.md" "$WORK/fc-values.tsv" --base no-such-rev
+assert_eq "unknown rev → 2" "2" "$CODE"
+run check "$FCSS" "$WORK/fc-report.md" "$WORK/fc-values.tsv" --base
+assert_eq "no value → 2" "2" "$CODE"
+
 echo ""
 echo "passed: $PASS, failed: $FAIL"
 [ "$FAIL" -eq 0 ]

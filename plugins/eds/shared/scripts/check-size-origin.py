@@ -4,7 +4,7 @@
 #        .ai/run-context/design-context-values.tsv [<measure.json>]
 #
 # check-size-origin.py selectors <block.css>
-# check-size-origin.py check <block.css> <prototype-report.md> <values.tsv> [<measure.json>]
+# check-size-origin.py check <block.css> <prototype-report.md> <values.tsv> [<measure.json>] [--base <rev>]
 #
 # Deterministic. A fixed `width` or `height` on an element that holds text
 # comes only from that element's own node in the design.
@@ -35,6 +35,13 @@
 # size whose measured box is larger than the design value is listed as grown.
 # Without a measurement file every untied fixed size is reported.
 #
+# With `--base <rev>` only a fixed size the run added or changed is reported:
+# one whose (selector, property, value) is not in the block file as it stood at
+# the merge base of <rev> and HEAD (D548). The merge base, not HEAD itself:
+# once the run's work is committed `git diff HEAD` is empty and a resumed run
+# would pass without being checked. A block file the base does not have is
+# all the run's. The base is read from the git checkout holding <block.css>.
+#
 #   hit    TAB <selector> TAB <property> TAB <value> TAB <reason>
 #   grown  TAB <selector> TAB <property> TAB design <value>, measured <n>px
 #
@@ -46,6 +53,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -67,7 +75,7 @@ GROUPING_AT_RULES = {"media", "supports", "container", "layer"}
 def usage_error(msg):
     print(
         "usage: check-size-origin.py selectors <block.css>\n"
-        "       check-size-origin.py check <block.css> <prototype-report.md> <values.tsv> [<measure.json>]\n"
+        "       check-size-origin.py check <block.css> <prototype-report.md> <values.tsv> [<measure.json>] [--base <rev>]\n"
         f"{msg}",
         file=sys.stderr,
     )
@@ -233,6 +241,28 @@ def fixed_sizes(css):
     return out
 
 
+# --- the base ------------------------------------------------------------
+
+def git(cwd, *args):
+    return subprocess.run(["git", "-C", cwd, *args], capture_output=True, text=True)
+
+
+def base_sizes(css_path, rev):
+    """The fixed sizes the block file had at the merge base of <rev> and HEAD."""
+    cwd = os.path.dirname(os.path.abspath(css_path))
+    name = os.path.basename(css_path)
+    base = git(cwd, "merge-base", rev, "HEAD")
+    if base.returncode != 0:
+        usage_error(f"no merge base between '{rev}' and HEAD in the checkout holding '{css_path}'")
+    base = base.stdout.strip()
+    if git(cwd, "cat-file", "-e", f"{base}:./{name}").returncode != 0:
+        return set()
+    shown = git(cwd, "show", f"{base}:./{name}")
+    if shown.returncode != 0:
+        usage_error(f"cannot read '{name}' at {base}: {shown.stderr.strip()}")
+    return set(fixed_sizes(shown.stdout))
+
+
 # --- ties -----------------------------------------------------------------
 
 def same_value(a, b):
@@ -287,8 +317,11 @@ def grown(result, prop, value):
 
 # --- main -----------------------------------------------------------------
 
-def check(css_path, report_path, table_path, measure_path):
+def check(css_path, report_path, table_path, measure_path, base_rev):
     sizes = fixed_sizes(read_text(css_path))
+    if base_rev:
+        had = base_sizes(css_path, base_rev)
+        sizes = [size for size in sizes if size not in had]
     lines = list(cdv.design_value_lines(read_text(report_path)))
     rows = [] if table_path == "-" else cdv.read_table(table_path)
     results = read_measurement(measure_path) if measure_path else None
@@ -326,8 +359,15 @@ def main():
                 seen.append(selector)
                 print(selector)
         sys.exit(0)
+    base_rev = None
+    if "--base" in args:
+        at = args.index("--base")
+        if at + 1 >= len(args):
+            usage_error("`--base` needs a git revision")
+        base_rev = args[at + 1]
+        args = args[:at] + args[at + 2:]
     if args[:1] == ["check"] and len(args) in (4, 5):
-        check(args[1], args[2], args[3], args[4] if len(args) == 5 else None)
+        check(args[1], args[2], args[3], args[4] if len(args) == 5 else None, base_rev)
     usage_error("expected `selectors <css>` or `check <css> <report> <table> [<measurement>]`")
 
 
