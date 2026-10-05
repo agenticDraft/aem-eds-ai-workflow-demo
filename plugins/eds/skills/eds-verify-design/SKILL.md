@@ -308,8 +308,10 @@ Read the captured envelope's `verdict`.
    printed that is not `.<block name>`, in its order, then every selector step 5 and then step 6
    printed that is not already in the list, in its order. Each width is its own invocation. Record
    each measurement file path from its envelope's `artifacts:` against its width, and the resulting
-   measurements, including `found: false` for a selector that did not match. The file recorded at
-   the reference width is this check's **reference measurement**.
+   measurements, including `found: false` for a selector that did not match and `hidden: true` for
+   one the page hides at that width (a block may hide part of itself at a width; the operation
+   reports it rather than waiting, and the comparison scripts leave such a selector ungraded). The
+   file recorded at the reference width is this check's **reference measurement**.
 
 ### Compare against the design reference
 
@@ -347,11 +349,14 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
      variables .ai/run-context/design-reference.json .ai/run-context/prototype-report.md \
-     <the reference measurement step 7 of **Capture and measure the draft page** recorded>
+     <the reference measurement step 7 of **Capture and measure the draft page** recorded> \
+     > .ai/run-context/verify-design-variables-<n>.txt
    ```
 
-   Each line is `<status> TAB <variable> TAB <selector> TAB <property> TAB <detail>`; take them as
-   given.
+   `<n>` is this check's number, starting at `1`. The output goes to that file so the run's own
+   record keeps it (the manifest step reads it back); read the lines from the file. The exit code
+   is the script's own. Each line is `<status> TAB <variable> TAB <selector> TAB <property> TAB
+   <detail>`; take them as given.
    - Exit `0` or `1` — every `mismatch` line is a named mismatch, tagged `[fixable]`, written as
      `<selector> <property>: <detail>`. `match` lines are recorded as confirmed. Every `unmeasured`
      line is a variable judged visually only, recorded with its reason: a property outside
@@ -363,12 +368,14 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify-design/scripts/compare-design-values.py \
      compare .ai/run-context/design-context-values.tsv .ai/run-context/prototype-report.md \
-     <the reference measurement step 7 of **Capture and measure the draft page** recorded>
+     <the reference measurement step 7 of **Capture and measure the draft page** recorded> \
+     > .ai/run-context/verify-design-compare-<n>.txt
    ```
 
-   The script owns shorthand expansion, value normalisation and which properties are compared;
-   take its lines as given. Each line is `<status> TAB <node> TAB <selector> TAB <property> TAB
-   <detail>`.
+   The output goes to that file, as step 2's does, and is read back from it; the exit code is the
+   script's own. The script owns shorthand expansion, value normalisation and which properties are
+   compared; take its lines as given. Each line is `<status> TAB <node> TAB <selector> TAB
+   <property> TAB <detail>`.
    - Exit `0` or `1` — every `mismatch` line is a named mismatch, tagged `[fixable]` (a computed
      value does not depend on which font loaded, so a missing family never changes this), written as
      `<selector> <property>: <detail>`. Every `unmeasured` line is a value judged visually only,
@@ -661,74 +668,67 @@ the first check found no mismatch. Then a section headed `## Content-dependent, 
   `target_reachable_reason: "not yet confirmed — the reachability script (Phase 7 / Task 11) does
   not exist yet"`. Never `true` from this stage today.
 - `coverage_gaps`: one string per degradation that applied above, matching what the paragraph just
-  written into `verify-design-report.md` says for the same condition:
-  - a remaining `[content-asset gap]` mismatch → `"content-asset gap: <what content is missing,
-    verbatim from the mismatch entry>"` — one entry per remaining mismatch, never folded into one
-    combined string
-  - `has_values: false` on the design reference → `"design comparison was visual-only: the design
-    reference has no resolved token values to check quantitatively (image-only source)"`
-  - an `unmeasured` line from the comparison script's `variables` mode → `"design variable '<name>'
-    was judged visually only, not confirmed numerically: <reason>"` — one entry per line
-  - an `unmeasured` line from the comparison script's `compare` mode → `"design value '<property>
-    <value>' on node <node> was judged visually only: <reason>"` — one entry per line
-  - an `approx` line, a size-origin `grown` line, or a `[content-dependent]` entry on the final
-    check → `"content-dependent, not graded: <selector> <property>: <detail>"` — one entry per line
-  - an edit to an already-existing block → `"this run edited an already-existing block's CSS/JS
-    ('<name>') ahead of plan approval"`
-  - a `reduced` comparison line → `"design comparison at <capture width> was at reduced resolution:
-    the reference image for <name> (<node id>) was rendered smaller than the design"` — one entry
-    per such line, `the reference` in place of the name and node id when the node id is `-`
-  - `[]` only when this node is reached with no degradation actually true — should not happen; if
-    it does, that is a bug in this stage's own degradation detection.
+  written into `verify-design-report.md` says for the same condition. The per-line degradations are
+  built by a script, so that a line is never reworded, never dropped, and never written twice when
+  the report names it for several nodes. Run it on the **final** check's files and write its output
+  to `.ai/run-context/verify-design-gaps.txt`:
+
+  ```
+  python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/evidence-manifest.py gaps \
+    --check .ai/run-context/verify-design-check-<final n>.txt \
+    --variables .ai/run-context/verify-design-variables-<final n>.txt \
+    --compare .ai/run-context/verify-design-compare-<final n>.txt \
+    > .ai/run-context/verify-design-gaps.txt
+  ```
+
+  Leave out `--variables` or `--compare` when that step did not run on the final check (no values,
+  no value table). Exit `2` — go to **Report fail**, naming the script's stderr reason. The script
+  turns each `[content-asset gap]` and `[content-dependent]` entry of the check file, each
+  `unmeasured` line of the `variables` output, and each `unmeasured` and `approx` line of the
+  `compare` output into one gap string; lines that differ only in their node become one string
+  naming every node, and identical lines one string carrying a count. Then append to that file,
+  one line each, the degradations only this stage knows:
+  - `has_values: false` on the design reference → `design comparison was visual-only: the design
+    reference has no resolved token values to check quantitatively (image-only source)`
+  - an edit to an already-existing block → `this run edited an already-existing block's CSS/JS
+    ('<name>') ahead of plan approval`
+  - a `reduced` comparison line → `design comparison at <capture width> was at reduced resolution:
+    the reference image for <name> (<node id>) was rendered smaller than the design` — one line per
+    such comparison line, `the reference` in place of the name and node id when the node id is `-`
+  - a size-origin `grown` line on the final check → `content-dependent, not graded: <selector>
+    <property>: <detail>` — one line each
+
+  An empty file only when this node is reached with no degradation actually true — should not
+  happen; if it does, that is a bug in this stage's own degradation detection.
 - `attachments`: one entry per screenshot **Capture and measure the draft page** wrote, across
   every check — `{ "path": "<the file>", "width": <its capture width>, "label": "design
   comparison, <name> at <capture width>, check <n>" }`, `reference` in place of `<name>` when the
   line's name is `-`; a width no comparison line names is labelled `"breakpoint check at <width>,
-  check <n>"`.
-  Never the measurement file, which carries no natural width.
+  check <n>"`. Never the measurement file, which carries no natural width. Write them as one JSON
+  array to `.ai/run-context/verify-design-attachments.json`.
 
-If `.ai/run-context/evidence-manifest.json` already exists (unusual for this stage, which normally
-runs before `eds-verify` in route order and so is normally the first writer — but a stale file from
-an earlier, interrupted run is possible), merge into it rather than overwriting, per
-`../../../agentic-core/shared/evidence-manifest.md`'s merge rule: union `attachments`, union
-`coverage_gaps`, and this stage's own `target`/`target_reachable`/`target_reachable_reason`/
-`item_id` win.
+Then write the manifest through the pack's merge script. It creates the file when none exists and
+otherwise merges into it per `../../../agentic-core/shared/evidence-manifest.md`'s rule — a stale
+file from an earlier, interrupted run is possible even for this stage, which is normally the first
+writer: union `attachments` (each path once), union `coverage_gaps` (each string once, first
+occurrence kept, order kept), and this stage's own `item_id`/`target`/`target_reachable`/
+`target_reachable_reason` win. Never write or merge the file by hand; the script is what keeps both
+writing stages' merges identical.
 
 ```bash
-if [[ -f .ai/run-context/evidence-manifest.json ]]; then
-  jq --slurpfile existing .ai/run-context/evidence-manifest.json \
-     --arg item_id "<item id>" \
-     --arg target "<target URL>" \
-     --argjson target_reachable <true or false> \
-     --arg target_reachable_reason "<reason>" \
-     --argjson new_gaps '[<coverage gap strings>]' \
-     --argjson new_attachments '[<attachment objects>]' \
-     -n '$existing[0] * {
-       item_id: $item_id, target: $target,
-       target_reachable: $target_reachable,
-       target_reachable_reason: $target_reachable_reason,
-       coverage_gaps: ($existing[0].coverage_gaps + $new_gaps),
-       attachments: ($existing[0].attachments + $new_attachments)
-     }' > .ai/run-context/evidence-manifest.json.tmp
-  mv .ai/run-context/evidence-manifest.json.tmp .ai/run-context/evidence-manifest.json
-else
-  jq -n --arg item_id "<item id>" --arg target "<target URL>" \
-     --argjson target_reachable <true or false> \
-     --arg target_reachable_reason "<reason>" \
-     --argjson coverage_gaps '[<coverage gap strings>]' \
-     --argjson attachments '[<attachment objects>]' \
-     '{version: "1.0", item_id: $item_id, target: $target,
-       target_reachable: $target_reachable,
-       target_reachable_reason: $target_reachable_reason,
-       coverage_gaps: $coverage_gaps, attachments: $attachments}' \
-     > .ai/run-context/evidence-manifest.json
-fi
+python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/evidence-manifest.py merge \
+  .ai/run-context/evidence-manifest.json \
+  --item-id "<item id>" --target "<target URL>" \
+  --target-reachable <true or false> --reason "<reason>" \
+  --gaps .ai/run-context/verify-design-gaps.txt \
+  --attachments .ai/run-context/verify-design-attachments.json
 bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/validate-evidence-manifest.sh \
   .ai/run-context/evidence-manifest.json
 ```
 
-The same shape `eds-verify`'s own **Report warn** writes (Phase 7 / Task 6) — the validator call's
-own exit code must be `0` before continuing.
+The merge script prints `written: … gaps=<n> (…) attachments=<m> (…)`; exit `2` — go to **Report
+fail**, naming its stderr reason. The same shape `eds-verify`'s own **Report warn** writes (Phase 7
+/ Task 6) — the validator call's own exit code must be `0` before continuing.
 
 Write the envelope with the emitter, never by hand:
 
@@ -753,9 +753,11 @@ warn**'s, with an empty degradation list.
 
 **Write the evidence manifest**, same procedure as **Report warn**'s, with one difference:
 `coverage_gaps` is `[]` — a genuine pass, by construction (**Any degradation to report?** answered
-"no" to reach this node), has nothing to report as degraded. `target_reachable` /
-`target_reachable_reason` and `attachments` are derived exactly as **Report warn** describes; the
-merge-if-exists behaviour and the validator call are identical.
+"no" to reach this node), has nothing to report as degraded, so
+`.ai/run-context/verify-design-gaps.txt` is written empty (`: > .ai/run-context/verify-design-gaps.txt`)
+and the gap-building script is not run. `target_reachable` / `target_reachable_reason` and
+`attachments` are derived exactly as **Report warn** describes; the merge script call and the
+validator call are identical.
 
 Write the envelope with the emitter, never by hand:
 

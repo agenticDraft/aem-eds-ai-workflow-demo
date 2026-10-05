@@ -38,6 +38,11 @@
 # `split of [<property> ]<value>` for a split line, and `line: <value> is not a
 # split of <value>` for a refused one.
 #
+# A selector the measurement reports `hidden: true` (no visible match at the
+# measured width) is `unmeasured` for every value it carries — `selector hidden
+# on the page at this width` — and its box is never listed; a hidden element's
+# geometry and computed values are not a finding.
+#
 # Only the properties `measure` reports as design values are compared: color,
 # background-color, font-family, font-size, font-weight, line-height,
 # padding-top, padding-right, padding-bottom, padding-left, gap, border-radius.
@@ -409,6 +414,9 @@ def list_approx(node, prop, value, lines, by_node, results):
         if not isinstance(result, dict) or not result.get("found"):
             out.append(("approx", node, selector, prop, f"{value}: selector not found on the page"))
             continue
+        if result.get("hidden") is True:
+            out.append(("approx", node, selector, prop, f"{value}: selector hidden on the page at this width"))
+            continue
         measured = box(result)
         if measured is None:
             out.append(("approx", node, selector, prop, f"{value}: no box in the measurement"))
@@ -469,6 +477,9 @@ def compare(table_path, report_path, measure_path):
             for longhand, want in wants:
                 if not isinstance(result, dict) or not result.get("found"):
                     out.append(("unmeasured", node, selector, longhand, f"{want}: selector not found on the page"))
+                    continue
+                if result.get("hidden") is True:
+                    out.append(("unmeasured", node, selector, longhand, f"{want}: selector hidden on the page at this width"))
                     continue
                 computed = result.get("computed") or {}
                 if not isinstance(computed.get(longhand), str):
@@ -556,6 +567,9 @@ def variables(reference_path, report_path, measure_path):
         result = results.get(selector)
         if not isinstance(result, dict) or not result.get("found"):
             out.append(("unmeasured", name, selector, prop, f"{want}: selector not found on the page"))
+            continue
+        if result.get("hidden") is True:
+            out.append(("unmeasured", name, selector, prop, f"{want}: selector hidden on the page at this width"))
             continue
         computed = result.get("computed") or {}
         if not isinstance(computed.get(prop), str):
