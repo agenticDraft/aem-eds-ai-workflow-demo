@@ -67,6 +67,9 @@ TAGS = {
     "[content-dependent]": "content-dependent, not graded: {}",
 }
 KNOWN_STATUSES = {"match", "mismatch", "unmeasured", "approx"}
+# Stands for the node list inside a gap key until the key is printed. A control
+# character, so no gap text can contain it and the file holds no brace pair.
+NODES = "\x00nodes\x00"
 
 
 def usage_error(msg):
@@ -123,9 +126,9 @@ class Gaps:
         out = []
         for key in self.order:
             nodes = self.nodes[key]
-            if "{nodes}" in key:
+            if NODES in key:
                 word = "node" if len(nodes) == 1 else "nodes"
-                out.append(key.replace("{nodes}", f"{word} {', '.join(nodes)}"))
+                out.append(key.replace(NODES, f"{word} {', '.join(nodes)}"))
             elif self.count[key] > 1:
                 out.append(f"{key} (×{self.count[key]})")
             else:
@@ -180,12 +183,12 @@ def gaps_from_compare(path, gaps):
         value, reason = split_detail(detail)
         if status == "unmeasured":
             named = f"{prop} {value}" if value is not None else prop
-            gaps.add(f"design value '{named}' on {{nodes}} was judged visually only: {reason}", node)
+            gaps.add(f"design value '{named}' on {NODES} was judged visually only: {reason}", node)
         elif selector == "-":
             named = f"{prop} {value}" if value is not None else prop
-            gaps.add(f"content-dependent, not graded: {named} on {{nodes}}: {reason}", node)
+            gaps.add(f"content-dependent, not graded: {named} on {NODES}: {reason}", node)
         else:
-            gaps.add(f"content-dependent, not graded: {selector} {prop}: {detail} ({{nodes}})", node)
+            gaps.add(f"content-dependent, not graded: {selector} {prop}: {detail} ({NODES})", node)
 
 
 def gaps_mode(args):

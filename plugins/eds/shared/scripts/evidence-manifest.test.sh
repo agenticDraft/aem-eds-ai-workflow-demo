@@ -224,6 +224,10 @@ eq "verify's three come last, in order" "$(cat "$FIX/eds-24-verify-gaps.txt")" "
 eq "attachments 6 + 3" "9" "$(jq '.attachments | length' "$M7")"
 eq "validator accepts it" "valid: evidence manifest (9 attachments, 187 coverage gaps)" "$(bash "$VALIDATE" "$M7" 2>&1)"
 
+echo "shipped file: no double brace anywhere (an unfilled-placeholder marker for the pack validator)"
+PAIR="$(printf '\173\173')"
+if grep -qF "$PAIR" "$EM"; then bad "no double brace in evidence-manifest.py" "$(grep -nF "$PAIR" "$EM")"; else ok "no double brace in evidence-manifest.py"; fi
+
 echo
 echo "passed: $PASS, failed: $FAIL"
 [ "$FAIL" -eq 0 ]
