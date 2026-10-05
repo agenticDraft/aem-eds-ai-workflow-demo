@@ -146,6 +146,46 @@ process.stdout.write([
 ].join("\n"));
 '
 
+# A fake page where each element carries its own box and visibility: a
+# selector is hidden when no match is visible; geometry comes from the first
+# visible match, or the first match when none is.
+HIDDEN_JS='
+const { readSelectors } = require(process.argv[1]);
+const text = (v) => ({ nodeType: 3, nodeValue: v, childNodes: [] });
+const el = (rect, vis, ...kids) => ({ nodeType: 1, childNodes: kids, rect, vis });
+const shown = () => el({ x: 0, y: 0, width: 40, height: 20 }, "visible", text("Shown"));
+const gone = () => el({ x: 0, y: 0, width: 0, height: 0 }, "visible", text("Gone"));
+const veiled = () => el({ x: 0, y: 0, width: 40, height: 20 }, "hidden", text("Veiled"));
+const pages = {
+  ".visible": [shown()],
+  ".display-none": [gone()],
+  ".visibility-hidden": [veiled()],
+  ".all-hidden": [gone(), veiled()],
+  ".mixed": [gone(), el({ x: 5, y: 7, width: 30, height: 10 }, "visible", text("Second"))],
+};
+global.document = {
+  querySelectorAll: (sel) => pages[sel] || [],
+  fonts: { status: "loaded" },
+  createRange: () => ({ setStart() {}, setEnd() {}, getClientRects: () => [] }),
+};
+global.getComputedStyle = (e) => ({ getPropertyValue: () => "", visibility: e.vis });
+for (const e of Object.values(pages).flat()) e.getBoundingClientRect = () => e.rect;
+const sels = [...Object.keys(pages), ".none"];
+const snapshot = readSelectors({ sels, props: [] });
+const { results } = snapshot;
+const show = (s) => { const r = results[s]; return r.found ? `${r.hidden}@${r.geometry.x},${r.geometry.y},${r.geometry.width}x${r.geometry.height}` : "not-found"; };
+process.stdout.write(sels.map((s) => `${s}=${show(s)}`).join(" ") + "\n" + Object.keys(snapshot).sort().join(","));
+'
+
+echo "[hidden] a selector is hidden when no match is visible; geometry is the first visible match's"
+assert_eq "hidden and geometry per selector, and no visibility state beside the results" \
+  ".visible=false@0,0,40x20 .display-none=true@0,0,0x0 .visibility-hidden=true@0,0,40x20 .all-hidden=true@0,0,0x0 .mixed=false@5,7,30x10 .none=not-found
+fontsLoading,results" \
+  "$(node -e "$HIDDEN_JS" "$MEASURE" 2>&1)"
+
+echo "[hidden] a not-found selector carries no hidden"
+assert_eq "not found has only found" '{"found":false}' "$(node -e "$NOT_FOUND_JS" "$MEASURE" 2>&1)"
+
 echo "[args] the width is an optional flag, anywhere; target and selectors keep their order"
 assert_eq "parsed arguments" \
   "null|http://h/|.a,.b

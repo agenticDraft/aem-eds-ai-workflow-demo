@@ -1,11 +1,10 @@
 // settle.cjs — the condition a read waits for before it is taken.
 //
 // A page is settled when its fonts have finished loading, no probe reports a
-// blocker (a named target that matched an element which is not visible, or
-// fonts still loading), and two consecutive snapshots taken a fixed interval
-// apart are identical. The whole wait has an upper bound; a page that does
-// not settle within it is reported as not settled, with the reason, and no
-// snapshot is returned.
+// blocker (whatever the probe names — fonts still loading, for a measure), and
+// two consecutive snapshots taken a fixed interval apart are identical. The
+// whole wait has an upper bound; a page that does not settle within it is
+// reported as not settled, with the reason, and no snapshot is returned.
 //
 // Used as a module by this pack's operation scripts. The probe, the fonts
 // wait and the clock are passed in, so the condition runs without a browser.
@@ -25,15 +24,6 @@ const realClock = {
 
 function sameSnapshot(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
-}
-
-// states: { <selector>: { found, width, height, hidden } }. A selector that
-// matched nothing is not a blocker; it is reported as not found once settled.
-function notVisible(states) {
-  return Object.keys(states).filter((sel) => {
-    const s = states[sel];
-    return s.found && (s.hidden || !(s.width > 0 || s.height > 0));
-  });
 }
 
 const TIMED_OUT = Symbol('timed out');
@@ -93,5 +83,5 @@ async function settle({
 }
 
 module.exports = {
-  SETTLE_INTERVAL_MS, SETTLE_TIMEOUT_MS, settle, sameSnapshot, notVisible,
+  SETTLE_INTERVAL_MS, SETTLE_TIMEOUT_MS, settle, sameSnapshot,
 };
