@@ -63,6 +63,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/design-fonts.py .ai/run-context/des
 
 Exit `1` prints each font family the design names that this project declares no `@font-face` for,
 one per line — keep them as the **missing families** for every report below. Exit `0` — none.
+Exit `3` prints the same families, but this project has declared design fonts out of scope
+(`.ai/design/fonts.yaml`, read by the script): keep them as the **out-of-scope families** — named in
+the report as out of scope by declaration, never as missing, and never a reason for `warning`; a
+project that has decided fonts are not its run's work gets no reminder from every run.
 Exit `2` — go to **Report missing artifact**. Fonts are added by a human once, with their license;
 this skill names what is missing and never adds, downloads or substitutes a font.
 
@@ -127,10 +131,13 @@ Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-co
 
 Emit the `## Outcome` block as plain `key: value` lines per `../../../agentic-core/shared/subagent-outcome.md` — never as a bulleted or backtick-wrapped list, with `status:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
-- `status: success` — or `status: warning` when there are missing families
+- `status: success` — or `status: warning` when there are missing families (out-of-scope families
+  never make it `warning`)
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many variables matched the adopted system and how many
   drifted — e.g. "Graded 2 design values against the adopted system: 1 matched, 1 drifted." — and, when
-  there are missing families, naming each — e.g. "…; fonts not declared: DM Sans, Roboto Mono."
+  there are missing families, naming each — e.g. "…; fonts not declared: DM Sans, Roboto Mono." —
+  or, when there are out-of-scope families, "…; design fonts out of scope by declaration: DM Sans,
+  Roboto Mono."
 - `artifacts: []`
 - `next_action: none` — or, when there are missing families, `a human adds the missing font
   families, with their licenses`

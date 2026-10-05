@@ -144,6 +144,40 @@ DM Sans
 Rethink Sans
 Reddit Mono"
 
+echo "a project that declares design fonts out of scope (.ai/design/fonts.yaml)"
+# declare <case-dir> <value> — writes the declaration
+declare() { mkdir -p "$1/.ai/design"; printf 'version: 1\ndesign_fonts: %s\n' "$2" > "$1/.ai/design/fonts.yaml"; }
+D="$(case_dir oos-missing '<p className="font-['"'"'Roboto_Mono:Regular'"'"']" data-node-id="1:1">A</p>' \
+  '{"Captions": "Font(family: \"DM Sans\", style: Regular, size: 12)"}')"
+declare "$D" out-of-scope
+run_fonts "$D"
+out_is "the undeclared families are still named, in order" "$D" "DM Sans
+Roboto Mono"
+status_is "exit 3: missing, and out of scope by declaration" 3 "$D"
+
+D="$(case_dir oos-none '<p className="font-['"'"'DM_Sans:Medium'"'"']" data-node-id="1:1">A</p>')"
+css "$D" styles/fonts.css '@font-face { font-family: dm-sans; src: url("../fonts/dm-sans.woff2"); }'
+declare "$D" out-of-scope
+run_fonts "$D"
+out_is "nothing missing → nothing named, declaration or not" "$D" ""
+status_is "exit 0 when every family is declared" 0 "$D"
+
+D="$(case_dir oos-bad '<p className="font-['"'"'Roboto_Mono:Regular'"'"']" data-node-id="1:1">A</p>')"
+declare "$D" sometimes
+run_fonts "$D"
+status_is "an unknown design_fonts value → exit 2" 2 "$D"
+if grep -q 'fonts.yaml' "$D/stderr"; then ok "names the declaration file"; else bad "names the declaration file" "$(cat "$D/stderr")"; fi
+mkdir -p "$D/.ai/design"; printf 'version: 1\n' > "$D/.ai/design/fonts.yaml"
+run_fonts "$D"
+status_is "a declaration without design_fonts → exit 2" 2 "$D"
+printf 'version: 2\ndesign_fonts: out-of-scope\n' > "$D/.ai/design/fonts.yaml"
+run_fonts "$D"
+status_is "a version other than 1 → exit 2" 2 "$D"
+
+D="$(case_dir oos-absent '<p className="font-['"'"'Roboto_Mono:Regular'"'"']" data-node-id="1:1">A</p>')"
+run_fonts "$D"
+status_is "no declaration file → exit 1 as before" 1 "$D"
+
 echo "usage"
 (cd "$WORK" && python3 "$FONTS" >/dev/null 2>&1); STATUS=$?
 status_is "no argument → exit 2" 2 "$WORK"
