@@ -171,6 +171,12 @@ run check "$WORK/text.css" "$WORK/report.md" "$WORK/values.tsv" "$WORK/text.json
 assert_eq "exit 1" "1" "$CODE"
 assert_eq "only .txt" "hit${T}.b .txt${T}width${T}30px${T}no report line ties it to a node" "$(hits)"
 
+echo "[text] measured: a selector hidden at this width is never a hit, even holding text"
+printf '{"results": {".b .img": {"found": true, "geometry": {"x":0,"y":0,"width":30,"height":30}, "computed": {}, "holds_text": false}, ".b .txt": {"found": true, "hidden": true, "geometry": {"x":0,"y":0,"width":0,"height":0}, "computed": {}, "holds_text": true}, ".b .gone": {"found": false}}}' > "$WORK/hidden.json"
+run check "$WORK/text.css" "$WORK/report.md" "$WORK/values.tsv" "$WORK/hidden.json"
+assert_eq "exit 0" "0" "$CODE"
+assert_eq "no hit" "" "$(hits)"
+
 echo "[text] measured: a selector the measurement does not carry counts as holding text"
 measure "$WORK/partial.json" ".b .img=false"
 run check "$WORK/text.css" "$WORK/report.md" "$WORK/values.tsv" "$WORK/partial.json"

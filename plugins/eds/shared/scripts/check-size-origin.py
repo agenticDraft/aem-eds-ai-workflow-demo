@@ -28,7 +28,9 @@
 #
 # With a measurement file (the browser role's `measure` output), only a
 # selector whose elements hold text (`holds_text: true`) can be reported. A
-# selector the page does not match holds no text. A selector the file does not
+# selector the page does not match holds no text, and a selector reported
+# `hidden: true` (no visible match at the measured width) is never reported
+# either. A selector the file does not
 # carry counts as holding text, and its line says `(not measured)`. A tied px
 # size whose measured box is larger than the design value is listed as grown.
 # Without a measurement file every untied fixed size is reported.
@@ -299,6 +301,8 @@ def check(css_path, report_path, table_path, measure_path):
             if result is None:
                 note = " (not measured)"
             elif not isinstance(result, dict) or not result.get("found") or not result["holds_text"]:
+                continue
+            elif result.get("hidden") is True:
                 continue
         why = reason_untied(selector, prop, value, lines, rows)
         if why:
