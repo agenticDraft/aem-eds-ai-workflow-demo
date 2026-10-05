@@ -67,6 +67,15 @@ same "one line per selector and signal, in selector order" \
 [fixable] at 375px, .table th: 1 word broken across lines (WebSurge)
 [fixable] at 375px, .table th: 109px wide, narrower than its own min-width 200px"
 
+echo "check: a selector hidden at this width is not read, whatever its box or its words say"
+M="$(measurement hidden 375 "{
+  \".table\": $(sel 600 0px '[]'),
+  \".nav\": $(sel 0 200px '["Broken"]' | jq -c '. + {hidden: true}')
+}")"
+run check "$M"
+exits 0
+no_output
+
 echo "check: quiet when no word is broken and every box meets its min-width"
 M="$(measurement fits 375 "{
   \".table\": $(sel 600 0px '[]'),

@@ -1,0 +1,3 @@
+no baseline comparison ran: no baseline capture artifact existed for table
+no behaviour check ran through interact: no interactive element identified in blocks/table/table.js
+AC-5 was not checked in the browser: no page or fixture in this checkout uses the table block without the comparison variation

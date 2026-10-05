@@ -9,12 +9,16 @@
 // without, the browser's default. The measurement records the width read at. Same standalone precondition as
 // render.cjs. A selector matching no element is a normal, successful result
 // (found: false) — not a reason to fail the whole read, the same reading
-// the design pack's fetch_reference gives an empty variable map.
+// the design pack's fetch_reference gives an empty variable map. A selector
+// none of whose matches is visible at this width (every match has an empty
+// box or visibility: hidden) is found with `hidden: true`; it is reported,
+// never waited for. Geometry and computed values are the first visible
+// match's, or the first match's when none is visible.
 //
 // The read is taken only once the page has settled (settle.cjs): fonts
-// loaded, every named target that matches an element visible, and two
-// consecutive snapshots identical. A page that does not settle within the
-// bound fails with the reason, and no artifact is written.
+// loaded and two consecutive snapshots identical, `hidden` included. A page
+// that does not settle within the bound fails with the reason, and no
+// artifact is written.
 //
 // Exit codes: 0 with an envelope on stdout for every operational outcome
 // (pass or fail); 2 for a usage error (missing argument).
@@ -28,7 +32,7 @@ const { missingToolSummary } = require('../../../scripts/requires.cjs');
 // Every call writes a new file; an earlier call's artifact is never replaced.
 const { nextArtifactPath } = require('../../../scripts/next-artifact-path.cjs');
 const { launchOptions } = require('../../../scripts/launch-options.cjs');
-const { settle, notVisible } = require('../../../scripts/settle.cjs');
+const { settle } = require('../../../scripts/settle.cjs');
 
 // Longhands only: no padding shorthand is ever reported.
 const PROPERTIES = [
@@ -132,44 +136,47 @@ function readSelectors({ sels, props }) {
     }
     return out;
   };
+  // A match is visible when its box is not empty and it is not visibility:
+  // hidden. The reading is the first visible match's; when none is visible
+  // the selector is hidden and the reading is the first match's.
+  const visible = (m) => {
+    const rect = m.getBoundingClientRect();
+    return (rect.width > 0 || rect.height > 0) && getComputedStyle(m).visibility !== 'hidden';
+  };
   const out = {};
-  const vis = {};
   for (const sel of sels) {
-    const all = document.querySelectorAll(sel);
-    const el = all[0];
-    if (!el) {
+    const all = Array.from(document.querySelectorAll(sel));
+    if (all.length === 0) {
       out[sel] = { found: false };
-      vis[sel] = { found: false };
     } else {
+      const shown = all.find(visible);
+      const el = shown || all[0];
       const rect = el.getBoundingClientRect();
       const style = getComputedStyle(el);
       const computed = {};
       for (const p of props) computed[p] = style.getPropertyValue(p);
       out[sel] = {
         found: true,
+        hidden: !shown,
         geometry: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
         computed,
-        holds_text: Array.from(all).some(hasText),
-        broken_words: brokenWords(Array.from(all)),
-      };
-      vis[sel] = {
-        found: true, width: rect.width, height: rect.height, hidden: style.visibility === 'hidden',
+        holds_text: all.some(hasText),
+        broken_words: brokenWords(all),
       };
     }
   }
-  return { results: out, states: vis, fontsLoading: document.fonts.status !== 'loaded' };
+  return { results: out, fontsLoading: document.fonts.status !== 'loaded' };
 }
 
 // One snapshot: every selector's reading in the output shape, plus what
-// still stops the page counting as settled.
+// still stops the page counting as settled. Visibility is part of the
+// reading (`hidden`), not a blocker.
 async function probe(page, selectors) {
-  const { results, states, fontsLoading } = await page.evaluate(
+  const { results, fontsLoading } = await page.evaluate(
     readSelectors,
     { sels: selectors, props: PROPERTIES },
   );
   const blockers = [];
-  const hidden = notVisible(states);
-  if (hidden.length) blockers.push(`named target(s) not visible: ${hidden.join(', ')}`);
   if (fontsLoading) blockers.push('document fonts still loading');
   return { value: results, blockers };
 }
@@ -240,6 +247,7 @@ async function main() {
   }
   const results = read.value;
   const foundCount = selectors.filter((sel) => results[sel].found).length;
+  const hiddenCount = selectors.filter((sel) => results[sel].hidden).length;
 
   const outDir = '.ai/playwright';
   fs.mkdirSync(outDir, { recursive: true });
@@ -248,10 +256,10 @@ async function main() {
 
   printEnvelope({
     verdict: 'pass',
-    summary: `Measured ${selectors.length} selector(s) on ${target} at width ${width}: ${foundCount} found.`,
+    summary: `Measured ${selectors.length} selector(s) on ${target} at width ${width}: ${foundCount} found, ${hiddenCount} hidden.`,
     artifacts: [outFile],
     next_action: 'none',
-    metrics: `width=${width} selectors=${selectors.length} found=${foundCount}`,
+    metrics: `width=${width} selectors=${selectors.length} found=${foundCount} hidden=${hiddenCount}`,
   });
 }
 
