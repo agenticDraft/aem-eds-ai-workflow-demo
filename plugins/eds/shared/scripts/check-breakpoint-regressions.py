@@ -3,6 +3,7 @@
 #        <measure.json> [<measure.json>...]
 #
 # check-breakpoint-regressions.py selectors <block.css>
+# check-breakpoint-regressions.py widths <measure.json> [<measure.json>...]
 # check-breakpoint-regressions.py check <measure.json> [<measure.json>...]
 #
 # Deterministic. Whether a block regressed at a width its design reference
@@ -13,6 +14,12 @@
 # declares a `min-width` other than a keyword or zero. Those are the selectors
 # to measure, so that signal B below can be read. Rules inside @media,
 # @supports, @container and @layer blocks are read; a selector list is split.
+#
+# `widths` prints one `<width> TAB <path>` line per measurement file, ascending
+# by the width each file itself records — the pairing a stage uses to judge a
+# criterion about one width on the measurement taken at that width, never on a
+# remembered call order. Two files at one width, or a file without a width, is
+# a usage error: the pairing would be ambiguous.
 #
 # `check` reads each measurement's `width` and every found selector, in the
 # order given, and prints one line per selector and signal:
@@ -52,6 +59,7 @@ TOLERANCE = 0.5
 def usage_error(msg):
     print(
         "usage: check-breakpoint-regressions.py selectors <block.css>\n"
+        "       check-breakpoint-regressions.py widths <measure.json> [<measure.json>...]\n"
         "       check-breakpoint-regressions.py check <measure.json> [<measure.json>...]\n"
         f"{msg}",
         file=sys.stderr,
@@ -145,9 +153,26 @@ def check(paths):
     return 1 if lines else 0
 
 
+def widths(paths):
+    pairs = []
+    for path in paths:
+        width, _ = read_measurement(path)
+        pairs.append((width, path))
+    seen = {}
+    for width, path in pairs:
+        if width in seen:
+            usage_error(f"width {px_text(width)} measured twice: '{seen[width]}' and '{path}'")
+        seen[width] = path
+    for width, path in sorted(pairs):
+        print(f"{px_text(width)[:-2]}\t{path}")
+    return 0
+
+
 def main(argv):
     if len(argv) == 3 and argv[1] == "selectors":
         return selectors(argv[2])
+    if len(argv) >= 3 and argv[1] == "widths":
+        return widths(argv[2:])
     if len(argv) >= 3 and argv[1] == "check":
         return check(argv[2:])
     usage_error("expected a mode and its arguments")
