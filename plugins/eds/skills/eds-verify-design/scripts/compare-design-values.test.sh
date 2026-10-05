@@ -246,6 +246,12 @@ D="$(case_dir oldshape "$TSV" "$REPORT_NF" '{"target":"x","results":{".missing":
 run_compare "$D"
 has_line "a measurement without the property is unmeasured" "$D" \
   "unmeasured${TAB}5:5${TAB}.missing${TAB}padding-top${TAB}8px: not in the measurement"
+# the computed value equals the design value, so only the hidden flag can keep this from a match
+D="$(case_dir hiddensel "$TSV" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":true,"hidden":true,"geometry":{"x":0,"y":0,"width":0,"height":0},"computed":{"padding-top":"8px"}}}}')"
+run_compare "$D"
+exit_is "exits 0" 0
+has_line "a selector hidden at this width is unmeasured, never a match" "$D" \
+  "unmeasured${TAB}5:5${TAB}.missing${TAB}padding-top${TAB}8px: selector hidden on the page at this width"
 
 echo "values the table form cannot decide"
 TSV="1:185${TAB}padding${TAB}1rem${TAB}false
@@ -412,6 +418,10 @@ has_line "no selector for the node" "$D" \
   "approx${TAB}7:7${TAB}-${TAB}width${TAB}50px: no selector recorded for this node"
 has_line "selector not on the page" "$D" \
   "approx${TAB}5:5${TAB}.missing${TAB}height${TAB}10px: selector not found on the page"
+D="$(case_dir approxhidden "$TSV" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":true,"hidden":true,"geometry":{"x":0,"y":0,"width":0,"height":0},"computed":{}}}}')"
+run_compare "$D"
+has_line "a hidden selector's box is not listed" "$D" \
+  "approx${TAB}5:5${TAB}.missing${TAB}height${TAB}10px: selector hidden on the page at this width"
 TSV_WIDTH="5:5${TAB}width${TAB}50px${TAB}true
 "
 D="$(case_dir approxownsel "$TSV_WIDTH" "$REPORT_NF" '{"target":"x","results":{".missing":{"found":true,"geometry":{"x":0,"y":0,"width":50,"height":10},"computed":{}}}}')"
@@ -586,6 +596,12 @@ printf '{"has_values": false}' > "$D3/reference.json"
 run_vars "$D3"
 exit_is "a reference without variables exits 0 and prints nothing" 0
 if [ ! -s "$D3/stdout" ]; then ok "no variables, no lines"; else bad "no variables, no lines" "got: $(cat "$D3/stdout")"; fi
+D4="$(case_dir varshidden "" "$REPORT_VARS" "$(printf '%s' "$VARS_JSON" | jq -c '.results[".table.comparison table td p"] += {"hidden": true}')")"
+printf '%s' "$VARS_REF" > "$D4/reference.json"
+run_vars "$D4"
+exit_is "a variable on a hidden element is not a mismatch" 0
+has_line "a variable on a hidden element is unmeasured at this width" "$D4" \
+  "unmeasured${TAB}Accent/Accent 4${TAB}.table.comparison table td p${TAB}color${TAB}#000000: selector hidden on the page at this width"
 
 echo "selectors mode lists the selectors of variables-sourced lines too"
 D="$(case_dir selvars "" "$REPORT_VARS" "{}")"

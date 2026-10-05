@@ -141,13 +141,6 @@ SAME='const { sameSnapshot } = require(process.argv[1]); process.stdout.write(St
 assert_eq "same" "true" "$(node -e "$SAME" "$SETTLE" '{"a":{"x":1.5,"y":[1,2]}}' '{"a":{"x":1.5,"y":[1,2]}}')"
 assert_eq "one value differs" "false" "$(node -e "$SAME" "$SETTLE" '{"a":{"x":382.8}}' '{"a":{"x":385.2}}')"
 
-echo "[visible] a found element with an empty box or hidden is not visible"
-VIS='const { notVisible } = require(process.argv[1]); process.stdout.write(JSON.stringify(notVisible(JSON.parse(process.argv[2]))));'
-assert_eq "empty box" '[".a"]' "$(node -e "$VIS" "$SETTLE" '{".a":{"found":true,"width":0,"height":0,"hidden":false}}')"
-assert_eq "visibility hidden" '[".a"]' "$(node -e "$VIS" "$SETTLE" '{".a":{"found":true,"width":10,"height":10,"hidden":true}}')"
-assert_eq "one axis is enough" '[]' "$(node -e "$VIS" "$SETTLE" '{".a":{"found":true,"width":10,"height":0,"hidden":false}}')"
-assert_eq "not found is not a blocker" '[]' "$(node -e "$VIS" "$SETTLE" '{".a":{"found":false}}')"
-
 echo ""
 echo "passed: $PASS, failed: $FAIL"
 [[ "$FAIL" -eq 0 ]]

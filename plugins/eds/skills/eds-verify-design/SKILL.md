@@ -308,8 +308,10 @@ Read the captured envelope's `verdict`.
    printed that is not `.<block name>`, in its order, then every selector step 5 and then step 6
    printed that is not already in the list, in its order. Each width is its own invocation. Record
    each measurement file path from its envelope's `artifacts:` against its width, and the resulting
-   measurements, including `found: false` for a selector that did not match. The file recorded at
-   the reference width is this check's **reference measurement**.
+   measurements, including `found: false` for a selector that did not match and `hidden: true` for
+   one the page hides at that width (a block may hide part of itself at a width; the operation
+   reports it rather than waiting, and the comparison scripts leave such a selector ungraded). The
+   file recorded at the reference width is this check's **reference measurement**.
 
 ### Compare against the design reference
 

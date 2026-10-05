@@ -25,8 +25,9 @@
 #      [fixable] at <w>px, <selector>: <n>px wide, narrower than its own min-width <m>px
 #
 # A `min-width` that is not a px length (auto, none, a percentage) is not read.
-# A selector the page did not match is skipped. Nothing is printed for a width
-# where neither signal fires.
+# A selector the page did not match, or reported `hidden: true` at this width
+# (no visible match), is skipped: neither signal is read on a hidden element.
+# Nothing is printed for a width where neither signal fires.
 #
 # Exit codes: 0 — nothing fired; 1 — at least one line; 2 — usage error
 # (missing argument, unreadable or malformed file, a measurement without a
@@ -105,7 +106,7 @@ def read_measurement(path):
     if not number(width) or width <= 0:
         usage_error(f"'{path}' has no viewport width; measure it with a width")
     for sel, result in data["results"].items():
-        if not isinstance(result, dict) or result.get("found") is not True:
+        if not isinstance(result, dict) or result.get("found") is not True or result.get("hidden") is True:
             continue
         geometry = result.get("geometry")
         computed = result.get("computed")
@@ -121,7 +122,7 @@ def read_measurement(path):
 def findings(width, results):
     at = f"at {px_text(width)}"
     for sel, result in results.items():
-        if not isinstance(result, dict) or result.get("found") is not True:
+        if not isinstance(result, dict) or result.get("found") is not True or result.get("hidden") is True:
             continue
         words = result["broken_words"]
         if words:

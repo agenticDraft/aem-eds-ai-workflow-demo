@@ -1,5 +1,5 @@
 ---
-description: browser.measure — loads a target URL, at a given viewport width when one is named, and returns each named CSS selector's geometry and computed style values (color, background-color, font-family, font-size, font-weight, line-height, padding-top, padding-right, padding-bottom, padding-left, gap, border-radius, min-width), plus whether any element the selector matches holds text and which of its words are broken across lines, from a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
+description: browser.measure — loads a target URL, at a given viewport width when one is named, and returns each named CSS selector's geometry and computed style values (color, background-color, font-family, font-size, font-weight, line-height, padding-top, padding-right, padding-bottom, padding-left, gap, border-radius, min-width), plus whether any element the selector matches holds text, which of its words are broken across lines, and whether the selector is hidden at that width (no visible match — reported, never waited for), from a real headless Chromium. Its preconditions are declared in this pack's manifest; a missing one is reported in the envelope with the remedy the manifest states.
 ---
 
 # measure
@@ -8,8 +8,10 @@ Implements the `browser` role's `measure` operation: load a target URL and retur
 CSS selector, its geometry and a fixed set of computed style values from a real headless Chromium
 browser. Given a width, the viewport is that wide and as tall as a `capture` viewport, so a
 measurement and a capture at the same width read the same layout; without one, it is the browser's
-default. The written measurement records the width it was read at as `width`. A selector matching the first element in document order is used; a selector matching
-nothing is reported as not found rather than failing the whole operation.
+default. The written measurement records the width it was read at as `width`. Geometry and computed
+values are read from the first *visible* element the selector matches in document order — or from
+the first match when none is visible; a selector matching nothing is reported as not found rather
+than failing the whole operation.
 
 The computed values are exactly `color`, `background-color`, `font-family`, `font-size`,
 `font-weight`, `line-height`, `padding-top`, `padding-right`, `padding-bottom`, `padding-left`, `gap`,
@@ -29,17 +31,23 @@ line break at a hyphen is not a broken word. An empty list means none is broken.
 it is never compared as a style value; a consumer uses it to find text squeezed narrower than its
 own words.
 
+Each found selector also carries `hidden`: `true` when no element the selector matches is visible at
+this width — every match has an empty box or `visibility: hidden` — else `false`. A page legitimately
+hides part of a block at some widths, so a hidden selector is a reading, not a failure: it is
+reported at once, never waited for, and the other selectors' values are kept. Its geometry and
+computed values are the first match's as read, and a consumer never grades them; the finding is
+that the selector was there and hidden. Like `holds_text`, it is never compared as a style value.
+
 The read is taken only once the page has settled:
 
-- every named selector that matches an element matches a visible one (a non-empty box, not
-  `visibility: hidden`);
 - the document's fonts have finished loading;
-- two consecutive snapshots of every selector, taken 250 ms apart, are identical.
+- two consecutive snapshots of every selector, taken 250 ms apart, are identical — `hidden`
+  included, so an element on its way to visible still changes the snapshot.
 
 The wait is bounded at 10 s. A page that does not settle within it fails, with the reason in the
 envelope's `summary`, and no file is written; an unsettled read is never returned. A selector that
 matches nothing is not waited for, and is reported as not found (`found: false`) once the page has
-settled.
+settled. The envelope's `summary` and `metrics` count the hidden selectors beside the found ones.
 
 ## Input
 
