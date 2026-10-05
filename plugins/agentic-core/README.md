@@ -41,6 +41,10 @@ the core can be pointed at.
    `skills/run-route/scripts/check-driver-read.sh`, denies any read the driver is not entitled
    to while a run is live (its orchestration marker exists) and logs each decision; with no run
    live it lets the read through.
+   A second `PreToolUse` hook, on `Bash`, `skills/run-route/scripts/record-transcript-path.sh`,
+   records the session transcript's path from the hook input into the run context, so every
+   terminal state can render `analytics.md` (`shared/analytics.md`) from it through
+   `shared/lib/render-run-analytics.sh` before the terminal line.
 4. **Questions are asked at stage boundaries only.** A stage that cannot resolve something
    returns `verdict: question` with a `blocker`; in interactive mode the human answers and the
    stage is re-invoked once with the answer; in autonomous mode the blocker is written back
@@ -221,7 +225,7 @@ agentic-core/
 │   ├── setup/SKILL.md
 │   ├── health/SKILL.md
 │   └── run-route/
-│       ├── SKILL.md                # the driver; declares the Read hook
+│       ├── SKILL.md                # the driver; declares the Read and Bash hooks
 │       └── scripts/check-driver-read.sh
 └── shared/
     ├── *.md                        # the contracts
