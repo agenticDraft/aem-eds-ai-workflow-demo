@@ -40,16 +40,20 @@ them as data at fixed paths, and it needs a clear answer when the browser is not
 3. **`pass` means observed, not healthy.** `render` returns `pass` for an HTTP 404 or 500, because
    the page's state was observed; `fail` is reserved for a load that never completed or a browser
    that could not launch.
-4. **A page is settled before it is read.** `scripts/settle.cjs` waits for fonts to load and for
-   no named target to be blocked, so a measurement is taken on a page that has stopped moving.
+4. **A page is settled before it is read.** `scripts/settle.cjs` waits for fonts to load and for two
+   consecutive snapshots to agree, so a measurement is taken on a page that has stopped moving. A
+   named target the page hides at that width is not waited for: `measure` reports it as found and
+   `hidden: true`, keeping every visible target's values.
 5. **Artifacts get the next free name.** `scripts/next-artifact-path.cjs` names each file an
    operation writes so a re-run never overwrites an earlier capture.
 6. **`measure` returns a fixed set of values, at the width it is given.** Geometry plus `color`,
    `background-color`, `font-family`, `font-size`, `font-weight`, `line-height`, the four
    `padding-*` values, `gap`, `border-radius` and `min-width`, per selector, plus `holds_text`
    (whether any element the selector matches has a non-whitespace text node inside it) and
-   `broken_words` (the words whose line boxes lie on more than one line). An optional `width` sets
-   the viewport, as tall as `capture`'s; the measurement records the width it was read at.
+   `broken_words` (the words whose line boxes lie on more than one line) and `hidden` (whether no
+   match is visible at that width; geometry and computed values are the first visible match's, or
+   the first match's when none is). An optional `width` sets the viewport, as tall as `capture`'s;
+   the measurement records the width it was read at.
 7. **`interact` snapshots before and after.** Every `read:` selector is captured once before the
    first action and once after the last, with geometry, `color`, `background-color`,
    `font-family`, `font-size`, `font-weight`, `line-height`, every `aria-*` attribute and `class`.
@@ -187,6 +191,9 @@ To make this pack the project's browser, set `packs.browser: playwright` in
 - **The style set is fixed.** A value outside the list under `measure` is not returned.
 - **`broken_words` reads one text node at a time.** A word an inline element splits into two text
   nodes (`<b>Web</b>Surge`) is read as two words, and a break between them is not reported.
+- **An element revealed after the page settles is read as hidden.** `measure` no longer waits for
+  visibility; a target that appears later than two agreeing snapshots (an animation, a deferred
+  reveal) is reported `hidden: true`. A behaviour that needs it visible is a job for `interact`.
 
 ## Design rules this pack follows
 
