@@ -94,6 +94,8 @@ digraph eds_verify {
     "Page rendered?" -> "Capture and measure the rendered page" [label="pass/warn"];
     "Page rendered?" -> "Report fail" [label="fail/question/invalid envelope"];
     "Capture and measure the rendered page" -> "Check behaviour through interact, where supported";
+    "Capture and measure the rendered page" -> "Report fail" [label="widths script: exit 2"];
+    "Capture and measure the rendered page" -> "Report fail" [label="regression script: exit 2"];
     "Check behaviour through interact, where supported" -> "Compare against baseline and design reference where available";
     "Compare against baseline and design reference where available" -> "Any acceptance criterion failed outright?";
     "Any acceptance criterion failed outright?" -> "Report fail" [label="yes"];
@@ -324,11 +326,42 @@ Read the captured envelope's `verdict`.
    ```
 
    Record every resulting screenshot path.
-2. Invoke `Skill(<packs.browser>:<measure skill name>)` once with the same target and one selector
-   per target block, `.<block name>` (the block wrapper's own convention), plus any additional
-   selector a plan step's `# verification:` note names explicitly when `plan.yaml` was read above.
-   In page mode there is no block wrapper: measure `main`, plus those plan-named selectors.
-   Record the resulting measurements, including any selector reported `found: false`.
+2. Invoke `Skill(<packs.browser>:<measure skill name>)` once per width step 1 captured — `375`,
+   `768`, `1440` — each with the same target, that width as its `width:` line, and one selector per
+   target block, `.<block name>` (the block wrapper's own convention), plus any additional selector a
+   plan step's `# verification:` note names explicitly when `plan.yaml` was read above. In page mode
+   there is no block wrapper: measure `main`, plus those plan-named selectors. Each width is its own
+   invocation (the one-call rule of the core's role-operations contract, read above): a measurement
+   read at one width says nothing about the layout at another, and a responsiveness criterion is
+   judged on the measurement at its own width, never on a screenshot alone. Record each measurement
+   file path from its envelope's `artifacts:` and the resulting measurements, including any
+   selector reported `found: false`.
+3. Pair each measurement file with the width it was read at, from the file itself, never from
+   memory of which call produced it:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-breakpoint-regressions.py \
+     widths <every measurement file step 2 recorded>
+   ```
+
+   It prints one `<width> TAB <file>` line per file, ascending. This list is the only
+   width-to-measurement pairing this stage uses: a criterion about the layout at a width is judged
+   on the file this list names for that width, and no other file. Exit `2` (a file without a width,
+   or two files at one width) — go to **Report fail**, naming the script's stderr reason.
+4. Read the two breakpoint regression signals at every width (D123) — a word broken across lines,
+   or a box narrower than its own `min-width` — from those same files:
+
+   ```
+   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-breakpoint-regressions.py \
+     check <every measurement file step 2 recorded>
+   ```
+
+   Each line already starts with `[fixable]` and names its width and selector. The script alone
+   decides; take its lines as given, never reworded, never dropped. Exit `0` — record that every
+   width was checked and nothing regressed. Exit `1` — keep every line: each is a measured
+   regression at that width, judged in **Any acceptance criterion failed outright?**. Exit `2` — go
+   to **Report fail**, naming the script's stderr reason. This stage edits nothing; the same signals
+   at the design stage spend an edit, here they are evidence.
 
 ### Check behaviour through interact, where supported
 
@@ -417,7 +450,9 @@ this one image was also compared at those widths — one image standing for seve
 said, never implied. When `resolution` is `reduced`, record that the comparison at that width is at
 reduced resolution, so fine detail is judged from a scaled image, never as a pixel match. Also
 compare the reference's recorded `variables` values against this run's own `measure` output where a
-variable names a property `measure` reports. Absent — note plainly that the design
+variable names a property `measure` reports — on the measurement the widths list of **Capture and
+measure the rendered page** names for that pairing line's capture width, never one taken at another
+width. Absent — note plainly that the design
 comparison did not run: `design_source`/`design_mentioned` being `true` means the route's design
 stages were supposed to produce a reference by this point, not that one necessarily exists yet in
 this pack's current state, and a missing reference here is reported, never treated as a design
@@ -428,6 +463,10 @@ match by default.
 Any of the following, on the evidence gathered above, is a hard failure:
 
 - The render operation's own `console_errors` count is greater than zero.
+- The breakpoint regression check (**Capture and measure the rendered page**, step 4) printed a
+  line: at that width a word is broken across lines, or a box is narrower than its own `min-width`
+  (D123). The responsiveness criterion for that width is not met, on a measurement, not a
+  screenshot; the line is quoted in the report verbatim.
 - Every selector **measure** checked, across every target block, came back `found: false` — nothing
   this run looked for rendered into the page at all. Evaluate this across the whole run, not one
   target block at a time: when at least one target block did render (even if another named target
@@ -567,7 +606,9 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 Write `.ai/run-context/verify-report.md`: the target block name(s) and URL, the widths captured,
 each design comparison as the pairing named it (capture width, variant name and node id or "the
 reference", image, resolution, and every other width the same image was compared at — or "no
-variant covers <width>"), the selectors measured and their findings, each behaviour check attempted through `interact` with
+variant covers <width>"), the widths list — one measurement file per width, as the script printed
+it — the selectors measured and their findings at each width, the breakpoint regression check's
+lines (or that it printed none), each behaviour check attempted through `interact` with
 its own before/after state and verdict (or, when none ran, plainly why — unsupported operation, no
 interactive element identified, or which specific check's own `interact` call did not complete),
 and, plainly labeled, which of the downgraded/skipped conditions above applied. **When this run's

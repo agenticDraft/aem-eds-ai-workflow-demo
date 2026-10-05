@@ -150,6 +150,31 @@ run check "$WORK/nominwidth.json"
 exits 2
 if [[ "$ERR" == *"min-width"* ]]; then ok "names the missing min-width"; else bad "names the missing min-width" "$ERR"; fi
 
+echo "widths: one line per measurement — its own recorded width and its path — ascending, whatever the order given"
+W1="$(measurement w-desktop 1440 "{\".t\": $(sel 400 200px '[]')}")"
+W2="$(measurement w-mobile 375 "{\".t\": $(sel 109 200px '["WebSurge"]')}")"
+W3="$(measurement w-tablet 768 "{\".t\": $(sel 240 200px '[]')}")"
+run widths "$W1" "$W2" "$W3"
+exits 0
+same "width TAB path, ascending by the file's own width" \
+"375	$W2
+768	$W3
+1440	$W1"
+
+echo "widths: refusals — a measurement without a width, the same width twice, no file"
+jq 'del(.width)' "$W1" > "$WORK/w-nowidth.json"
+run widths "$W2" "$WORK/w-nowidth.json"
+exits 2
+if [[ "$ERR" == *"width"* ]]; then ok "names the missing width"; else bad "names the missing width" "$ERR"; fi
+W4="$(measurement w-mobile-again 375 "{\".t\": $(sel 110 200px '[]')}")"
+run widths "$W2" "$W3" "$W4"
+exits 2
+if [[ "$ERR" == *"375"* ]]; then ok "names the repeated width"; else bad "names the repeated width" "$ERR"; fi
+run widths
+exits 2
+run widths "$WORK/absent.json"
+exits 2
+
 echo "selectors: every selector declaring a min-width that can be broken"
 cat > "$WORK/block.css" <<'EOF'
 /* .commented { min-width: 10px; } */
