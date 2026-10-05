@@ -76,6 +76,8 @@ assert_contains "orchestrator peak context (last turn's own total)" "Peak contex
 assert_contains "orchestrator cumulative billed input (both turns summed)" "Cumulative billed input: 225 tokens" "$RENDERED_A"
 assert_contains "orchestrator cumulative output" "Cumulative output: 50 tokens" "$RENDERED_A"
 assert_contains "orchestrator wall clock (first line to last line)" "Wall clock: 4m 10s" "$RENDERED_A"
+assert_contains "the orchestrator row says what it covers" \
+  "- Scope: the orchestrator figures cover the whole session transcript, from its first turn to this rendering, not only this run; a subagent row covers that subagent alone" "$RENDERED_A"
 
 echo "[compute] session-a: a streamed subagent turn is deduplicated, not double-counted"
 assert_contains "intake counts 2 deduplicated turns, not the 3 raw lines" \

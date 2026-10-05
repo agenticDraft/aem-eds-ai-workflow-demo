@@ -76,6 +76,7 @@ Source: <session transcript path>
 - Cumulative billed input: <tokens> tokens
 - Cumulative output: <tokens> tokens
 - Wall clock: <duration>
+- Scope: the orchestrator figures cover the whole session transcript, from its first turn to this rendering, not only this run; a subagent row covers that subagent alone
 
 ## Subagents
 
@@ -90,6 +91,25 @@ Source: <session transcript path>
 ```
 
 A run with no subagents still prints the `## Subagents` heading, with no rows under it.
+
+**The scope line is fixed text, and it is there because the orchestrator figures are not the run's.**
+The session transcript holds every turn of the session that drove the route — the checks before the
+run, the run, whatever followed — and the renderer reads all of it; the transcript also lags the
+in-memory conversation, so the last few lines may be missing at rendering time. The subagent rows
+are exact: each subagent's transcript holds only that subagent, and every one has finished by the
+time a terminal state renders. A reader who wants the run's own orchestrator cost subtracts nothing
+here; the line tells them the number is an upper bound, which is more honest than a figure that
+looks exact and is not.
+
+## When it is rendered
+
+At every terminal state (core contract: the runner renders `analytics.md` at a terminal state), by
+the route driver, before it prints the terminal line. The driver learns the transcript's path from
+the runtime's hook input alone — a hook declared in the driver's own frontmatter records the input's
+`transcript_path` into the run context (`transcript-path.txt`), and `lib/render-run-analytics.sh
+<run-context-dir>` renders from it, printing `written:` or `skipped: <why>` and never failing the
+terminal node. A path that was never recorded, or a transcript that is gone, is a `skipped:` line
+in the run's output, not a missing file nobody noticed.
 
 ## Ceilings, optional
 

@@ -184,6 +184,7 @@ done
   echo "- Cumulative billed input: ${ORCH_CUM_BILLED} tokens"
   echo "- Cumulative output: ${ORCH_CUM_OUTPUT} tokens"
   echo "- Wall clock: ${ORCH_WALLCLOCK}"
+  echo "- Scope: the orchestrator figures cover the whole session transcript, from its first turn to this rendering, not only this run; a subagent row covers that subagent alone"
   echo
   echo "## Subagents"
   echo

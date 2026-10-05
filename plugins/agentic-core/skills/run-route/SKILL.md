@@ -9,6 +9,11 @@ hooks:
         - type: command
           command: "${CLAUDE_PLUGIN_ROOT}/skills/run-route/scripts/check-driver-read.sh"
           timeout: 5
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: "${CLAUDE_PLUGIN_ROOT}/skills/run-route/scripts/record-transcript-path.sh"
+          timeout: 5
 ---
 
 You are the route driver. You own exactly two things: **control flow** and **process lifecycle**.
@@ -43,6 +48,12 @@ driver↔stage boundary — see `shared/pack-manifest.md`'s own examples, which 
 - `.ai/run-context/tree-before-<gate id>.txt` — the project root's snapshot taken right before a
   gate runs, written and read only by `check-tree-unchanged.sh` (`shared/gate-contract.md`, "The
   driver guards the tree")
+- `.ai/run-context/transcript-path.txt` — the session transcript's path, written by the Bash hook
+  in the frontmatter above (`record-transcript-path.sh`) from the hook input the runtime hands it —
+  the one place that path is stated — and read only by `render-run-analytics.sh` at a terminal state
+- `.ai/run-context/analytics.md` — the run's token measurements (`shared/analytics.md`), rendered by
+  `render-run-analytics.sh` at every terminal state, before the terminal line; `written:` or
+  `skipped: <why>` is printed, and a skip never fails the run
 - `.ai/logs/run-route-reads.log` — the read-hook's log (see frontmatter above): one line per
   read, `ALLOW` or `DENY` while a run is live (the orchestration marker exists), `NORUN` for a
   read made with no run live, which the hook lets through — the hook stays registered for the
@@ -823,7 +834,10 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 
 1. `finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag` — the marker is absent
    after every terminal state alike.
-2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh blocked <missing> <recorded-at>`
+2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/render-run-analytics.sh .ai/run-context` — renders
+   `analytics.md` (`shared/analytics.md`) and prints `written:` or `skipped: <why>`; report that
+   line, and continue either way.
+3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh blocked <missing> <recorded-at>`
    (`shared/terminal-states.md`) and report its output verbatim. `run-state.json` is **not**
    deleted — left in place for a human to inspect (`shared/run-state.md`).
 
@@ -831,7 +845,9 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 
 1. `finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag` — the marker is absent
    after every terminal state alike.
-2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh failed <stage-id> <summary>`
+2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/render-run-analytics.sh .ai/run-context` — as in **blocked**:
+   report its one line, continue either way.
+3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh failed <stage-id> <summary>`
    (`shared/terminal-states.md`) and report its output verbatim. `run-state.json` is **not**
    deleted — left in place for a human to inspect (`shared/run-state.md`).
 
@@ -839,7 +855,9 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 
 1. `finalize-run-state.sh .ai/run-state.json` (deletes it — the only terminal state that does).
 2. `finalize-orchestration-flag.sh .ai/run-context/orchestrating.flag`.
-3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh delivered <progress-file>
+3. `${CLAUDE_PLUGIN_ROOT}/shared/lib/render-run-analytics.sh .ai/run-context` — as in **blocked**:
+   report its one line, continue either way.
+4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-terminal-state.sh delivered <progress-file>
    <published-location>` (`shared/terminal-states.md`) and report its output verbatim. For
    `<published-location>`, use `deliver`'s own envelope `summary` verbatim — the envelope contract
    gives the driver no separate "published location" field, so the `deliver` stage's one-sentence
@@ -867,6 +885,8 @@ gate, none for every other stage). The adapter reads its answer itself from the 
   `write-run-state.sh` read the evaluator's own output.
 - Calling `finalize-run-state.sh` on `blocked` or `failed` — only `delivered` deletes `run-state.json`.
 - Printing `print-status-table.sh` more than once, or before the run reaches `delivered`.
+- Printing the terminal line before `render-run-analytics.sh` has run, or treating its `skipped:`
+  line as a reason to stop: analytics are rendered at every terminal state and never decide one.
 - Restating any shared contract's shape here instead of referencing its file.
 - Writing anything into an envelope file yourself, or transcribing a `## Result` block out of a
   message — a stage's or a provider operation's. Every envelope the run judges was written by the
@@ -878,4 +898,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: d52fab5a4253 -->
+<!-- instructions-stamp: fb6392a11419 -->
