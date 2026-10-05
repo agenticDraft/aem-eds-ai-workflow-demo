@@ -43,10 +43,14 @@
 # on the page at this width` — and its box is never listed; a hidden element's
 # geometry and computed values are not a finding.
 #
-# Only the properties `measure` reports are compared: color, background-color,
-# font-family, font-size, font-weight, line-height, padding-top,
-# padding-right, padding-bottom, padding-left, gap, border-radius. Every other
-# property is `unmeasured`. A padding shorthand (`padding`, `padding-inline`,
+# Only the properties `measure` reports as design values are compared: color,
+# background-color, font-family, font-size, font-weight, line-height,
+# padding-top, padding-right, padding-bottom, padding-left, gap, border-radius.
+# `min-width` is in `measure`'s set too, but is excluded here on purpose: the
+# browser role reads it so a box narrower than its own `min-width` can be
+# found (the breakpoint regression check), never to compare against the design,
+# so its `unmeasured` line says that rather than "not in measure's property
+# set". Every other property is `unmeasured`. A padding shorthand (`padding`, `padding-inline`,
 # `padding-block`, `padding-inline-start`, `padding-inline-end`) is expanded
 # to the physical longhands first, for a horizontal left-to-right writing mode;
 # the table line is named after a mismatch on an expanded value.
@@ -111,6 +115,21 @@ MEASURED = [
     "color", "background-color", "font-family", "font-size", "font-weight", "line-height",
     "padding-top", "padding-right", "padding-bottom", "padding-left", "gap", "border-radius",
 ]
+
+# Properties `measure` reports but this script never compares against a design
+# value, each with the reason its `unmeasured` line carries.
+EXCLUDED_ON_PURPOSE = {
+    "min-width": ("checked by the breakpoint regression check against the element's own width, "
+                  "not against the design value"),
+}
+
+
+def unmeasured_reason(props):
+    """Why a property (or any of a shorthand's longhands) is not compared."""
+    for prop in props:
+        if prop in EXCLUDED_ON_PURPOSE:
+            return EXCLUDED_ON_PURPOSE[prop]
+    return "not in measure's property set"
 
 LENGTH_PX = re.compile(r"^(-?(?:\d+\.?\d*|\.\d+))px$")
 HEX = re.compile(r"^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
@@ -434,7 +453,8 @@ def compare(table_path, report_path, measure_path):
         if longhands is None:
             longhands = [(prop, value)]
         if not longhands or any(p not in MEASURED for p, _ in longhands):
-            out.append(("unmeasured", node, "-", prop, f"{value}: not in measure's property set"))
+            reason = unmeasured_reason([prop] + [p for p, _ in longhands])
+            out.append(("unmeasured", node, "-", prop, f"{value}: {reason}"))
             continue
         if not by_node.get(node):
             out.append(("unmeasured", node, "-", prop, f"{value}: no selector recorded for this node"))
@@ -542,7 +562,7 @@ def variables(reference_path, report_path, measure_path):
         carried.add(name)
         want = names[name]
         if prop not in MEASURED:
-            out.append(("unmeasured", name, selector, prop, f"{want}: not in measure's property set"))
+            out.append(("unmeasured", name, selector, prop, f"{want}: {unmeasured_reason([prop])}"))
             continue
         result = results.get(selector)
         if not isinstance(result, dict) or not result.get("found"):
