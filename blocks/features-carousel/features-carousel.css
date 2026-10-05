@@ -14,7 +14,7 @@
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 30px;
 }
 
 .features-carousel .features-carousel-content h2 {
@@ -106,5 +106,10 @@
 
   .features-carousel .features-carousel-content h2 {
     font-size: 60px;
+  }
+
+  .features-carousel .features-carousel-media img {
+    height: 711px;
+    aspect-ratio: auto;
   }
 }
