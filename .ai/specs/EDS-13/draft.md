@@ -53,8 +53,9 @@ AC-5 Every colour value applied resolves to an adopted design-system token where
      defines an equivalent colour.
 AC-6 A colour value with no project-defined equivalent token is the only kind taken raw from the
      design.
-AC-7 The block reuses the project's existing global button styling, declaring no button sizing,
-     border radius or typography of its own.
+AC-7 The green variation renders with the padding, border radius, font weight and line height the
+     project's shared a.button rule declares, not those of the design reference, which sets its
+     colours only.
 AC-8 The block's stylesheet declares colour only within the green variation's own scope.
 AC-9 A block instance placed without a variation name renders with the border radius, padding,
      font weight and line height the project's shared a.button rule declares.
