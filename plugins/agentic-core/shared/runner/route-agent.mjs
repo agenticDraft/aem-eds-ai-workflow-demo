@@ -15,7 +15,10 @@
 //                          Its forbidden rules, budget and caps bound the session.
 //   ROUTE_ALLOWED_TOOLS    comma-separated allow rules, e.g. "Skill,Read,Bash(bash plugins/*)"
 //                          (empty: only calls that never need approval run)
-//   ROUTE_PLUGIN_DIR       directory whose sub-directories are plugins (default: plugins)
+//   ROUTE_PLUGIN_DIR       directory whose sub-directories are loaded as plugins by
+//                          path (default: plugins). Not the whole set: the enabledPlugins
+//                          of the project's settings load too, and a name in both runs
+//                          from the path copy. The startup log names both sets.
 //   ROUTE_MAX_TURNS        may only LOWER the policy's caps.max_turns
 //   ROUTE_TIMEOUT_MINUTES  may only LOWER the policy's caps.timeout_minutes
 //   ROUTE_RESULT_FILE      where the session's final text is written
@@ -55,6 +58,7 @@ import { TerminalCapture } from "./terminal-capture.mjs";
 import { denialLines } from "./denials.mjs";
 import { shapeProblem } from "./shell-shape.mjs";
 import { isRoutePrompt, stopDecision } from "./stop-guard.mjs";
+import { pluginSourceLines, pluginSources } from "./plugin-sources.mjs";
 
 const prompt = process.argv[2];
 if (!prompt) {
@@ -134,8 +138,11 @@ log(`protected from writes: ${protectedPaths.join(", ")}`);
 // What the session will actually see, logged before it starts. An
 // administrator's managed tier on the machine drops a parent's policy tier by
 // default; a lock that did not survive the merge is refused, not run without.
+// The same read says which installed plugins the project settings enable.
+let enabledPlugins = {};
 try {
   const resolved = await resolveSettings({ settingSources: ["project"], managedSettings: { sandbox, permissions: { deny: denyWrites } } });
+  enabledPlugins = resolved.effective.enabledPlugins || {};
   const eff = resolved.effective.sandbox || {};
   const from = resolved.provenance.sandbox || {};
   log(`sandbox (effective, from ${from.source ?? "?"}/${from.policyOrigin ?? "-"}): ` +
@@ -168,7 +175,9 @@ function capReached(cap, value, code) {
   process.exit(code);
 }
 
-// Every sub-directory that carries a plugin manifest is loaded, by path.
+// Every sub-directory that carries a plugin manifest is loaded, by path. That
+// is one of two sources: the project settings' enabledPlugins load as well,
+// and a name in both runs from the path copy (plugin-sources.mjs).
 const plugins = existsSync(pluginDir)
   ? readdirSync(pluginDir)
       .filter((n) => existsSync(join(pluginDir, n, ".claude-plugin", "plugin.json")))
@@ -194,7 +203,7 @@ function configuredPacks(path) {
 
 log(`prompt: ${prompt}`);
 log(`packs: ${configuredPacks(projectConfig)}`);
-log(`plugins: ${plugins.map((p) => p.path.split("/").pop()).join(", ") || "none"}`);
+for (const line of pluginSourceLines(pluginSources(plugins.map((p) => p.path.split("/").pop()), enabledPlugins), pluginDir)) log(line);
 log(`allowed tools (${allowedTools.length}): ${allowedTools.join(", ") || "none — only calls that never need approval"}`);
 log(`policy: ${policyFile} — ${policy.forbidden.length} forbidden rule(s), budget $${maxBudgetUsd}`);
 log(`caps: maxTurns=${maxTurns} timeout=${timeoutMinutes}m`);
