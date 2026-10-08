@@ -91,7 +91,7 @@ Validating plugin manifest: .../plugins/github/.claude-plugin/plugin.json
 **Pack manifest check by the core, this run:**
 
 ```text
-$ bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/github/pack.yaml
+$ bash plugins/github/core/lib/validate-pack-manifest.sh plugins/github/pack.yaml
 valid: provider
 ```
 

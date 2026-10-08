@@ -185,7 +185,7 @@ Validating plugin manifest: .../plugins/eds/.claude-plugin/plugin.json
 **Pack manifest check by the core, this run:**
 
 ```text
-$ bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/eds/pack.yaml
+$ bash plugins/eds/core/lib/validate-pack-manifest.sh plugins/eds/pack.yaml
 valid: platform
 ```
 
@@ -251,7 +251,7 @@ paths:
 7. Before shipping a change under `plugins/eds`, run the core's no-narrative check:
 
    ```text
-   bash plugins/agentic-core/shared/lib/check-no-narrative.sh plugins/eds
+   bash plugins/eds/core/lib/check-no-narrative.sh plugins/eds
    ```
 
 ## Limits you should know

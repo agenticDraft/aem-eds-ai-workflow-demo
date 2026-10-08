@@ -11,9 +11,9 @@ preview URL by the time it returns. Before that, it runs the draft cleanup
 reaches it through the scm pack's script form of `check_status`, run by the cleanup script as a
 subprocess. This stage invokes no role skill itself.
 
-Read `../../../agentic-core/shared/project-config.md` for the shape referenced in **Clean up
+Read `${CLAUDE_PLUGIN_ROOT}/core/project-config.md` for the shape referenced in **Clean up
 earlier runs' drafts** and **Read the configured serve command and preview URL**,
-`../../shared/draft-server.md` for what the cleanup does, and `../../../agentic-core/shared/result-envelope.md`
+`../../shared/draft-server.md` for what the cleanup does, and `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md`
 for the envelope this stage writes with the emitter.
 
 ## Input
@@ -212,12 +212,12 @@ process id, or `none`; the log path, or `none`; and the poll output that ended t
 Then write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-serve.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no preview URL is configured; or that nothing answered and
@@ -239,12 +239,12 @@ it guessed at would be worse than recording none.
 Then write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-serve.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the answering status and whether this stage started the server or

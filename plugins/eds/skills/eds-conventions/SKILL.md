@@ -8,8 +8,8 @@ context: fork
 This stage always runs. It has no `tracker`/`scm`/`design`/`browser` role dependency — everything
 it needs was already written by `intake` (and, when dispatched, by `extract`).
 
-Read `../../../agentic-core/shared/fact-record.md` and `../../../agentic-core/shared/result-envelope.md`
-for the shapes referenced below, and `../../../agentic-core/shared/subagent-outcome.md` for the
+Read `${CLAUDE_PLUGIN_ROOT}/core/fact-record.md` and `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md`
+for the shapes referenced below, and `${CLAUDE_PLUGIN_ROOT}/core/subagent-outcome.md` for the
 `## Outcome` block each of this stage's own three subagents ends with — a second, separate tier
 from the envelope this stage itself writes with the emitter.
 
@@ -127,12 +127,12 @@ is enough to carry the stage's own verdict to `warn`.
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-conventions.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-fact-record reason, or the failing subagent's own
@@ -145,12 +145,12 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-conventions.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming which subagent(s) reported a warning and why, drawn from their
@@ -164,12 +164,12 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-conventions.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming that every dispatched subagent succeeded and, briefly, what each

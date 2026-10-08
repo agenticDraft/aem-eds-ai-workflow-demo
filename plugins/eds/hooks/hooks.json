@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/register-plugin-root.sh"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/core/lib/register-plugin-root.sh"],
             "timeout": 10
           }
         ]

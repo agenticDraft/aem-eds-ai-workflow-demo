@@ -79,9 +79,11 @@ the core can be pointed at.
 
    **Status: partly shipped.** Shipped: `register-plugin-root.sh`, `resolve-plugin-root.sh`, and a
    `SessionStart` entry with no `async` in this plugin's `hooks/hooks.json`; the run-context archive
-   leaves `plugin-roots/` in place. Not shipped: no stage or script calls the resolver yet, no pack
-   carries the `core` link, and a pack's own hook still reaches the writer through `..`. Today every
-   plugin is loaded by path side by side, and the references still go through `..`. What was
+   leaves `plugin-roots/` in place; each pack's `core` link, through which every pack → core
+   reference, a pack's own hook included, now goes; `shared/lib/rewrite-core-refs.sh`, which moves a
+   pack's references onto its link. Not shipped: no stage or script calls the resolver yet, and the
+   core → pack and pack → pack references still go through `..`. Today every plugin is loaded by
+   path side by side. What was
    measured, with throwaway plugins, before this rule was adopted:
    - a link inside a plugin to another plugin's directory arrived as regular files, executable bit
      kept, in the copy installed from a git-hosted marketplace; a directory marketplace loads in

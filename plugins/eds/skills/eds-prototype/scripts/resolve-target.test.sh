@@ -10,7 +10,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOLVE="$SCRIPT_DIR/resolve-target.py"
-WRITER="$SCRIPT_DIR/../../../../agentic-core/shared/lib/write-question-answer.sh"
+WRITER="$SCRIPT_DIR/../../../core/lib/write-question-answer.sh"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/resolve-target.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT

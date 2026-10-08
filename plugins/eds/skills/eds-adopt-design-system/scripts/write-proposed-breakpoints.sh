@@ -6,7 +6,7 @@
 # from this skill's own earlier "Write the design manifest" step.
 #
 # The geometric-mean arithmetic itself is not this script's job — that is
-# ../../../../agentic-core/shared/lib/derive-breakpoints.sh (D21,
+# ${CLAUDE_PLUGIN_ROOT}/core/lib/derive-breakpoints.sh (D21,
 # breakpoint-thresholds.md), pure arithmetic with no file or manifest
 # knowledge at all. This script only reads the manifest's frames, feeds
 # their widths to that core script in the shape it expects, and formats the
@@ -25,7 +25,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DERIVER="$SCRIPT_DIR/../../../../agentic-core/shared/lib/derive-breakpoints.sh"
+DERIVER="$SCRIPT_DIR/../../../core/lib/derive-breakpoints.sh"
 
 MANIFEST="${1:-}"
 OUTPUT="${2:-}"

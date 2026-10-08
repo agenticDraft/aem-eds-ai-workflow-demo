@@ -55,7 +55,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DERIVER = os.path.join(HERE, "..", "..", "..", "..", "agentic-core", "shared", "lib", "derive-breakpoints.sh")
+DERIVER = os.path.join(HERE, "..", "..", "..", "core", "lib", "derive-breakpoints.sh")
 
 _spec = importlib.util.spec_from_file_location("design_context_values", os.path.join(HERE, "design-context-values.py"))
 dcv = importlib.util.module_from_spec(_spec)

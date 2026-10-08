@@ -73,7 +73,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/clean-drafts.sh <scm pack root 
 
 Unsandboxed, because the scm role's script it runs reaches the provider over the network. For each
 earlier run's change record, `.ai/scm/publish-change-<branch>.json`, it runs the scm pack's
-`scripts.check_status` (`../../agentic-core/shared/pack-manifest.md`) once as a subprocess,
+`scripts.check_status` (`${CLAUDE_PLUGIN_ROOT}/core/pack-manifest.md`) once as a subprocess,
 validates the envelope, and reads `change_state` whatever the verdict:
 
 - `merged` or `closed` — deletes every `drafts/<id>.plain.html` whose derived branch name equals

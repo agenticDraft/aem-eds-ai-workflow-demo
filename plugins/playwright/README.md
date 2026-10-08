@@ -104,9 +104,9 @@ Validating plugin manifest: .../plugins/playwright/.claude-plugin/plugin.json
 **The core reading this pack's preconditions, this run, on a machine with both tools present:**
 
 ```text
-$ bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/playwright/pack.yaml
+$ bash plugins/playwright/core/lib/validate-pack-manifest.sh plugins/playwright/pack.yaml
 valid: provider
-$ bash plugins/agentic-core/shared/lib/check-requires.sh plugins/playwright/pack.yaml
+$ bash plugins/playwright/core/lib/check-requires.sh plugins/playwright/pack.yaml
 ok: playwright
 ok: chromium
 ```
@@ -158,7 +158,7 @@ passed: 13, failed: 0
 3. Check the preconditions the way the core does:
 
    ```text
-   bash plugins/agentic-core/shared/lib/check-requires.sh plugins/playwright/pack.yaml
+   bash plugins/playwright/core/lib/check-requires.sh plugins/playwright/pack.yaml
    ```
 
    or, in a session with the core loaded and the project configured, `/agentic-core:health`.

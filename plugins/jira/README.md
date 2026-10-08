@@ -110,9 +110,9 @@ Validating plugin manifest: .../plugins/jira/.claude-plugin/plugin.json
 **Pack manifest check by the core, this run:**
 
 ```text
-$ bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/jira/pack.yaml
+$ bash plugins/jira/core/lib/validate-pack-manifest.sh plugins/jira/pack.yaml
 valid: provider
-$ bash plugins/agentic-core/shared/lib/check-requires.sh plugins/jira/pack.yaml
+$ bash plugins/jira/core/lib/check-requires.sh plugins/jira/pack.yaml
 ok: no requirements declared
 ```
 

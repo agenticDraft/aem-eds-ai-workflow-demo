@@ -158,7 +158,7 @@ assert_eq "unknown base → exit 3" "3" "$CODE"
 assert_eq "unknown base → no body text" "" "$OUT"
 
 echo "[agreement] every name the eds branch_name rule accepts gets a preview URL"
-CORE_CHECK="$SCRIPT_DIR/../../../agentic-core/shared/lib/check-branch-name.sh"
+CORE_CHECK="$SCRIPT_DIR/../../core/lib/check-branch-name.sh"
 printf 'version: 1\n\npacks:\n  platform: eds\n' > "$WORK/eds-config.yaml"
 D=$(repo_with blocks/a/a.js)
 AGREE=1

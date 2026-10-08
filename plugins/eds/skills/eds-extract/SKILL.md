@@ -18,9 +18,9 @@ design-tool reference at all.
 design-tool reference that happens to use no variables" (`has_values: true`, `variables: {}` — a
 different fact).
 
-Read `../../../agentic-core/shared/fact-record.md` for the fact record's shape,
-`../../../agentic-core/shared/pack-manifest.md` for the pack manifest shapes referenced below, and
-`../../../agentic-core/shared/result-envelope.md` for the `## Result` block this stage must end
+Read `${CLAUDE_PLUGIN_ROOT}/core/fact-record.md` for the fact record's shape,
+`${CLAUDE_PLUGIN_ROOT}/core/pack-manifest.md` for the pack manifest shapes referenced below, and
+`${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for the `## Result` block this stage must end
 with.
 
 ## Input
@@ -172,7 +172,7 @@ Read the captured envelope's `verdict`.
 
 Two values decide this, and both are already in hand: the `fallback_url=` the decision line carried
 (or did not), and the `error_class` on the provider's own envelope. See
-`../../../agentic-core/shared/error-handling.md` for what each class means.
+`${CLAUDE_PLUGIN_ROOT}/core/error-handling.md` for what each class means.
 
 - The decision line carried `fallback_url=` **and** the envelope's `error_class` is `TRANSIENT` or
   `PERMANENT` — go to **Download the attachment**, using the `fallback_url=` and `fallback_mime=`
@@ -286,12 +286,12 @@ Where this node was reached from decides which terminal follows, and nothing els
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-extract.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — this item's fact record names no design source and none was requested,
@@ -304,12 +304,12 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-extract.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the source kind (`design_tool` or `image`) and, for a design-tool
@@ -333,12 +333,12 @@ read, when it was not; the run still continues, because a visual-only reference 
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-extract.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming **both** halves — the provider failure that
@@ -362,12 +362,12 @@ validator rejects.
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-extract.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: question`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — one of: "the item's images name no design
@@ -398,12 +398,12 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-extract.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong — the usage error from **Resolve the design

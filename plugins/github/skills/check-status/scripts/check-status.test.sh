@@ -16,7 +16,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="$SCRIPT_DIR/check-status.sh"
-VALIDATE="$SCRIPT_DIR/../../../../agentic-core/shared/lib/validate-result-envelope.sh"
+VALIDATE="$SCRIPT_DIR/../../../core/lib/validate-result-envelope.sh"
 
 if [[ -z "${TMPDIR:-}" ]]; then
   echo "TMPDIR is empty; refusing to create test directories elsewhere" >&2
