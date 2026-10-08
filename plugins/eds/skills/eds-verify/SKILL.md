@@ -262,7 +262,7 @@ Run, with `dangerouslyDisableSandbox: true` on this call, unconditionally (`../s
 server.md`):
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/start-draft-server.sh \
   <paths.preview value> \
   .ai/logs/draft-server.log \
   .ai/logs/draft-server.pid
@@ -340,7 +340,7 @@ Read the captured envelope's `verdict`.
    memory of which call produced it:
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-breakpoint-regressions.py \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-breakpoint-regressions.py \
      widths <every measurement file step 2 recorded>
    ```
 
@@ -352,7 +352,7 @@ Read the captured envelope's `verdict`.
    or a box narrower than its own `min-width` — from those same files:
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-breakpoint-regressions.py \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-breakpoint-regressions.py \
      check <every measurement file step 2 recorded>
    ```
 
@@ -427,8 +427,8 @@ adopted breakpoints are the `@media (width >= Npx)` rules of `styles/styles.css`
 pair, never deciding either by hand:
 
 ```
-python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py breakpoints styles/styles.css
-python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py pair \
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/pair-viewports.py breakpoints styles/styles.css
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/pair-viewports.py pair \
   .ai/run-context/design-reference.json 375,768,1440 <the line the first command printed>
 ```
 
@@ -698,7 +698,7 @@ and creates it when none exists. Never write or merge the file by hand; the scri
 writing stages' merges identical.
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/evidence-manifest.py merge \
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/evidence-manifest.py merge \
   .ai/run-context/evidence-manifest.json \
   --item-id "<item id>" --target "<target URL>" \
   --target-reachable <true or false> --reason "<reason>" \

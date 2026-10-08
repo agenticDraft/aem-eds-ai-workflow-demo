@@ -290,7 +290,7 @@ the block-table content**; the value table above is the only design-context sour
 Run:
 
 ```
-python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py breakpoints styles/styles.css
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/pair-viewports.py breakpoints styles/styles.css
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-prototype/scripts/viewport-overrides.py \
   .ai/run-context/design-reference.json <breakpoints> > .ai/run-context/viewport-overrides.tsv
 ```
@@ -531,7 +531,7 @@ With no `flag` row, write "none" under that heading.
 Run, without a measurement, since this stage renders nothing:
 
 ```
-python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-size-origin.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-size-origin.py \
   check blocks/<name>/<name>.css .ai/run-context/prototype-report.draft.md \
   <.ai/run-context/design-context-values.tsv, or - when the design-context script exited 3> \
   --base origin/HEAD

@@ -224,7 +224,7 @@ Build the pull request title and body from what was read above:
   it:
 
   ```
-  python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py block --branch <the branch>
+  python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/delivery-text.py block --branch <the branch>
   ```
 
   The script reads `.ai/run-context/evidence-manifest.json`, `.ai/project-config.yaml` and
@@ -259,7 +259,7 @@ to **Report fail**, naming `git`'s own stderr.
 First, append the preview URL block to the composed body (G31):
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/preview-url.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/preview-url.sh \
   --branch <the branch> --base <origin/<default>, from git symbolic-ref --short refs/remotes/origin/HEAD>
 ```
 
@@ -305,7 +305,7 @@ Capture its entire output and read the captured envelope's `verdict`.
 - `verdict: pass` — decide green with the script, never by reading the metrics yourself:
 
   ```
-  python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py checks \
+  python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/delivery-text.py checks \
     --checks <check_status's written JSON, from its envelope's artifacts> [--pr-type <type>]
   ```
 
@@ -328,7 +328,7 @@ Capture its entire output and read the captured envelope's `verdict`.
    output of
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py report
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/delivery-text.py report
    ```
 
    unchanged: the manifest's `target`, `target_reachable` and every `coverage_gaps` entry verbatim,
@@ -374,7 +374,7 @@ Capture its entire output and read the captured envelope's `verdict`.
 4. **Compose the note** with the script, never by hand (G535):
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/delivery-text.py note \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/delivery-text.py note \
      --branch <the branch> --item-id <item_id> --pr-url <the pull request URL> \
      --checks <check_status's written JSON, from its envelope's artifacts; `none` when it wrote none> \
      [--block-name <the target block>] [--pr-type <the type kept in Publish the change>]

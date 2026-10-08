@@ -110,7 +110,7 @@ digraph eds_serve {
 2. Run, from the project root, with `dangerouslyDisableSandbox: true` on this call:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/clean-drafts.sh <the scm pack root, or none>
+   bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/clean-drafts.sh <the scm pack root, or none>
    ```
 
 3. Keep its whole stdout for the report. Its last line is `cleanup: …`. Continue to **Read the

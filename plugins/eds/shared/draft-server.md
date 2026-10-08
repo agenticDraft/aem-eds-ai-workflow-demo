@@ -40,7 +40,7 @@ ladder's worth of time confirming a fact this section already states as certain.
 ## Start, poll-first
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/start-draft-server.sh \
   <paths.preview value> \
   .ai/logs/draft-server.log \
   .ai/logs/draft-server.pid
@@ -68,7 +68,7 @@ makes correct) a human can run.
 `eds-serve` runs this first, before it starts or polls anything, from the project root:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/clean-drafts.sh <scm pack root | none>
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/clean-drafts.sh <scm pack root | none>
 ```
 
 Unsandboxed, because the scm role's script it runs reaches the provider over the network. For each

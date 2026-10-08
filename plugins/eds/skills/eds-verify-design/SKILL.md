@@ -144,7 +144,7 @@ Read `.ai/run-context/fact-record.yaml`, `.ai/run-context/design-reference.json`
 whole stage:
 
 ```
-python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/design-fonts.py .ai/run-context/design-reference.json .
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/design-fonts.py .ai/run-context/design-reference.json .
 ```
 
 Exit `1` — keep each printed line as a **missing family** for every check this stage makes, even if
@@ -205,7 +205,7 @@ Run, with `dangerouslyDisableSandbox: true` on this call, unconditionally (`../s
 server.md`):
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/start-draft-server.sh \
   <paths.preview value> \
   .ai/logs/draft-server.log \
   .ai/logs/draft-server.pid
@@ -249,7 +249,7 @@ Read the captured envelope's `verdict`.
 1. List this check's comparisons:
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py targets \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/pair-viewports.py targets \
      .ai/run-context/design-reference.json 1440
    ```
 
@@ -263,8 +263,8 @@ Read the captured envelope's `verdict`.
    the widths:
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py breakpoints styles/styles.css
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/pair-viewports.py widths \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/pair-viewports.py breakpoints styles/styles.css
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/pair-viewports.py widths \
      .ai/run-context/design-reference.json 1440 375,768,1440 <the line the first command printed>
    ```
 
@@ -289,7 +289,7 @@ Read the captured envelope's `verdict`.
    this check:
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-size-origin.py \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-size-origin.py \
      selectors blocks/<block name>/<block name>.css
    ```
 
@@ -299,7 +299,7 @@ Read the captured envelope's `verdict`.
    check:
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-breakpoint-regressions.py \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-breakpoint-regressions.py \
      selectors blocks/<block name>/<block name>.css
    ```
 
@@ -416,7 +416,7 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    while the box's own geometry still looks right (D541). Run:
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-size-origin.py \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-size-origin.py \
      check blocks/<block name>/<block name>.css .ai/run-context/prototype-report.md \
      .ai/run-context/design-context-values.tsv \
      <the reference measurement step 7 of **Capture and measure the draft page** recorded>
@@ -436,7 +436,7 @@ Read `.ai/run-context/design-reference.json`'s `has_values`, `variables` and `ge
    measurement step 7 of **Capture and measure the draft page** recorded, in its width order:
 
    ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/check-breakpoint-regressions.py \
+   python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/check-breakpoint-regressions.py \
      check <the measurement file at each width>…
    ```
 
@@ -466,7 +466,7 @@ fixable left?**.
 Run (D536):
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/count-fixable.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/count-fixable.sh \
   .ai/run-context/verify-design-check-<n>.txt
 ```
 
@@ -686,7 +686,7 @@ never a degradation, never a coverage gap.
   to `.ai/run-context/verify-design-gaps.txt`:
 
   ```
-  python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/evidence-manifest.py gaps \
+  python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/evidence-manifest.py gaps \
     --check .ai/run-context/verify-design-check-<final n>.txt \
     --variables .ai/run-context/verify-design-variables-<final n>.txt \
     --compare .ai/run-context/verify-design-compare-<final n>.txt \
@@ -728,7 +728,7 @@ occurrence kept, order kept), and this stage's own `item_id`/`target`/`target_re
 writing stages' merges identical.
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/evidence-manifest.py merge \
+python3 ${CLAUDE_PLUGIN_ROOT}/shared/scripts/evidence-manifest.py merge \
   .ai/run-context/evidence-manifest.json \
   --item-id "<item id>" --target "<target URL>" \
   --target-reachable <true or false> --reason "<reason>" \
