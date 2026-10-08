@@ -22,11 +22,15 @@ and its operations; this pack is the one place that knows those operations mean 
 2. **Credentials stay in the environment.** `JIRA_SITE`, `JIRA_EMAIL` and `JIRA_API_TOKEN` are
    read by the script and handed to the HTTP client through a stdin config block, never as a
    command-line argument. A missing variable is a `fail` envelope, not a crash.
-3. **Tracker-sourced text is validated as data.** An item key must match
-   `^[A-Za-z][A-Za-z0-9_]*-[0-9]+$` before it reaches the request; a key with a newline cannot
-   inject a config line.
+3. **Values that reach the request are validated as data.** An item key must match
+   `^[A-Za-z][A-Za-z0-9_]*-[0-9]+$` (`fetch_item`, `post_note`, `attach_file`, `update_item`); a
+   project key must match `^[A-Za-z][A-Za-z0-9_]*$` (`list_types`, `create_item`); `JIRA_SITE`
+   must match `^[A-Za-z0-9.-]+$`, a bare hostname. A value with a newline cannot inject a config
+   line. `JIRA_EMAIL` and `JIRA_API_TOKEN` are not shape-checked.
 4. **Every operational outcome exits 0 with an envelope on stdout.** Exit 2 is reserved for a
-   usage error such as a missing argument.
+   usage error: a missing argument, or — for `post_note`, `attach_file`, `update_item` and
+   `create_item` — an input file that does not exist. A usage error prints to stderr and no
+   envelope.
 5. **Authored text becomes the tracker's own document format.** `scripts/md-to-adf.py` converts a
    Markdown draft to the document format `create_item` and `update_item` send;
    `scripts/build-item-fields.py` builds the structured fields from the draft's front matter.
@@ -45,16 +49,39 @@ skills/fetch-item/SKILL.md
   ↓
 fetch-item.sh
   ├── JIRA_SITE / JIRA_EMAIL / JIRA_API_TOKEN unset → fail envelope, exit 0
-  ├── item key fails the shape check          → fail envelope, exit 0
-  └── GET the item over the REST API
-        ├── HTTP success → pass envelope, item fields and text on stdout
-        └── HTTP error   → fail envelope naming the status
+  ├── item key or JIRA_SITE fails the shape check → fail envelope, exit 0
+  └── GET the item over the REST API, response body → .ai/tracker/fetch-item-ABC-123.json
+        ├── HTTP 200        → pass envelope: type and status in the summary,
+        │                     the JSON file named in artifacts
+        └── HTTP error/curl → fail envelope naming the status or curl exit, artifacts: []
   ↓
 stdout, unchanged, is the skill's entire response
 ```
 
-The adapter that called the operation normalises the output into its own artifact; nothing here
-writes to the project tree.
+The item's fields and text are not on stdout: they are in the JSON file the envelope names. The
+adapter that called the operation reads that file and normalises it into its own artifact.
+
+## What it writes
+
+Every operation writes request and response files under `.ai/tracker/`, resolved against the
+working directory the script runs in (not the plugin root). The directory is created once the
+credential and shape checks pass; nothing is written before that.
+
+| Operation     | Files written                                                                                 | Named in a `pass` envelope                 |
+| ------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `fetch_item`  | `fetch-item-<ID>.json` (response)                                                             | that file                                  |
+| `post_note`   | `post-note-<ID>-body.json` (request), `post-note-<ID>-response.json`                          | the response                               |
+| `attach_file` | `attach-file-<ID>-<file name>-response.json`                                                  | that file                                  |
+| `list_types`  | `list-types-<PROJECT>.json` (response)                                                        | that file                                  |
+| `update_item` | `update-item-<ID>-body.json` (request), `-previous.json` (prior description and summary), `-response.json` | the request and the prior file |
+| `create_item` | `create-item-<PROJECT>-body.json` and `-response.json`; on success renamed to `create-item-<KEY>-body.json` and `create-item-<KEY>.json` | both renamed files |
+
+A `fail` envelope always says `artifacts: []`, but files already written stay on disk: a request
+body, and a response body whenever curl received one (an HTTP error body included). Each name is
+keyed on the item or project, so a later call for the same key overwrites it.
+
+`update_item`'s prior-description fetch is best-effort: its failure is ignored, and the
+`-previous.json` file the pass envelope names then holds whatever that fetch returned.
 
 ## Operations
 
@@ -142,13 +169,15 @@ To make this pack the project's tracker, set `packs.tracker: jira` in `.ai/proje
 ## Limits you should know
 
 - **Every operation needs the network and a real site.** Nothing in this README was produced by a
-  live call; the observed outputs above are the credential-less and usage-error paths.
+  live call; the observed operation output above is the credential-less path.
 - **One test file.** `scripts/md-to-adf.test.sh` covers the Markdown-to-document conversion. The
   six operation scripts have no offline test of their own.
 - **`update_item` replaces the description.** It does not merge; re-check the live item after a
   write.
-- **The site value is used as given.** `JIRA_SITE` is interpolated into the request; the script
-  checks the item key's shape, not the site's.
+- **The site is checked for shape, not identity.** `JIRA_SITE` must be a bare hostname; any
+  hostname passes, and the request goes to `https://<JIRA_SITE>`.
+- **`.ai/tracker/` follows the working directory.** Run a script from another directory and its
+  files land there, where a caller expecting them under the project root will not find them.
 
 ## Design rules this pack follows
 
