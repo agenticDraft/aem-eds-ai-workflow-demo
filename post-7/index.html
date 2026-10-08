@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Jira Part With No Opinion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Delivery Factory companion page, same world as the agentic-core page. One dark look on purpose:
+   navy ground, spectrum accents, square edges. The figure is drawn at 1200x627 so a screenshot is the post image. */
+:root {
+  color-scheme: dark;
+  --ink: #f7f8fb;
+  --muted: #9ba7bd;
+  --dim: #8391a8;
+  --navy: #071020;
+  --navy-2: #0a1427;
+  --navy-3: #081225;
+  --footer: #050c18;
+  --line: rgba(156, 182, 226, .16);
+  --line-strong: rgba(156, 182, 226, .26);
+  --cyan: #55e8ff;
+  --violet: #a96eff;
+  --red: #ff9a8f;
+  --spectrum: linear-gradient(110deg, var(--cyan), #75a0ff 58%, #c588ff);
+  --sans: "Manrope", Arial, sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  --space-page: clamp(1.25rem, 5vw, 4.5rem);
+  --space-section: clamp(3.5rem, 7vw, 6rem);
+  --measure: 62ch;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --code-fg: #cdd6e4;
+  --code-bg: rgba(156, 182, 226, .1);
+  --code-line: rgba(156, 182, 226, .18);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--navy); color: var(--ink); font: 400 17px/1.65 var(--sans); }
+main, section, div, nav, ul, ol, li, p, h1, h2, h3, figure { min-width: 0; }
+p, h1, h2, h3, a, span, li { overflow-wrap: break-word; }
+a { color: inherit; }
+::selection { background: var(--cyan); color: var(--navy); }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
+h1, h2, h3, p { margin-top: 0; }
+h1, h2, h3 { text-wrap: balance; }
+section[id] { scroll-margin-top: 90px; }
+code { font: .86em/1.4 var(--mono); color: var(--code-fg); background: var(--code-bg);
+  border: 1px solid var(--code-line); padding: .05em .35em; }
+strong { font-weight: 700; color: var(--ink); }
+
+.site-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center;
+  justify-content: space-between; gap: 1rem 2rem; flex-wrap: wrap; padding: 1.1rem var(--space-page);
+  background: rgba(7, 16, 32, .9); backdrop-filter: blur(18px); border-bottom: 1px solid var(--line); }
+.brand { display: inline-flex; align-items: center; gap: .7rem; font-weight: 700; font-size: 1.15rem;
+  letter-spacing: -.035em; text-decoration: none; }
+.brand-mark { width: 14px; height: 14px; background: var(--spectrum); transform: rotate(45deg); }
+.site-nav { display: flex; gap: 1.6rem; font-size: .98rem; overflow-x: auto; scrollbar-width: none; }
+.site-nav a { color: var(--muted); text-decoration: none; white-space: nowrap; transition: color .2s; }
+.site-nav a:hover { color: var(--ink); }
+
+.hero { position: relative; padding: clamp(3.5rem, 8vw, 6.5rem) var(--space-page) 0; isolation: isolate;
+  border-bottom: 1px solid rgba(156, 182, 226, .28); overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -2;
+  background: linear-gradient(180deg, rgba(85, 140, 255, .045), transparent 42%); }
+.hero-glow { position: absolute; z-index: -1; width: 50vw; max-width: 100%; aspect-ratio: 1; left: -20vw; top: 2rem;
+  border-radius: 50%; background: radial-gradient(circle, rgba(55, 135, 255, .16), transparent 65%); filter: blur(16px); }
+.eyebrow { display: flex; align-items: center; gap: .8rem; margin: 0 0 1.2rem; font: 500 .8rem/1.45 var(--mono);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink); }
+.eyebrow::before { content: ""; flex: none; width: 36px; height: 2px; background: var(--spectrum); }
+h1 { margin-bottom: 1.4rem; font-size: clamp(2.6rem, 6.5vw, 5rem); line-height: 1.02; letter-spacing: -.045em; font-weight: 600; }
+h1 em, h2 em { font-style: normal; color: var(--cyan); }
+.lede { max-width: var(--measure); color: var(--muted); font-size: clamp(1.15rem, 1.6vw, 1.4rem); line-height: 1.6;
+  letter-spacing: -.012em; margin-bottom: clamp(1.4rem, 3vw, 2rem); }
+.proof { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .6rem 2rem; align-items: baseline;
+  margin-inline: calc(var(--space-page) * -1); margin-top: clamp(2rem, 4vw, 3rem); padding: 1.35rem var(--space-page);
+  border-top: 1px solid rgba(156, 182, 226, .25); background: var(--navy-2); }
+.proof-label { margin: 0; color: var(--muted); font: .78rem/1.5 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.proof-label b { display: inline-block; margin-left: .5rem; padding: .25rem .5rem; color: var(--navy); background: var(--cyan);
+  font-weight: 500; letter-spacing: .08em; }
+.proof p:last-child { margin: 0; max-width: 78ch; color: var(--muted); font-size: .98rem; line-height: 1.6; }
+
+.section { padding: var(--space-section) var(--space-page); border-top: 1px solid var(--line); }
+.section.alt { background: var(--navy-3); }
+.section-head { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); column-gap: clamp(2rem, 6vw, 6rem);
+  margin-bottom: clamp(2rem, 4vw, 3rem); }
+.section-head .eyebrow { grid-column: 1 / -1; }
+h2 { margin-bottom: 0; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; font-weight: 600; }
+.section-head > p:last-child { align-self: end; max-width: 46ch; margin: 0; color: var(--muted); font-size: 1.1rem; line-height: 1.65; }
+.prose { max-width: var(--measure); }
+.prose p { color: var(--muted); }
+.claim { margin: clamp(1.8rem, 3vw, 2.4rem) 0 0; padding: 1.1rem 1.3rem; border-left: 3px solid var(--cyan);
+  background: rgba(85, 232, 255, .06); font-size: clamp(1.1rem, 1.8vw, 1.35rem); font-weight: 600; letter-spacing: -.02em; line-height: 1.4; max-width: 56ch; }
+
+.shot { margin: 0; }
+.shot-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem 2rem; margin-bottom: .8rem;
+  color: var(--dim); font: .74rem/1.5 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.shot-frame { overflow-x: auto; border: 1px solid rgba(156, 182, 226, .22); }
+.shot svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.shot figcaption { margin-top: .9rem; max-width: 72ch; color: var(--muted); font-size: .95rem; }
+
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.compare > div { background: var(--navy); padding: 1.5rem 1.4rem; }
+.compare h3 { margin: 0 0 .2rem; font-size: 1.2rem; font-weight: 700; letter-spacing: -.02em; }
+.compare .tag { display: block; margin-bottom: 1rem; font: .74rem/1.5 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.compare .bad .tag { color: var(--red); }
+.compare .good .tag { color: var(--cyan); }
+.compare ul { margin: 0; padding-left: 1.1rem; color: var(--muted); display: grid; gap: .45rem; }
+
+pre.envelope { margin: 0; padding: 1.3rem 1.4rem; background: var(--navy-2); border: 1px solid rgba(85, 232, 255, .3);
+  color: var(--code-fg); font: .95rem/1.7 var(--mono); overflow-x: auto; }
+pre.envelope .k { color: var(--cyan); }
+.envelope-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3rem); align-items: start; }
+
+.rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 1.1rem; padding: 1.3rem .5rem;
+  border-bottom: 1px solid rgba(156, 182, 226, .2); transition: background .25s var(--ease-out); }
+.row:hover { background: linear-gradient(90deg, rgba(85, 232, 255, .07), rgba(169, 110, 255, .04)); }
+.row::before { content: ""; width: 12px; height: 12px; margin: .45rem 0 0 4px; border: 1.5px solid rgba(156, 182, 226, .6);
+  background: var(--navy); transform: rotate(45deg); }
+.row.key::before { border-color: var(--ink); background: var(--ink); }
+.row h3 { margin: 0 0 .3rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; }
+.row p { margin: 0; max-width: 72ch; color: var(--muted); font-size: 1rem; line-height: 1.62; }
+
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 1rem; padding: .95rem .5rem;
+  border-bottom: 1px solid rgba(156, 182, 226, .2); color: var(--muted); }
+.steps li::before { content: counter(s, decimal-leading-zero); color: var(--cyan); font: .85rem/1.9 var(--mono); }
+.steps li.read { color: var(--ink); }
+
+.chapters { margin: 0; padding: 0; list-style: none; }
+.chapter { display: grid; grid-template-columns: minmax(150px, .28fr) minmax(0, 1fr); gap: clamp(1rem, 4vw, 3rem);
+  padding: 1.3rem 0; border-top: 1px solid var(--line); }
+.chapter-marker { margin: .2rem 0 0; color: var(--cyan); font: .8rem/1.5 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.chapter.warn .chapter-marker { color: #ffcf6e; }
+.chapter p:last-child { margin: 0; max-width: var(--measure); color: var(--muted); font-size: 1.02rem; line-height: 1.7; }
+
+.site-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem 2rem;
+  padding: 2.2rem var(--space-page); color: var(--muted); background: var(--footer); border-top: 1px solid var(--line-strong);
+  font-size: .95rem; }
+.site-footer p { margin: 0; }
+
+@media (max-width: 860px) {
+  .section-head, .envelope-grid { grid-template-columns: minmax(0, 1fr); }
+  .section-head > p:last-child { margin-top: 1.2rem; }
+  .proof { grid-template-columns: minmax(0, 1fr); }
+  .chapter { grid-template-columns: minmax(0, 1fr); gap: .4rem; }
+}
+@media (max-width: 640px) {
+  .site-header { flex-direction: column; align-items: flex-start; gap: .7rem; }
+  .site-nav { width: 100%; gap: 1.2rem; font-size: .92rem; }
+  .row, .steps li { padding-inline: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .row, .site-nav a { transition-duration: 0s; }
+}
+</style>
+
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span>Delivery Factory · 07</a>
+  <nav class="site-nav" aria-label="Sections">
+    <a href="#picture">The picture</a>
+    <a href="#parts">The parts</a>
+    <a href="#token">The token</a>
+    <a href="#script">The script</a>
+    <a href="#limits">What it doesn't solve</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <p class="eyebrow">Delivery Factory · Part 2 · Integration</p>
+    <h1>The Jira part has <em>no opinion</em>.</h1>
+    <p class="lede">The first stage of every run needs the ticket. The plugin that fetches it is built so small that every claim about it can be checked in the code: where the token goes, who says pass or fail, and who decides what the ticket means.</p>
+    <div class="proof">
+      <p class="proof-label">Checked in <b>Code</b></p>
+      <p>Everything on this page was read in the plugin's scripts, skills and manifest, not only in its README. Paths are relative to <code>plugins/jira/</code> unless said otherwise.</p>
+    </div>
+  </section>
+
+  <section class="section" id="picture">
+    <figure class="shot">
+      <div class="shot-label"><span>Who decides what</span><span>1200 × 627</span></div>
+      <div class="shot-frame">
+      <svg viewBox="0 0 1200 627" role="img" aria-label="The intake stage calls the fetch-item skill. The skill only runs a script and passes its output on. The script reads the token from the environment, hands it to curl privately, calls Jira, writes the ticket to a file and prints five lines saying pass or fail. Intake then decides what the ticket means." style="font-family:Manrope, Arial, sans-serif">
+        <defs>
+          <linearGradient id="j-sp" x1="0" x2="1"><stop offset="0" stop-color="#55e8ff"/><stop offset=".58" stop-color="#75a0ff"/><stop offset="1" stop-color="#c588ff"/></linearGradient>
+          <radialGradient id="j-glow" cx="0" cy="0" r="1"><stop offset="0" stop-color="#3787ff" stop-opacity=".16"/><stop offset="1" stop-color="#3787ff" stop-opacity="0"/></radialGradient>
+          <marker id="j-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9ba7bd"/></marker>
+          <marker id="j-arr-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#55e8ff"/></marker>
+        </defs>
+        <rect width="1200" height="627" fill="#071020"/>
+        <rect width="760" height="627" fill="url(#j-glow)"/>
+
+        <rect x="56" y="46" width="36" height="2" fill="url(#j-sp)"/>
+        <text x="104" y="52" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13" letter-spacing="2.2">DELIVERY FACTORY · PART 2</text>
+        <text x="56" y="104" fill="#f7f8fb" font-size="38" font-weight="700" letter-spacing="-1.4">The Jira part reports.</text>
+        <text x="56" y="148" fill="#55e8ff" font-size="38" font-weight="700" letter-spacing="-1.4">The stage decides what it means.</text>
+
+        <!-- column labels -->
+        <g font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6" fill="#8391a8">
+          <text x="56" y="214">STAGE · JUDGES</text>
+          <text x="356" y="214">SKILL · NO BRANCH</text>
+          <text x="656" y="214">SCRIPT · PASS OR FAIL</text>
+          <text x="956" y="214">JIRA</text>
+        </g>
+
+        <!-- boxes -->
+        <rect x="56" y="230" width="240" height="120" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="76" y="266" fill="#55e8ff" font-size="18" font-weight="700">intake</text>
+        <text x="76" y="294" fill="#cdd6e4" font-size="13.5">turns the ticket into facts</text>
+        <text x="76" y="316" fill="#cdd6e4" font-size="13.5">the later stages can use</text>
+
+        <rect x="356" y="230" width="240" height="120" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
+        <text x="376" y="266" fill="#f7f8fb" font-size="18" font-weight="700">fetch-item</text>
+        <text x="376" y="294" fill="#cdd6e4" font-size="13.5">runs the script and passes</text>
+        <text x="376" y="316" fill="#cdd6e4" font-size="13.5">its output on, unchanged</text>
+
+        <rect x="656" y="230" width="240" height="120" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
+        <text x="676" y="266" fill="#f7f8fb" font-size="18" font-weight="700">fetch-item.sh</text>
+        <text x="676" y="294" fill="#cdd6e4" font-size="13.5">checks, calls, writes a file,</text>
+        <text x="676" y="316" fill="#cdd6e4" font-size="13.5">prints pass or fail</text>
+
+        <rect x="956" y="230" width="188" height="120" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/>
+        <text x="976" y="266" fill="#f7f8fb" font-size="18" font-weight="700">Jira Cloud</text>
+        <text x="976" y="294" fill="#cdd6e4" font-size="13.5">REST API</text>
+
+        <!-- call arrows -->
+        <line x1="298" y1="270" x2="352" y2="270" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#j-arr)"/>
+        <line x1="598" y1="270" x2="652" y2="270" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#j-arr)"/>
+        <line x1="898" y1="270" x2="952" y2="270" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#j-arr)"/>
+        <!-- return arrows -->
+        <line x1="652" y1="326" x2="300" y2="326" stroke="#55e8ff" stroke-width="1.6" stroke-dasharray="3 4" marker-end="url(#j-arr-c)"/>
+        <rect x="402" y="314" width="150" height="24" fill="#071020"/>
+        <text x="410" y="331" fill="#55e8ff" font-family="DM Mono, monospace" font-size="12">## Result · 5 lines</text>
+
+        <!-- token -->
+        <rect x="656" y="420" width="240" height="64" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/>
+        <text x="676" y="446" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13">JIRA_API_TOKEN</text>
+        <text x="676" y="468" fill="#9fb0cc" font-size="12.5">from the environment</text>
+        <line x1="776" y1="418" x2="776" y2="354" stroke="#55e8ff" stroke-width="1.6" marker-end="url(#j-arr-c)"/>
+        <text x="790" y="394" fill="#55e8ff" font-size="13" font-weight="700">handed over on stdin</text>
+
+        <rect x="956" y="420" width="188" height="64" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/>
+        <text x="976" y="446" fill="#ff9a8f" font-size="14" font-weight="700">command line</text>
+        <text x="976" y="468" fill="#9ba7bd" font-size="12.5">never used for the token</text>
+        <g stroke="#ff9a8f" stroke-width="2"><line x1="1112" y1="436" x2="1128" y2="452"/><line x1="1128" y1="436" x2="1112" y2="452"/></g>
+
+        <!-- file -->
+        <rect x="56" y="420" width="540" height="64" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/>
+        <text x="76" y="446" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13">.ai/tracker/fetch-item-ABC-123.json</text>
+        <text x="76" y="468" fill="#9fb0cc" font-size="12.5">the raw ticket, written by the script, read by intake</text>
+
+        <text x="56" y="572" fill="#9ba7bd" font-size="15">Only the stage on the left is allowed to say what the ticket asks for.</text>
+      </svg>
+      </div>
+      <figcaption>Three layers, three jobs. The script is the only code that talks to Jira. The skill around it passes its answer on without reading it. The intake stage is the first place where the ticket's content is interpreted.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section alt" id="parts">
+    <div class="section-head">
+      <p class="eyebrow">The parts</p>
+      <h2>Four pieces, one <em>job</em> each</h2>
+      <p>The Jira plugin plays one role in the pipeline: the tracker. These are all the parts it has.</p>
+    </div>
+    <ul class="rows">
+      <li class="row key"><div><h3><code>pack.yaml</code> maps roles to skills</h3><p>The core asks for an operation such as <code>fetch_item</code>. The manifest says which skill does it: <code>fetch_item → fetch-item</code>. It also carries the words intake looks for in a ticket: design keywords like <code>design</code>, <code>figma</code>, <code>layout</code>, and the headings for reproduction steps and acceptance criteria.</p></div></li>
+      <li class="row"><div><h3><code>skills/&lt;op&gt;/SKILL.md</code> runs a script</h3><p>The model does no reasoning here. It runs one script and returns its output unchanged. The skill text says so directly: the script alone decides pass versus fail, so there is no branch in the skill.</p></div></li>
+      <li class="row key"><div><h3><code>skills/&lt;op&gt;/scripts/&lt;op&gt;.sh</code> decides</h3><p>Everything that can go right or wrong happens here: the input checks, the call to Jira, the file it writes, and the verdict.</p></div></li>
+      <li class="row"><div><h3><code>scripts/md-to-adf.py</code>, <code>build-item-fields.py</code></h3><p>For writing back. They turn a Markdown draft into Jira's own document format and fields, used when a ticket is created or updated.</p></div></li>
+    </ul>
+    <p class="claim">Six operations, the same shape each time: fetch an item, post a note, attach a file, list types, update an item, create an item.</p>
+  </section>
+
+  <section class="section" id="token">
+    <div class="section-head">
+      <p class="eyebrow">The token</p>
+      <h2>Working says nothing about what it <em>exposes</em></h2>
+      <p>A call that puts the token on the command line works. It also leaves the token where other programs can read it.</p>
+    </div>
+    <div class="compare">
+      <div class="bad">
+        <span class="tag">Token on the command line</span>
+        <h3>Every call goes through</h3>
+        <ul>
+          <li>The token is part of the process arguments.</li>
+          <li>Anything that lists running programs can read it, and so can shell history and logs.</li>
+          <li>Nothing in the result tells you.</li>
+        </ul>
+      </div>
+      <div class="good">
+        <span class="tag">Token handed over privately</span>
+        <h3>The same call, nothing to see</h3>
+        <ul>
+          <li>The script reads the token from the environment.</li>
+          <li>It gives curl a config block on standard input, <code>-K -</code>.</li>
+          <li>The command line only shows flags and an output file.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="envelope-grid" style="margin-top:2rem">
+<pre class="envelope"><span class="k"># skills/fetch-item/scripts/fetch-item.sh:51</span>
+curl -sS -K - -o "$OUT_FILE" -w '%{http_code}' &lt;&lt;EOF
+url = "https://${JIRA_SITE}/rest/api/3/issue/${ITEM_ID}"
+user = "${JIRA_EMAIL}:${JIRA_API_TOKEN}"
+header = "Accept: application/json"
+EOF</pre>
+      <div class="prose">
+        <p>All six scripts in the plugin call curl this way. The ticket key is checked against <code>^[A-Za-z][A-Za-z0-9_]*-[0-9]+$</code> before it goes into that block. The comment above the check gives the reason: a key with a line break in it could add its own <code>url =</code> or <code>user =</code> line.</p>
+        <p>If any of the three variables is missing, there is no crash. The script prints a fail that names them.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" id="script">
+    <div class="section-head">
+      <p class="eyebrow">The script</p>
+      <h2>What <em>fetch-item</em> does, in order</h2>
+      <p>One file, about eighty lines, read top to bottom.</p>
+    </div>
+    <ol class="steps">
+      <li>No ticket key given: usage error, exit 2. This is the only exit that is not 0.</li>
+      <li><code>JIRA_SITE</code>, <code>JIRA_EMAIL</code> or <code>JIRA_API_TOKEN</code> missing: fail, naming them.</li>
+      <li>Ticket key not shaped like <code>ABC-123</code>, or the site not a bare hostname: fail.</li>
+      <li>Call Jira with the token on standard input.</li>
+      <li>curl error, or any HTTP status other than 200: fail, naming the status.</li>
+      <li class="read">Otherwise: write the ticket to <code>.ai/tracker/fetch-item-&lt;key&gt;.json</code> and print a pass with its type and status.</li>
+    </ol>
+    <div class="envelope-grid" style="margin-top:2rem">
+<pre class="envelope"><span class="k">## Result</span>
+<span class="k">verdict:</span> pass
+<span class="k">summary:</span> Fetched item ABC-123 (type=Story status=To Do) and wrote its fields to disk.
+<span class="k">artifacts:</span>
+  - .ai/tracker/fetch-item-ABC-123.json
+<span class="k">next_action:</span> none</pre>
+      <div class="prose">
+        <p>The shape of a pass, filled with an example key. The type and status are read from the response. The script does not look at the description, the acceptance criteria, or anything else in the ticket.</p>
+        <p>Intake reads that file next. A separate script on its side decides which design keywords and headings matched. That is the first point where the ticket's content counts for anything.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="limits">
+    <div class="section-head">
+      <p class="eyebrow">What it doesn't solve</p>
+      <h2>A ticket that arrives <em>fine</em></h2>
+      <p>A clean fetch proves the ticket exists and the call was safe. It says nothing about whether anyone can build from it.</p>
+    </div>
+    <ul class="chapters">
+      <li class="chapter warn"><p class="chapter-marker">The gap</p><p>A ticket can come back with a pass and still be missing what the work needs: no acceptance criteria, no steps to reproduce a bug.</p></li>
+      <li class="chapter"><p class="chapter-marker">Where it gets caught</p><p>In the next stage, readiness. It checks the ticket against fixed criteria for its type, with a script and no model: a Story needs a description and acceptance criteria, a Bug needs a reproduction URL and steps.</p></li>
+      <li class="chapter"><p class="chapter-marker">Next</p><p>Whether the ticket is clear enough to work on.</p></li>
+    </ul>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <span class="brand"><span class="brand-mark" aria-hidden="true"></span>Zoran Markovic · Delivery Factory</span>
+  <p>Companion to LinkedIn post 7</p>
+</footer>
+
+</body>
+</html>

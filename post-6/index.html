@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Orchestrator That Never Reads Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Delivery Factory companion page, same world as the agentic-core page. One dark look on purpose:
+   navy ground, spectrum accents, square edges. The figure is drawn at 1200x627 so a screenshot is the post image. */
+:root {
+  color-scheme: dark;
+  --ink: #f7f8fb;
+  --muted: #9ba7bd;
+  --dim: #8391a8;
+  --navy: #071020;
+  --navy-2: #0a1427;
+  --navy-3: #081225;
+  --footer: #050c18;
+  --line: rgba(156, 182, 226, .16);
+  --line-strong: rgba(156, 182, 226, .26);
+  --cyan: #55e8ff;
+  --violet: #a96eff;
+  --red: #ff9a8f;
+  --spectrum: linear-gradient(110deg, var(--cyan), #75a0ff 58%, #c588ff);
+  --sans: "Manrope", Arial, sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  --space-page: clamp(1.25rem, 5vw, 4.5rem);
+  --space-section: clamp(3.5rem, 7vw, 6rem);
+  --measure: 62ch;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --code-fg: #cdd6e4;
+  --code-bg: rgba(156, 182, 226, .1);
+  --code-line: rgba(156, 182, 226, .18);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--navy); color: var(--ink); font: 400 17px/1.65 var(--sans); }
+main, section, div, nav, ul, ol, li, p, h1, h2, h3, figure { min-width: 0; }
+p, h1, h2, h3, a, span, li { overflow-wrap: break-word; }
+a { color: inherit; }
+::selection { background: var(--cyan); color: var(--navy); }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
+h1, h2, h3, p { margin-top: 0; }
+h1, h2, h3 { text-wrap: balance; }
+section[id] { scroll-margin-top: 90px; }
+code { font: .86em/1.4 var(--mono); color: var(--code-fg); background: var(--code-bg);
+  border: 1px solid var(--code-line); padding: .05em .35em; }
+strong { font-weight: 700; color: var(--ink); }
+
+.site-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center;
+  justify-content: space-between; gap: 1rem 2rem; flex-wrap: wrap; padding: 1.1rem var(--space-page);
+  background: rgba(7, 16, 32, .9); backdrop-filter: blur(18px); border-bottom: 1px solid var(--line); }
+.brand { display: inline-flex; align-items: center; gap: .7rem; font-weight: 700; font-size: 1.15rem;
+  letter-spacing: -.035em; text-decoration: none; }
+.brand-mark { width: 14px; height: 14px; background: var(--spectrum); transform: rotate(45deg); }
+.site-nav { display: flex; gap: 1.6rem; font-size: .98rem; overflow-x: auto; scrollbar-width: none; }
+.site-nav a { color: var(--muted); text-decoration: none; white-space: nowrap; transition: color .2s; }
+.site-nav a:hover { color: var(--ink); }
+
+.hero { position: relative; padding: clamp(3.5rem, 8vw, 6.5rem) var(--space-page) 0; isolation: isolate;
+  border-bottom: 1px solid rgba(156, 182, 226, .28); overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -2;
+  background: linear-gradient(180deg, rgba(85, 140, 255, .045), transparent 42%); }
+.hero-glow { position: absolute; z-index: -1; width: 50vw; max-width: 100%; aspect-ratio: 1; left: -20vw; top: 2rem;
+  border-radius: 50%; background: radial-gradient(circle, rgba(55, 135, 255, .16), transparent 65%); filter: blur(16px); }
+.eyebrow { display: flex; align-items: center; gap: .8rem; margin: 0 0 1.2rem; font: 500 .8rem/1.45 var(--mono);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink); }
+.eyebrow::before { content: ""; flex: none; width: 36px; height: 2px; background: var(--spectrum); }
+h1 { margin-bottom: 1.4rem; font-size: clamp(2.6rem, 6.5vw, 5rem); line-height: 1.02; letter-spacing: -.045em; font-weight: 600; }
+h1 em, h2 em { font-style: normal; color: var(--cyan); }
+.lede { max-width: var(--measure); color: var(--muted); font-size: clamp(1.15rem, 1.6vw, 1.4rem); line-height: 1.6;
+  letter-spacing: -.012em; margin-bottom: clamp(1.4rem, 3vw, 2rem); }
+.proof { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .6rem 2rem; align-items: baseline;
+  margin-inline: calc(var(--space-page) * -1); margin-top: clamp(2rem, 4vw, 3rem); padding: 1.35rem var(--space-page);
+  border-top: 1px solid rgba(156, 182, 226, .25); background: var(--navy-2); }
+.proof-label { margin: 0; color: var(--muted); font: .78rem/1.5 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.proof-label b { display: inline-block; margin-left: .5rem; padding: .25rem .5rem; color: var(--navy); background: var(--cyan);
+  font-weight: 500; letter-spacing: .08em; }
+.proof p:last-child { margin: 0; max-width: 78ch; color: var(--muted); font-size: .98rem; line-height: 1.6; }
+
+.section { padding: var(--space-section) var(--space-page); border-top: 1px solid var(--line); }
+.section.alt { background: var(--navy-3); }
+.section-head { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); column-gap: clamp(2rem, 6vw, 6rem);
+  margin-bottom: clamp(2rem, 4vw, 3rem); }
+.section-head .eyebrow { grid-column: 1 / -1; }
+h2 { margin-bottom: 0; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; font-weight: 600; }
+.section-head > p:last-child { align-self: end; max-width: 46ch; margin: 0; color: var(--muted); font-size: 1.1rem; line-height: 1.65; }
+.prose { max-width: var(--measure); }
+.prose p { color: var(--muted); }
+.claim { margin: clamp(1.8rem, 3vw, 2.4rem) 0 0; padding: 1.1rem 1.3rem; border-left: 3px solid var(--cyan);
+  background: rgba(85, 232, 255, .06); font-size: clamp(1.1rem, 1.8vw, 1.35rem); font-weight: 600; letter-spacing: -.02em; line-height: 1.4; max-width: 56ch; }
+
+.shot { margin: 0; }
+.shot-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem 2rem; margin-bottom: .8rem;
+  color: var(--dim); font: .74rem/1.5 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.shot-frame { overflow-x: auto; border: 1px solid rgba(156, 182, 226, .22); }
+.shot svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.shot figcaption { margin-top: .9rem; max-width: 72ch; color: var(--muted); font-size: .95rem; }
+
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.compare > div { background: var(--navy); padding: 1.5rem 1.4rem; }
+.compare h3 { margin: 0 0 .2rem; font-size: 1.2rem; font-weight: 700; letter-spacing: -.02em; }
+.compare .tag { display: block; margin-bottom: 1rem; font: .74rem/1.5 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.compare .bad .tag { color: var(--red); }
+.compare .good .tag { color: var(--cyan); }
+.compare ul { margin: 0; padding-left: 1.1rem; color: var(--muted); display: grid; gap: .45rem; }
+
+pre.envelope { margin: 0; padding: 1.3rem 1.4rem; background: var(--navy-2); border: 1px solid rgba(85, 232, 255, .3);
+  color: var(--code-fg); font: .95rem/1.7 var(--mono); overflow-x: auto; }
+pre.envelope .k { color: var(--cyan); }
+.envelope-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3rem); align-items: start; }
+
+.rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 1.1rem; padding: 1.3rem .5rem;
+  border-bottom: 1px solid rgba(156, 182, 226, .2); transition: background .25s var(--ease-out); }
+.row:hover { background: linear-gradient(90deg, rgba(85, 232, 255, .07), rgba(169, 110, 255, .04)); }
+.row::before { content: ""; width: 12px; height: 12px; margin: .45rem 0 0 4px; border: 1.5px solid rgba(156, 182, 226, .6);
+  background: var(--navy); transform: rotate(45deg); }
+.row.key::before { border-color: var(--ink); background: var(--ink); }
+.row h3 { margin: 0 0 .3rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; }
+.row p { margin: 0; max-width: 72ch; color: var(--muted); font-size: 1rem; line-height: 1.62; }
+
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 1rem; padding: .95rem .5rem;
+  border-bottom: 1px solid rgba(156, 182, 226, .2); color: var(--muted); }
+.steps li::before { content: counter(s, decimal-leading-zero); color: var(--cyan); font: .85rem/1.9 var(--mono); }
+.steps li.read { color: var(--ink); }
+
+.chapters { margin: 0; padding: 0; list-style: none; }
+.chapter { display: grid; grid-template-columns: minmax(150px, .28fr) minmax(0, 1fr); gap: clamp(1rem, 4vw, 3rem);
+  padding: 1.3rem 0; border-top: 1px solid var(--line); }
+.chapter-marker { margin: .2rem 0 0; color: var(--cyan); font: .8rem/1.5 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.chapter.warn .chapter-marker { color: #ffcf6e; }
+.chapter p:last-child { margin: 0; max-width: var(--measure); color: var(--muted); font-size: 1.02rem; line-height: 1.7; }
+
+.site-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem 2rem;
+  padding: 2.2rem var(--space-page); color: var(--muted); background: var(--footer); border-top: 1px solid var(--line-strong);
+  font-size: .95rem; }
+.site-footer p { margin: 0; }
+
+@media (max-width: 860px) {
+  .section-head, .envelope-grid { grid-template-columns: minmax(0, 1fr); }
+  .section-head > p:last-child { margin-top: 1.2rem; }
+  .proof { grid-template-columns: minmax(0, 1fr); }
+  .chapter { grid-template-columns: minmax(0, 1fr); gap: .4rem; }
+}
+@media (max-width: 640px) {
+  .site-header { flex-direction: column; align-items: flex-start; gap: .7rem; }
+  .site-nav { width: 100%; gap: 1.2rem; font-size: .92rem; }
+  .row, .steps li { padding-inline: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .row, .site-nav a { transition-duration: 0s; }
+}
+</style>
+
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span>Delivery Factory · 06</a>
+  <nav class="site-nav" aria-label="Sections">
+    <a href="#picture">The picture</a>
+    <a href="#problem">The problem</a>
+    <a href="#envelope">Five lines</a>
+    <a href="#ticket">One ticket</a>
+    <a href="#limits">What it doesn't solve</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <p class="eyebrow">Delivery Factory · Part 1 · Architecture</p>
+    <h1>The orchestrator that <em>never</em> reads code.</h1>
+    <p class="lede">A ticket goes in, a pull request comes out, and fifteen steps run in between. The component that runs all fifteen knows almost nothing about any of them. That is the design.</p>
+    <div class="proof">
+      <p class="proof-label">Built as <b>Plugins</b></p>
+      <p>Six Claude Code plugins. <code>agentic-core</code> drives the route. One platform plugin knows how to build on the project. Four provider plugins each talk to one tool: Jira, GitHub, Figma, Playwright.</p>
+    </div>
+  </section>
+
+  <section class="section" id="picture">
+    <figure class="shot">
+      <div class="shot-label"><span>The route and the rail</span><span>1200 × 627</span></div>
+      <div class="shot-frame">
+      <svg viewBox="0 0 1200 627" role="img" aria-label="Fifteen stages on one line from ticket to pull request. Above them runs the orchestrator rail. Each stage sends only a five-line verdict up to the rail. A hook blocks the orchestrator from reading the files the stages write." style="font-family:Manrope, Arial, sans-serif">
+        <defs>
+          <linearGradient id="r-sp" x1="0" x2="1"><stop offset="0" stop-color="#55e8ff"/><stop offset=".58" stop-color="#75a0ff"/><stop offset="1" stop-color="#c588ff"/></linearGradient>
+          <radialGradient id="r-glow" cx="0" cy="0" r="1"><stop offset="0" stop-color="#3787ff" stop-opacity=".16"/><stop offset="1" stop-color="#3787ff" stop-opacity="0"/></radialGradient>
+          <marker id="r-up" viewBox="0 0 10 10" refX="5" refY="1" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 10L5 0L10 10z" fill="#55e8ff"/></marker>
+        </defs>
+        <rect width="1200" height="627" fill="#071020"/>
+        <rect width="760" height="627" fill="url(#r-glow)"/>
+
+        <rect x="56" y="46" width="36" height="2" fill="url(#r-sp)"/>
+        <text x="104" y="52" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13" letter-spacing="2.2">DELIVERY FACTORY · PART 1</text>
+        <text x="56" y="104" fill="#f7f8fb" font-size="38" font-weight="700" letter-spacing="-1.4">Fifteen steps report up.</text>
+        <text x="56" y="148" fill="#55e8ff" font-size="38" font-weight="700" letter-spacing="-1.4">The orchestrator reads five lines.</text>
+        <g font-family="DM Mono, monospace" font-size="12" letter-spacing="1.6" fill="#8391a8" text-anchor="end">
+          <text x="1144" y="80">EACH STEP AN ISOLATED AGENT</text>
+          <text x="1144" y="104">ONE VERDICT PER STEP</text>
+          <text x="1144" y="128">A HOOK BLOCKS EVERYTHING ELSE</text>
+        </g>
+
+        <!-- orchestrator rail -->
+        <rect x="96" y="196" width="1008" height="56" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <rect x="114" y="219" width="10" height="10" transform="rotate(45 119 224)" fill="url(#r-sp)"/>
+        <text x="136" y="230" fill="#55e8ff" font-size="17" font-weight="700">agentic-core · orchestrator</text>
+        <text x="1088" y="230" fill="#9fb0cc" font-size="13" text-anchor="end">sequences · reads the verdict · branches</text>
+
+        <!-- verdict lines up, x = 130 + i*67 -->
+        <g stroke="#55e8ff" stroke-width="1.2" stroke-dasharray="3 4" opacity=".75">
+          <line x1="130" y1="372" x2="130" y2="256"/><line x1="197" y1="372" x2="197" y2="256"/><line x1="264" y1="372" x2="264" y2="256"/>
+          <line x1="331" y1="372" x2="331" y2="256"/><line x1="398" y1="372" x2="398" y2="256"/><line x1="465" y1="372" x2="465" y2="256"/>
+          <line x1="532" y1="372" x2="532" y2="256"/><line x1="599" y1="372" x2="599" y2="256"/><line x1="666" y1="372" x2="666" y2="256"/>
+          <line x1="733" y1="372" x2="733" y2="256"/><line x1="800" y1="372" x2="800" y2="256"/><line x1="867" y1="372" x2="867" y2="256"/>
+          <line x1="934" y1="372" x2="934" y2="256"/><line x1="1001" y1="372" x2="1001" y2="256"/><line x1="1068" y1="372" x2="1068" y2="256"/>
+        </g>
+        <rect x="140" y="290" width="104" height="24" fill="#071020"/>
+        <text x="148" y="307" fill="#55e8ff" font-family="DM Mono, monospace" font-size="12">## Result · 5</text>
+
+        <!-- route line -->
+        <line x1="56" y1="388" x2="1104" y2="388" stroke="url(#r-sp)" stroke-width="2"/>
+        <text x="56" y="420" fill="#8391a8" font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6">TICKET</text>
+        <g stroke-width="1.6">
+          <rect x="122" y="380" width="16" height="16" transform="rotate(45 130 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="189" y="380" width="16" height="16" transform="rotate(45 197 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="256" y="380" width="16" height="16" transform="rotate(45 264 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="323" y="380" width="16" height="16" transform="rotate(45 331 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="390" y="380" width="16" height="16" transform="rotate(45 398 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="457" y="380" width="16" height="16" transform="rotate(45 465 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="524" y="380" width="16" height="16" transform="rotate(45 532 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="591" y="380" width="16" height="16" transform="rotate(45 599 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="658" y="380" width="16" height="16" transform="rotate(45 666 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="725" y="380" width="16" height="16" transform="rotate(45 733 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="792" y="380" width="16" height="16" transform="rotate(45 800 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="859" y="380" width="16" height="16" transform="rotate(45 867 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="926" y="380" width="16" height="16" transform="rotate(45 934 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="993" y="380" width="16" height="16" transform="rotate(45 1001 388)" fill="#071020" stroke="#9ba7bd"/>
+          <rect x="1060" y="380" width="16" height="16" transform="rotate(45 1068 388)" fill="#071020" stroke="#9ba7bd"/>
+        </g>
+        <!-- stage names, rotated -->
+        <g fill="#cdd6e4" font-size="12.5" font-weight="600">
+          <text transform="translate(134 416) rotate(40)">intake</text>
+          <text transform="translate(201 416) rotate(40)">readiness</text>
+          <text transform="translate(268 416) rotate(40)">extract</text>
+          <text transform="translate(335 416) rotate(40)">conventions</text>
+          <text transform="translate(402 416) rotate(40)">serve</text>
+          <text transform="translate(469 416) rotate(40)">baseline</text>
+          <text transform="translate(536 416) rotate(40)">prototype</text>
+          <text transform="translate(603 416) rotate(40)">verify-design</text>
+          <text transform="translate(670 416) rotate(40)">plan</text>
+          <text transform="translate(737 416) rotate(40)">plan-gate</text>
+          <text transform="translate(804 416) rotate(40)">implement</text>
+          <text transform="translate(871 416) rotate(40)">verify</text>
+          <text transform="translate(938 416) rotate(40)">lint</text>
+          <text transform="translate(1005 416) rotate(40)">publish-gate</text>
+          <text transform="translate(1072 416) rotate(40)">deliver</text>
+        </g>
+        <rect x="1110" y="376" width="74" height="24" fill="#55e8ff"/>
+        <text x="1147" y="393" fill="#071020" font-size="12" font-weight="800" text-anchor="middle">PR</text>
+
+        <!-- blocked read -->
+        <rect x="96" y="530" width="300" height="52" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/>
+        <text x="112" y="553" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13">.ai/run-context/</text>
+        <text x="112" y="571" fill="#9fb0cc" font-size="12.5">what each step read and wrote</text>
+        <path d="M430 556H520" stroke="#ff9a8f" stroke-width="1.6"/>
+        <g stroke="#ff9a8f" stroke-width="2"><line x1="466" y1="547" x2="484" y2="565"/><line x1="484" y1="547" x2="466" y2="565"/></g>
+        <text x="540" y="552" fill="#ff9a8f" font-size="14" font-weight="700">Read hook: blocked</text>
+        <text x="540" y="572" fill="#9ba7bd" font-size="13">the orchestrator never opens what a step wrote</text>
+      </svg>
+      </div>
+      <figcaption>Every step runs as its own isolated agent and writes its work to files. What goes up to the orchestrator is a five-line verdict. The files stay where they are.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section alt" id="problem">
+    <div class="section-head">
+      <p class="eyebrow">The problem</p>
+      <h2>One agent that carries <em>everything</em></h2>
+      <p>The easy design for a long delivery route is one agent that walks every step itself.</p>
+    </div>
+    <div class="compare">
+      <div class="bad">
+        <span class="tag">One agent carries it all</span>
+        <h3>Heavier every step</h3>
+        <ul>
+          <li>Every file it reads stays in its context.</li>
+          <li>Step fifteen pays for everything steps one to fourteen read.</li>
+          <li>It drifts into re-doing a step's work, because the material is right there.</li>
+          <li>When something breaks, nobody can say which step decided what.</li>
+        </ul>
+      </div>
+      <div class="good">
+        <span class="tag">The orchestrator knows almost nothing</span>
+        <h3>Same weight every step</h3>
+        <ul>
+          <li>Each step runs as its own isolated agent and dies.</li>
+          <li>The orchestrator's context grows by one verdict per step.</li>
+          <li>It cannot re-do a step's work. It never sees the work.</li>
+          <li>Every decision has an owner: the step that returned it.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="claim">If your pipeline produced a wrong PR today, could you name the step that caused it?</p>
+  </section>
+
+  <section class="section" id="envelope">
+    <div class="section-head">
+      <p class="eyebrow">Five lines</p>
+      <h2>The only thing that <em>crosses</em> back</h2>
+      <p>Every step, and every operation on a tool, ends with the same block. The orchestrator reads nothing else.</p>
+    </div>
+    <div class="envelope-grid">
+<pre class="envelope"><span class="k">## Result</span>
+<span class="k">verdict:</span> pass | warn | fail | question
+<span class="k">summary:</span> &lt;one sentence, 200 chars max&gt;
+<span class="k">artifacts:</span>
+  - &lt;relative path written or updated&gt;
+<span class="k">next_action:</span> &lt;short phrase, or "none"&gt;</pre>
+      <ul class="rows">
+        <li class="row key"><div><h3>pass and warn continue</h3><p>A warning is recorded and the run goes on. Warn is never terminal.</p></div></li>
+        <li class="row"><div><h3>fail ends the run</h3><p>The orchestrator prints the step and its summary. It never retries a step.</p></div></li>
+        <li class="row key"><div><h3>question stops for a human</h3><p>This is why the previous post's rule works. The orchestrator does not need to understand a problem to stop for it. It only needs to read one word.</p></div></li>
+      </ul>
+    </div>
+    <div class="prose" style="margin-top:2rem">
+      <p>The block is written by a script that refuses a field the verdict does not allow, and checked by another before the orchestrator branches on it. A run ends in exactly one of three states: <strong>delivered</strong>, <strong>blocked</strong> or <strong>failed</strong>.</p>
+    </div>
+  </section>
+
+  <section class="section alt" id="ticket">
+    <div class="section-head">
+      <p class="eyebrow">One ticket</p>
+      <h2>How the plugins <em>talk</em></h2>
+      <p>The plugins never call each other as programs. Everything goes through the Claude session, which invokes skills by name. Data moves through files and the closing block.</p>
+    </div>
+    <ol class="steps">
+      <li>You type <code>/agentic-core:run-route ABC-123</code>.</li>
+      <li>The core reads the project config. It names which plugin plays which role.</li>
+      <li>The core finds the platform plugin and reads its list of fifteen stages.</li>
+      <li>The core starts the first stage, <code>intake</code>, as an isolated agent.</li>
+      <li>That stage looks up which plugin is the tracker, and which skill fetches an item.</li>
+      <li>It calls the Jira plugin's <code>fetch-item</code> by name. One script talks to Jira and returns the item.</li>
+      <li>The stage writes the ticket to a file and ends with its own five lines.</li>
+      <li class="read">The core reads those five lines, and nothing else. Then the next stage.</li>
+    </ol>
+    <p class="claim">The less the orchestrator knows, the longer the route it can run.</p>
+  </section>
+
+  <section class="section" id="limits">
+    <div class="section-head">
+      <p class="eyebrow">What it doesn't solve</p>
+      <h2>A confident <em>pass</em> on the wrong thing</h2>
+      <p>An orchestrator that reads only verdicts trusts them. Isolation does not make a step right.</p>
+    </div>
+    <ul class="chapters">
+      <li class="chapter warn"><p class="chapter-marker">The gap</p><p>A step can return <code>pass</code> on work that answers the wrong question. The orchestrator will not notice, by design. That has to be caught somewhere else.</p></li>
+      <li class="chapter"><p class="chapter-marker">Where it gets caught</p><p>In checkpoints that run a script before any model, and in verification against the ticket and the design. Those are the next stretches of the run.</p></li>
+      <li class="chapter"><p class="chapter-marker">Next</p><p>What the first stage does with the ticket.</p></li>
+    </ul>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <span class="brand"><span class="brand-mark" aria-hidden="true"></span>Zoran Markovic · Delivery Factory</span>
+  <p>Companion to LinkedIn post 6</p>
+</footer>
+
+</body>
+</html>
