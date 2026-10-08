@@ -73,11 +73,23 @@ input.**
   stage; not an artifact any later stage reads, purely this skill's own scratch space for handing
   a captured envelope to `run-stage.sh`
 
-**Pack roots**, resolved from project config's `packs:` map: each pack's manifest is a sibling of
-this skill's own plugin root — `${CLAUDE_PLUGIN_ROOT}/../<pack name>/pack.yaml`, the "installed
-pack = sibling directory of the plugin root, loaded via `--plugin-dir`" convention every stage
-adapter's own pack resolution already uses (see, e.g., `eds-intake`'s "Resolve the tracker pack"
-and `eds-extract`'s "Resolve the design pack"). Nothing in this project writes a pack manifest to
+**Pack roots**, one per name in project config's `packs:` map; a pack's manifest is
+`<pack root>/pack.yaml`. A pack name is a plugin name, never a path, and an installed plugin lives
+in its own versioned directory, so a pack root is never derived from this skill's own location.
+The core contract's location rule says where a plugin is found:
+- **Core → pack and pack → pack:** the root registry, `.ai/run-context/plugin-roots/<name>`, which
+  each plugin's own `SessionStart` hook writes, read only through the core's
+  `resolve-plugin-root.sh <name>`. Its order: a registry entry naming a directory that exists; a
+  registry entry naming a missing directory is refused; with no entry, the sibling folder
+  `${CLAUDE_PLUGIN_ROOT}/../<name>`, which exists only when every plugin is loaded by path from one
+  source tree; otherwise a non-zero exit.
+- **Pack → core:** the `core` link inside the pack, `${CLAUDE_PLUGIN_ROOT}/core/…`.
+- **A pack that cannot be resolved is a contract violation** → `failed`. Never guess a path, never
+  fall back silently, never treat the pack as optional.
+
+**Until `resolve-plugin-root.sh` ships, every plugin is loaded by path,** so a pack root is that
+same sibling folder, `${CLAUDE_PLUGIN_ROOT}/../<pack name>`, and a missing `pack.yaml` there is the
+same contract violation. Nothing in this project writes a pack manifest to
 `.ai/packs/<pack name>/pack.yaml` — that path names no real convention.
 
 ## How a stage adapter is invoked
@@ -898,4 +910,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: fb6392a11419 -->
+<!-- instructions-stamp: 5aae1aad8bf4 -->
