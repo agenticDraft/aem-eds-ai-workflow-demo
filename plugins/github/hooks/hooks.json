@@ -1,0 +1,17 @@
+{
+  "description": "Records this plugin's root in the project's root registry at session start, so other plugins find it by name.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/register-plugin-root.sh"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

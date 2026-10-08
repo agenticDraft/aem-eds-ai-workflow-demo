@@ -103,6 +103,31 @@ else
   bad "distinct archive directories, each holding its own run" "$OUT1" "$OUT2"
 fi
 
+echo "[registry] the root registry stays where it is, everything else is archived"
+CTX4="$WORK/four/run-context"
+LOGS4="$WORK/four/logs"
+mkdir -p "$CTX4/plugin-roots"
+printf '/some/root\n' > "$CTX4/plugin-roots/example-pack"
+: > "$CTX4/envelope-intake.txt"
+OUT="$(bash "$ARCHIVER" "$CTX4" "$LOGS4" 2>&1)"; ST=$?
+T4="${OUT##*-> }"
+if [[ "$ST" == 0 && "$OUT" == "archived: 1 entries -> $T4" && -f "$T4/envelope-intake.txt" ]]; then
+  ok "the other entry is archived and counted alone"
+else
+  bad "the other entry is archived and counted alone" "exit $ST" "output: $OUT"
+fi
+if [[ "$(cat "$CTX4/plugin-roots/example-pack" 2>&1)" == "/some/root" && ! -e "$T4/plugin-roots" ]]; then
+  ok "plugin-roots/ and its entry are left in the run-context directory"
+else
+  bad "plugin-roots/ and its entry are left in the run-context directory" "$(find "$CTX4" "$T4" 2>&1)"
+fi
+OUT="$(bash "$ARCHIVER" "$CTX4" "$LOGS4" 2>&1)"; ST=$?
+if [[ "$ST" == 0 && "$OUT" == "archived: nothing to move" ]]; then
+  ok "only the registry left -> nothing to move"
+else
+  bad "only the registry left -> nothing to move" "exit $ST" "output: $OUT"
+fi
+
 echo "[usage] errors"
 OUT="$(bash "$ARCHIVER" 2>&1)"; ST=$?
 [[ "$ST" == 2 ]] && ok "no arguments -> exit 2" || bad "no arguments -> exit 2" "exit $ST"

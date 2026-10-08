@@ -77,9 +77,12 @@ the core can be pointed at.
    - **An unresolved plugin is an error.** The caller stops; it never guesses a path and never
      treats the plugin as optional.
 
-   **Status: specified, not shipped.** The resolver, the registry hooks and the `core` links are not
-   in this plugin yet. Today every plugin is loaded by path side by side, and the references still go
-   through `..`. What was measured, with throwaway plugins, before this rule was adopted:
+   **Status: partly shipped.** Shipped: `register-plugin-root.sh`, `resolve-plugin-root.sh`, and a
+   `SessionStart` entry with no `async` in this plugin's `hooks/hooks.json`; the run-context archive
+   leaves `plugin-roots/` in place. Not shipped: no stage or script calls the resolver yet, no pack
+   carries the `core` link, and a pack's own hook still reaches the writer through `..`. Today every
+   plugin is loaded by path side by side, and the references still go through `..`. What was
+   measured, with throwaway plugins, before this rule was adopted:
    - a link inside a plugin to another plugin's directory arrived as regular files, executable bit
      kept, in the copy installed from a git-hosted marketplace; a directory marketplace loads in
      place, where the link resolves;

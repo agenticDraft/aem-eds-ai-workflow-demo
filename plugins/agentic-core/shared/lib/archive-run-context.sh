@@ -6,7 +6,9 @@
 # Moves everything a previous run left in the run-context directory — every
 # entry, hidden ones included, plus each listed extra file that exists — into
 # one new directory under the archive root, and leaves the run-context
-# directory present and empty. A fresh run then reads nothing an earlier run
+# directory present and empty except for plugin-roots/, the root registry,
+# which this session's SessionStart hooks wrote and resolve-plugin-root.sh
+# reads for the rest of the run. A fresh run then reads nothing an earlier run
 # wrote: a marker, a report or a merged manifest from last time cannot be
 # taken for this run's own. The record is kept, not deleted, so a stopped
 # run can still be read afterwards.
@@ -42,6 +44,7 @@ mkdir -p "$CONTEXT_DIR" || usage "could not create '$CONTEXT_DIR'"
 ENTRIES=()
 for entry in "$CONTEXT_DIR"/* "$CONTEXT_DIR"/.[!.]* "$CONTEXT_DIR"/..?*; do
   [ -e "$entry" ] || [ -L "$entry" ] || continue
+  [ "$entry" = "$CONTEXT_DIR/plugin-roots" ] && continue
   ENTRIES+=("$entry")
 done
 for extra in "$@"; do
