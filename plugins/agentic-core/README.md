@@ -81,9 +81,14 @@ the core can be pointed at.
    `SessionStart` entry with no `async` in this plugin's `hooks/hooks.json`; the run-context archive
    leaves `plugin-roots/` in place; each pack's `core` link, through which every pack → core
    reference, a pack's own hook included, now goes; `shared/lib/rewrite-core-refs.sh`, which moves a
-   pack's references onto its link. Not shipped: no stage or script calls the resolver yet, and the
-   core → pack and pack → pack references still go through `..`. Today every plugin is loaded by
-   path side by side. What was
+   pack's references onto its link. Every core → pack and pack → pack lookup now asks the resolver:
+   the driver's pre-flight, `setup`'s pack scan (`resolve-plugin-root.sh --list`, every registered
+   plugin), `health`, each stage that reaches a role's pack, and the branch-name check, which fails
+   (exit 4) rather than allowing every name when the platform pack is not resolved; its hook reads
+   the main checkout's registry, so a command in a linked worktree is judged by the same rule.
+   `shared/lib/check-own-root-refs.sh <plugin root>…` reports a plugin that reaches its own files
+   through `..` and its own name. Not shipped: a run from installed copies has not been made; every
+   plugin is still loaded by path side by side. What was
    measured, with throwaway plugins, before this rule was adopted:
    - a link inside a plugin to another plugin's directory arrived as regular files, executable bit
      kept, in the copy installed from a git-hosted marketplace; a directory marketplace loads in
@@ -224,8 +229,9 @@ valid: no narrative (477 files scanned)
           --plugin-dir ./plugins/<browser pack>
    ```
 
-   Loaded this way, every plugin sits beside the others, which is the only layout the shipped code
-   handles today (see "Plugins find each other by name" above).
+   Loaded this way, every plugin sits beside the others. Plugins find each other through the
+   resolver, but no run from installed copies has been made yet (see "Plugins find each other by
+   name" above).
    Installed from a marketplace, use `claude plugin install agentic-core@<marketplace>`; a pack
    that declares `"dependencies": ["agentic-core"]` enables the core with it.
 2. Configure the project once: `/agentic-core:setup`. It confirms every value before writing
@@ -298,13 +304,15 @@ stages ran before it.
 
 How a pack reaches anything outside itself:
 
-- **The core, through `${CLAUDE_PLUGIN_ROOT}/core/…`** — never `${CLAUDE_PLUGIN_ROOT}/../<core>/…`.
+- **The core, through `${CLAUDE_PLUGIN_ROOT}/core/…`** — never through `..` and the core's folder
+  name.
 - **Another plugin, through its role.** A stage calls another pack only through that role's
   operation skill (`shared/role-operations.md`). When it needs that pack's root, it asks
   `resolve-plugin-root.sh <name>` with the name project config gives the role; it never builds
   `../<pack>/` itself and never hard-codes a pack name.
-- **Its own files, through `${CLAUDE_PLUGIN_ROOT}/…`** — never through `../<own name>/`, which
-  breaks the moment the plugin is installed or renamed.
+- **Its own files, through `${CLAUDE_PLUGIN_ROOT}/…`** — never through `..` and its own name,
+  which breaks the moment the plugin is installed or renamed. `shared/lib/check-own-root-refs.sh`
+  reports every such reference, reading each plugin's name from its own manifest.
 - **A registry writer of its own.** Each pack's `SessionStart` hook writes its root to the registry
   and declares no `async`, so the entry exists before the session's first tool call.
 

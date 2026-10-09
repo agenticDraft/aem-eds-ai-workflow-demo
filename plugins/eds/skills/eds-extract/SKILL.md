@@ -128,10 +128,12 @@ Read the script's `decision=` line from stdout.
 1. Read `.ai/project-config.yaml`'s `packs.design` value.
 2. Absent or the literal `none` — this URL cannot be resolved without a design pack; continue to
    **Design pack configured?** with a "no" outcome.
-3. Otherwise, that pack's manifest is a sibling of this skill's own plugin root:
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.design>/pack.yaml` (the same "installed pack = sibling
-   directory of the plugin root" convention `eds-intake`'s own tracker resolution uses). Read that
-   manifest's `operations.fetch_reference` value — the skill name implementing this role's
+3. Otherwise, resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.design>`. Exit `0` — the one line
+   it prints is `<design root>`, and the manifest is `<design root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
+   Read that manifest's `operations.fetch_reference` value — the skill name implementing this role's
    operation. Absent, or listed under `unsupported` — continue to **Design pack configured?** with
    a "no" outcome; this is a configuration error pre-flight should have already caught, but extract
    has no fetch to attempt without it.

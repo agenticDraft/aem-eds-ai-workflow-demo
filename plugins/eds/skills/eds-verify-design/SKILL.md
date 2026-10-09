@@ -165,8 +165,11 @@ stage can produce on its own.
 Same resolution `eds-verify` performs for itself:
 
 1. Read `.ai/project-config.yaml`'s `packs.browser` value.
-2. That pack's manifest is a sibling of this skill's own plugin root:
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.browser>/pack.yaml`.
+2. Resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.browser>`. Exit `0` — the one line
+   it prints is `<browser root>`, and the manifest is `<browser root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
 3. Read that manifest's `operations.render`, `operations.capture` and `operations.measure` values.
    Any of the three absent or listed under `unsupported` — go straight to **Report fail** naming the
    missing operation(s); this is a configuration error pre-flight should have already caught.

@@ -34,12 +34,14 @@ Read `.ai/project-config.yaml` at the project root for its `packs:` block.
 - **No config, or no `packs:` block:** say so plainly and stop after step 1. A project that has not
   been set up has nothing to diagnose, and `setup` is what creates it — naming that is more useful
   than a list of absences.
-- **For each role named there,** resolve the pack the same way everything else does: a `pack.yaml`
-  at the root of a directory installed alongside this core (a sibling of `${CLAUDE_PLUGIN_ROOT}`),
-  declaring that `role`. Report, per role, the pack's name and whether it resolved.
+- **For each role named there,** resolve the pack the same way everything else does:
+  `bash ${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-plugin-root.sh <pack name>`. Exit `0` prints its root; the pack
+  resolved when `<root>/pack.yaml` exists and declares that `role`. Report, per role, the pack's
+  name and whether it resolved.
 - **A named pack that does not resolve** is the single most useful thing you can find here. Report
-  it as configured-but-absent, naming the value in config, and keep going through the other roles —
-  one unresolved role is not a reason to stop reporting the rest.
+  it as configured-but-not-resolved, naming the value in config and the line the resolver printed,
+  and keep going through the other roles — one unresolved role is not a reason to stop reporting
+  the rest. Never call it absent or not installed: the resolver cannot tell those apart.
 
 ## 3. What each pack still needs
 

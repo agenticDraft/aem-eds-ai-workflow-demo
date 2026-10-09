@@ -97,9 +97,11 @@ digraph eds_deliver {
 ### Resolve the scm pack
 
 1. Read `.ai/project-config.yaml`'s `packs.scm` value — the configured scm pack's name.
-2. That pack's manifest is a sibling of this skill's own plugin root:
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.scm>/pack.yaml` — the same "installed pack = sibling directory
-   of the plugin root" convention `eds-intake` and `eds-verify` use for their own role's pack.
+2. Resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.scm>`. Exit `0` — the one line
+   it prints is `<scm root>`, and the manifest is `<scm root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
 3. Read that manifest's `operations.publish_change` and `operations.check_status` values — the
    skill names implementing these two operations. Either absent or listed under `unsupported` — go
    straight to **Report fail** naming the missing operation(s); this is a configuration error
@@ -111,8 +113,11 @@ digraph eds_deliver {
 ### Resolve the tracker pack
 
 1. Read `.ai/project-config.yaml`'s `packs.tracker` value.
-2. That pack's manifest is a sibling of this skill's own plugin root:
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.tracker>/pack.yaml`.
+2. Resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.tracker>`. Exit `0` — the one line
+   it prints is `<tracker root>`, and the manifest is `<tracker root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
 3. Read that manifest's `operations.post_note` and `operations.attach_file` values. Either absent
    or listed under `unsupported` — go straight to **Report fail** naming the missing operation(s).
 

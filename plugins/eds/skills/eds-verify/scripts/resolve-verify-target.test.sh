@@ -8,7 +8,17 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="$SCRIPT_DIR/resolve-verify-target.py"
-PACK_YAML="$SCRIPT_DIR/../../../../jira/pack.yaml"
+# The tracker pack's manifest, resolved by name through the core's resolver
+# after registering this source tree's plugins into a temp project.
+CORE_LIB="$SCRIPT_DIR/../../../core/lib"
+. "$CORE_LIB/register-source-tree.sh"
+PLUGINS_PROJECT="$(mktemp -d "${TMPDIR:-/tmp}/eds-pack-roots.XXXXXX")" || { echo "cannot create a temp dir" >&2; exit 2; }
+[ -n "$PLUGINS_PROJECT" ] && [ -d "$PLUGINS_PROJECT" ] || { echo "cannot create a temp dir" >&2; exit 2; }
+register_source_tree "$PLUGINS_PROJECT" || { echo "  FAIL: the source tree's plugins could not be registered" >&2; exit 1; }
+TRACKER_ROOT=$(bash "$CORE_LIB/resolve-plugin-root.sh" jira --project-dir "$PLUGINS_PROJECT") \
+  || { echo "  FAIL: the tracker pack was not resolved" >&2; rm -rf "$PLUGINS_PROJECT"; exit 1; }
+rm -rf "$PLUGINS_PROJECT"
+PACK_YAML="$TRACKER_ROOT/pack.yaml"
 PREVIEW="http://localhost:3000/preview"
 
 PASS=0

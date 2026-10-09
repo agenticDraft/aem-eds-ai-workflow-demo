@@ -104,9 +104,11 @@ as the reference.
 2. If it is the literal `none`, or the key is absent, this project has no design provider
    configured — go straight to **Report fail** naming that `packs.design` must name a provider
    before this skill can run.
-3. Otherwise that pack's manifest is a sibling of this skill's own plugin root:
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.design>/pack.yaml` — the same "installed pack = sibling
-   directory of the plugin root" convention every other stage in this pack uses.
+3. Otherwise resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.design>`. Exit `0` — the one line
+   it prints is `<design root>`, and the manifest is `<design root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
 4. Read that manifest's `operations.fetch_reference` value — the skill name implementing it. If it
    is absent or listed under `unsupported`, go straight to **Report fail** naming the missing
    operation; this is a configuration error pre-flight should have already caught for a route

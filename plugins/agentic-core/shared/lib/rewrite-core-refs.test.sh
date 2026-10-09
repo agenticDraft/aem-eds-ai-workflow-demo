@@ -48,7 +48,7 @@ ln -s ../the-core/shared "$PACK/core"
 
 cat > "$PACK/skills/s1/SKILL.md" <<'EOF'
 Read `../../../the-core/shared/result-envelope.md` and `../../../the-core/shared/audit-taxonomy.md`.
-Run `${CLAUDE_PLUGIN_ROOT}/../the-core/shared/lib/emit-envelope.sh`.
+Run `${CLAUDE_PLUGIN_ROOT}/@UP@/the-core/shared/lib/emit-envelope.sh`.
 A wrapped one (`../../../the-core/shared/audit-
    taxonomy.md`'s example).
 Then run `../../../the-core/shared/
@@ -64,11 +64,16 @@ cat > "$PACK/shared/scripts/y.sh" <<'EOF'
 CORE_LIB="$SCRIPT_DIR/../../../the-core/shared/lib"
 EOF
 cat > "$PACK/hooks/hooks.json" <<'EOF'
-{"args": ["${CLAUDE_PLUGIN_ROOT}/../the-core/shared/lib/emit-envelope.sh"]}
+{"args": ["${CLAUDE_PLUGIN_ROOT}/@UP@/the-core/shared/lib/emit-envelope.sh"]}
 EOF
 cat > "$PACK/README.md" <<'EOF'
 $ bash plugins/the-core/shared/lib/emit-envelope.sh x
 EOF
+# The parent segment after the plugin-root variable is filled in here, so this
+# file holds no reference of that form itself.
+for f in "$PACK/skills/s1/SKILL.md" "$PACK/hooks/hooks.json"; do
+  sed 's#@UP@#..#g' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+done
 cat > "$PACK/notes.txt" <<'EOF'
 # (see ../the-core/shared/audit-taxonomy.md)
 EOF

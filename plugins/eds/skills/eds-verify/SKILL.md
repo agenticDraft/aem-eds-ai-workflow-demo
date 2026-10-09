@@ -116,9 +116,11 @@ answers when a reviewer opens it; only `eds-serve`'s cleanup stops it
 ### Resolve the browser pack
 
 1. Read `.ai/project-config.yaml`'s `packs.browser` value — the configured browser pack's name.
-2. That pack's manifest is a sibling of this skill's own plugin root:
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.browser>/pack.yaml` — the same "installed pack = sibling
-   directory of the plugin root" convention `eds-intake` uses for `packs.tracker`.
+2. Resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.browser>`. Exit `0` — the one line
+   it prints is `<browser root>`, and the manifest is `<browser root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
 3. Read that manifest's `operations.render`, `operations.capture` and `operations.measure` values
    — the skill names implementing these three operations. If any of the three is absent or listed
    under `unsupported`, go straight to **Report fail** naming the missing operation(s); this is a
@@ -133,7 +135,7 @@ answers when a reviewer opens it; only `eds-serve`'s cleanup stops it
    (`${CLAUDE_PLUGIN_ROOT}/core/pack-manifest.md`, D95) — the path, relative to the pack root, of
    `render`'s own directly-executable script form, for a caller (this stage's reachability check,
    below) that must run it as a subprocess rather than through `Skill()`. Present — resolve it to
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.browser>/<scripts.render value>` and carry it forward as
+   `<browser root>/<scripts.render value>` and carry it forward as
    `render_script`. Absent — carry forward `render_script: none` and continue either way; this is
    never a reason to fail this stage, only a reason **Report warn**'s reachability check below falls
    back to a weaker one.
@@ -174,7 +176,7 @@ Run:
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-verify/scripts/resolve-verify-target.py \
   .ai/run-context/fact-record.yaml \
   .ai/run-context/sanitized-spec.md \
-  ${CLAUDE_PLUGIN_ROOT}/../<packs.tracker>/pack.yaml \
+  <tracker root>/pack.yaml \
   <paths.preview value>
 ```
 

@@ -2,6 +2,7 @@
 # Run: bash plugins/agentic-core/shared/lib/resolve-plugin-root.sh <name>
 #
 # resolve-plugin-root.sh <name> [--project-dir <dir>]
+# resolve-plugin-root.sh --list [--siblings] [--project-dir <dir>]
 #
 # Prints the root directory of the plugin called <name>. The only reader of
 # the root registry, <project dir>/.ai/run-context/plugin-roots/<name>, which
@@ -23,10 +24,17 @@
 # Every path is compared and printed in canonical form, so one directory
 # spelled two ways gives one answer.
 #
+# --list prints every registry entry as '<name><TAB><root>', sorted by name,
+# each entry checked as in steps 1 and 2; one refused entry refuses the whole
+# list. --siblings adds step 3 for listing: every folder beside this plugin's
+# own root that holds .claude-plugin/plugin.json, named by its folder, unless a
+# registry entry already names it. Nothing to list → not resolved.
+#
 # Output: on success, one line on stdout, the absolute root. On failure,
 # nothing on stdout and one line on stderr:
 #   refused: <name> — registry entry <file> names <path>, not a directory  (exit 3)
 #   not resolved: <name> — no registry entry at <file>, no folder at <path> (exit 1)
+#   not resolved: no plugin registered at <dir>                            (exit 1)
 # A caller that gets a non-zero exit stops; it never guesses a path.
 #
 # Exit codes: 0 — resolved; 1 — not resolved; 2 — usage error; 3 — refused.
@@ -35,6 +43,7 @@ set -uo pipefail
 
 usage() {
   echo "usage: resolve-plugin-root.sh <name> [--project-dir <dir>]" >&2
+  echo "       resolve-plugin-root.sh --list [--siblings] [--project-dir <dir>]" >&2
   [ "$#" -gt 0 ] && echo "$1" >&2
   exit 2
 }
@@ -42,15 +51,24 @@ usage() {
 # canonical <dir> — the directory's physical path, or nothing if it is not one
 canonical() { [ -d "$1" ] && (cd "$1" 2>/dev/null && pwd -P); }
 
-NAME="${1:-}"
+NAME_RE='^[a-z0-9][a-z0-9._-]*$'
 [ "$#" -ge 1 ] || usage
+LIST=0
+SIBLINGS=0
+NAME=""
+if [ "$1" = "--list" ]; then
+  LIST=1
+else
+  NAME="$1"
+  [[ "$NAME" =~ $NAME_RE ]] || usage "not a plugin name: '$NAME'"
+fi
 shift
-[[ "$NAME" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || usage "not a plugin name: '$NAME'"
 
 PROJECT_DIR=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --project-dir) [ "$#" -ge 2 ] || usage "--project-dir needs a value"; PROJECT_DIR="$2"; shift 2 ;;
+    --siblings) [ "$LIST" -eq 1 ] || usage "--siblings needs --list"; SIBLINGS=1; shift ;;
     *) usage "unknown argument: '$1'" ;;
   esac
 done
@@ -61,12 +79,56 @@ if [ -z "$PROJECT_DIR" ]; then
 fi
 PROJECT=$(canonical "$PROJECT_DIR") || usage "project dir is not a directory: '$PROJECT_DIR'"
 
-ENTRY="$PROJECT/.ai/run-context/plugin-roots/$NAME"
+REGISTRY="$PROJECT/.ai/run-context/plugin-roots"
+OWN_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd "$(pwd -P)/../.." && pwd -P)
+
+# registered <file> — the canonical root an entry names, or nothing
+registered() {
+  local value=""
+  [ -f "$1" ] && IFS= read -r value < "$1"
+  [[ "$value" == /* ]] && canonical "$value"
+}
+
+if [ "$LIST" -eq 1 ]; then
+  LINES=""
+  NAMES=" "
+  if [ -d "$REGISTRY" ]; then
+    for entry in "$REGISTRY"/*; do
+      [ -e "$entry" ] || [ -L "$entry" ] || continue
+      name=$(basename "$entry")
+      [[ "$name" =~ $NAME_RE ]] || continue
+      root=$(registered "$entry")
+      if [ -z "$root" ]; then
+        value=""; [ -f "$entry" ] && IFS= read -r value < "$entry"
+        echo "refused: $name — registry entry $entry names '$value', not a directory" >&2
+        exit 3
+      fi
+      LINES+="$name"$'\t'"$root"$'\n'
+      NAMES+="$name "
+    done
+  fi
+  if [ "$SIBLINGS" -eq 1 ]; then
+    for dir in "$(dirname "$OWN_ROOT")"/*/; do
+      [ -f "$dir.claude-plugin/plugin.json" ] || continue
+      name=$(basename "$dir")
+      [[ "$name" =~ $NAME_RE ]] || continue
+      case "$NAMES" in *" $name "*) continue ;; esac
+      LINES+="$name"$'\t'"$(canonical "$dir")"$'\n'
+    done
+  fi
+  if [ -z "$LINES" ]; then
+    echo "not resolved: no plugin registered at $REGISTRY" >&2
+    exit 1
+  fi
+  printf '%s' "$LINES" | LC_ALL=C sort
+  exit 0
+fi
+
+ENTRY="$REGISTRY/$NAME"
 if [ -e "$ENTRY" ] || [ -L "$ENTRY" ]; then
   REGISTERED=""
   [ -f "$ENTRY" ] && IFS= read -r REGISTERED < "$ENTRY"
-  ROOT=""
-  [[ "$REGISTERED" == /* ]] && ROOT=$(canonical "$REGISTERED")
+  ROOT=$(registered "$ENTRY")
   if [ -z "$ROOT" ]; then
     echo "refused: $NAME — registry entry $ENTRY names '$REGISTERED', not a directory" >&2
     exit 3
@@ -75,7 +137,6 @@ if [ -e "$ENTRY" ] || [ -L "$ENTRY" ]; then
   exit 0
 fi
 
-OWN_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd "$(pwd -P)/../.." && pwd -P)
 SIBLING="$(dirname "$OWN_ROOT")/$NAME"
 ROOT=$(canonical "$SIBLING")
 if [ -n "$ROOT" ]; then

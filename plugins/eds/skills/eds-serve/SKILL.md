@@ -104,9 +104,11 @@ digraph eds_serve {
 
 ### Clean up earlier runs' drafts
 
-1. Read `.ai/project-config.yaml`'s `packs.scm` value. Non-empty — the scm pack root is
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.scm>`, the same "installed pack = sibling directory of the
-   plugin root" convention every stage uses. Empty or absent — the root is the literal `none`.
+1. Read `.ai/project-config.yaml`'s `packs.scm` value. Empty or absent — the root is the literal
+   `none`. Non-empty — resolve it by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.scm>`. Exit `0` — the one line it
+   prints is the scm pack root. Any other exit — go straight to **Report fail** with the line it
+   printed; never guess a path and never fall back to `none`.
 2. Run, from the project root, with `dangerouslyDisableSandbox: true` on this call:
 
    ```

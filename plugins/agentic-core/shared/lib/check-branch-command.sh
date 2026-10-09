@@ -16,10 +16,10 @@
 # and appended to .ai/logs/branch-name-hook.log under the project root.
 #
 # A project without .ai/project-config.yaml, or input that is not a Bash call,
-# passes silently.
+# passes silently. A configured platform pack that cannot be resolved blocks.
 #
-# CHECK_BRANCH_PLUGINS_ROOT, when set, is passed to check-branch-name.sh as
-# --plugins-root.
+# The platform pack is resolved against the main checkout's registry, so a
+# command run in a linked worktree is judged by the same rule.
 
 set -uo pipefail
 
@@ -36,8 +36,9 @@ ROOT=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null) || exit 0
 CONFIG="$ROOT/.ai/project-config.yaml"
 [[ -f "$CONFIG" ]] || exit 0
 
-CHECK_ARGS=(--config "$CONFIG")
-[[ -n "${CHECK_BRANCH_PLUGINS_ROOT:-}" ]] && CHECK_ARGS+=(--plugins-root "$CHECK_BRANCH_PLUGINS_ROOT")
+COMMON=$(git -C "$CWD" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || COMMON=""
+MAIN=$(dirname "${COMMON:-$ROOT/.git}")
+CHECK_ARGS=(--config "$CONFIG" --project-dir "$MAIN")
 
 log() {
   mkdir -p "$ROOT/.ai/logs" 2>/dev/null || return 0
@@ -57,6 +58,10 @@ judge() {
   out=$(bash "$CHECK" "$name" "${CHECK_ARGS[@]}" 2>/dev/null); code=$?
   if [[ "$code" -eq 1 || "$code" -eq 3 ]]; then
     echo "$out — rename the branch; check a name first with check-branch-name.sh <name>" >&2
+    exit 2
+  fi
+  if [[ "$code" -eq 4 ]]; then
+    echo "$out — the branch rule cannot be read; resolve the platform pack first" >&2
     exit 2
   fi
 }

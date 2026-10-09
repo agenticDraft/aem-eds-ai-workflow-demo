@@ -81,8 +81,11 @@ digraph eds_baseline {
 ### Resolve the browser pack
 
 1. Read `.ai/project-config.yaml`'s `packs.browser` value — the configured browser pack's name.
-2. That pack's manifest is a sibling of this skill's own plugin root:
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.browser>/pack.yaml`.
+2. Resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.browser>`. Exit `0` — the one line
+   it prints is `<browser root>`, and the manifest is `<browser root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
 3. Read that manifest's `operations.render`, `operations.capture` and `operations.measure` values
    — the skill names implementing these three operations. If any of the three is absent or listed
    under `unsupported`, go straight to **Report fail** naming the missing operation(s); this stage

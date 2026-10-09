@@ -151,6 +151,76 @@ assert_eq "--project-dir without a value → exit 2" "2" "$CODE"
 OUT=$(bash "$RESOLVER" example-pack --project-dir "$WORK/no-such-project" 2>&1); CODE=$?
 assert_eq "project dir that does not exist → exit 2" "2" "$CODE"
 
+echo "[9] --list: every registry entry, one '<name><TAB><root>' line each, sorted"
+LP="$WORK/list-plugins"
+mkdir -p "$LP/core-l/shared/lib" "$LP/core-l/.claude-plugin"
+echo '{"name":"core-l"}' > "$LP/core-l/.claude-plugin/plugin.json"
+cp "$SOURCE" "$LP/core-l/shared/lib/resolve-plugin-root.sh"
+LR="$LP/core-l/shared/lib/resolve-plugin-root.sh"
+LPROJ="$WORK/list-project"
+LREG="$LPROJ/.ai/run-context/plugin-roots"
+mkdir -p "$LREG" "$WORK/far/zeta" "$WORK/far/alpha"
+printf '%s\n' "$WORK/far/zeta" > "$LREG/zeta"
+printf '%s\n' "$WORK/far/alpha" > "$LREG/alpha"
+printf '%s\n' "$WORK/far/half" > "$LREG/.alpha.Ab12Cd"
+TAB=$(printf '\t')
+OUT=$(bash "$LR" --list --project-dir "$LPROJ" 2>"$WORK/err"); CODE=$?; ERR=$(cat "$WORK/err")
+assert_eq "exit 0" "0" "$CODE"
+assert_eq "both entries, sorted by name" "alpha${TAB}$WORK/far/alpha
+zeta${TAB}$WORK/far/zeta" "$OUT"
+assert_eq "nothing on stderr" "" "$ERR"
+echo "    (the writer's in-flight temp file '.alpha.*' is not an entry)"
+
+echo "[9b] --list with one stale entry is refused whole: nothing on stdout"
+printf '%s\n' "$WORK/far/gone" > "$LREG/stale"
+OUT=$(bash "$LR" --list --project-dir "$LPROJ" 2>"$WORK/err"); CODE=$?; ERR=$(cat "$WORK/err")
+assert_eq "exit 3" "3" "$CODE"
+assert_eq "nothing on stdout" "" "$OUT"
+assert_has "says refused" "refused" "$ERR"
+assert_has "names the stale entry" "stale" "$ERR"
+rm -f "$LREG/stale"
+
+echo "[9c] --list with no registry → not resolved, the siblings are not listed"
+mkdir -p "$LP/side-pack/.claude-plugin"
+echo '{"name":"side-pack"}' > "$LP/side-pack/.claude-plugin/plugin.json"
+EMPTY="$WORK/empty-project"
+mkdir -p "$EMPTY"
+OUT=$(bash "$LR" --list --project-dir "$EMPTY" 2>"$WORK/err"); CODE=$?; ERR=$(cat "$WORK/err")
+assert_eq "exit 1" "1" "$CODE"
+assert_eq "nothing on stdout" "" "$OUT"
+assert_has "says not resolved" "not resolved" "$ERR"
+assert_lacks "never says absent" "absent" "$ERR"
+mkdir -p "$EMPTY/.ai/run-context/plugin-roots"
+OUT=$(bash "$LR" --list --project-dir "$EMPTY" 2>&1); CODE=$?
+assert_eq "an empty registry directory → exit 1 too" "1" "$CODE"
+
+echo "[9d] --list --siblings adds the plugins beside the core's real root"
+mkdir -p "$LP/no-manifest"
+OUT=$(bash "$LR" --list --siblings --project-dir "$EMPTY" 2>"$WORK/err"); CODE=$?; ERR=$(cat "$WORK/err")
+assert_eq "exit 0" "0" "$CODE"
+assert_eq "every sibling holding a plugin manifest, the core included" "core-l${TAB}$LP/core-l
+side-pack${TAB}$LP/side-pack" "$OUT"
+echo "    (a folder with no .claude-plugin/plugin.json is not a plugin)"
+mkdir -p "$LP/linker/.claude-plugin"
+echo '{"name":"linker"}' > "$LP/linker/.claude-plugin/plugin.json"
+ln -s ../core-l/shared "$LP/linker/core"
+OUT=$(bash "$LP/linker/core/lib/resolve-plugin-root.sh" --list --siblings --project-dir "$EMPTY" 2>&1); CODE=$?
+assert_has "called through a core link, still the core's siblings" "linker${TAB}$LP/linker" "$OUT"
+rm -rf "$LP/linker"
+
+echo "[9e] --list --siblings: a registry entry wins over a sibling of the same name"
+printf '%s\n' "$WORK/far/alpha" > "$EMPTY/.ai/run-context/plugin-roots/side-pack"
+OUT=$(bash "$LR" --list --siblings --project-dir "$EMPTY" 2>&1); CODE=$?
+assert_eq "exit 0" "0" "$CODE"
+assert_eq "the registered root, listed once" "core-l${TAB}$LP/core-l
+side-pack${TAB}$WORK/far/alpha" "$OUT"
+
+echo "[9f] --list usage errors"
+OUT=$(bash "$LR" --siblings --project-dir "$EMPTY" 2>&1); CODE=$?
+assert_eq "--siblings without --list → exit 2" "2" "$CODE"
+OUT=$(bash "$LR" --list alpha --project-dir "$LPROJ" 2>&1); CODE=$?
+assert_eq "--list with a name → exit 2" "2" "$CODE"
+
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="
 exit $(( FAIL > 0 ? 1 : 0 ))

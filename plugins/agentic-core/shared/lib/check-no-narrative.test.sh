@@ -112,11 +112,22 @@ assert_exit "a fixture URL is not flagged" 0 $? "$OUT"
 # --- the real tree ----------------------------------------------------------
 # The point of the check is the shipped packs, so it runs against them here.
 # If this ever fails, the finding is real and belongs in the pack, not here.
-echo "[accept] every shipped pack in this repository"
-for pack in agentic-core eds; do
-  OUT="$(bash "$CHECK" "$SCRIPT_DIR/../../../$pack" 2>&1)"; ST=$?
-  assert_exit "plugins/$pack is clean (exit 0)" 0 $ST "$OUT"
-done
+echo "[accept] every shipped plugin in this source tree, registered in a temp project"
+. "$SCRIPT_DIR/register-source-tree.sh"
+REAL_PROJECT="$(mktemp -d "${TMPDIR:-/tmp}/no-narrative-real.XXXXXX")" || { echo "cannot create a temp dir" >&2; exit 2; }
+[[ -n "$REAL_PROJECT" && -d "$REAL_PROJECT" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
+register_source_tree "$REAL_PROJECT"
+assert_exit "the source tree's plugins are registered" 0 $? ""
+SEEN=0
+while IFS=$'\t' read -r name root; do
+  [[ -n "$root" ]] || continue
+  SEEN=$((SEEN + 1))
+  OUT="$(bash "$CHECK" "$root" 2>&1)"; ST=$?
+  assert_exit "$name is clean (exit 0)" 0 $ST "$OUT"
+done < <(bash "$SCRIPT_DIR/resolve-plugin-root.sh" --list --project-dir "$REAL_PROJECT")
+[[ "$SEEN" -gt 1 ]]
+assert_exit "more than one plugin checked ($SEEN)" 0 $? ""
+rm -rf "$REAL_PROJECT"
 
 if [[ "$FAIL" -eq 0 ]]; then
   echo "=== $PASS passed, 0 failed ==="

@@ -8,6 +8,6 @@ context: fork
 Fixture stub. Asks the budget before each edit:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-fix-budget.sh \
+   bash ${CLAUDE_PLUGIN_ROOT}/core/lib/check-fix-budget.sh \
      ${CLAUDE_PLUGIN_ROOT}/pack.yaml .ai/project-config.yaml lint <edits-made>
    ```

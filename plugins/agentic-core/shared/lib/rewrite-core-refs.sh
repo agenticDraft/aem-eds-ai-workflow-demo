@@ -4,9 +4,10 @@
 # Moves a pack's references to the core onto the pack's own `core` link, the
 # link to the core's shared folder every pack carries at its root. The core's
 # folder name and the link's target are read from that link, never assumed.
-# Rewritten forms, where <core>/<shared> is the link's target:
+# Rewritten forms, where <core>/<shared> is the link's target and <root> is
+# the plugin-root variable, ${CLAUDE_PLUGIN_ROOT}:
 #
-#   ${CLAUDE_PLUGIN_ROOT}/../<core>/<shared>  → ${CLAUDE_PLUGIN_ROOT}/core
+#   <root>/../<core>/<shared>                 → <root>/core
 #   $SCRIPT_DIR/<n × ../><core>/<shared>      → $SCRIPT_DIR/<n-1 × ../>core
 #   <n × ../><core>/<shared>  (relative to the file's own folder)
 #                                             → ${CLAUDE_PLUGIN_ROOT}/core

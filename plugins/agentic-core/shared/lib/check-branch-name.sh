@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Run: bash plugins/agentic-core/shared/lib/check-branch-name.sh <branch>
 #
-# check-branch-name.sh <branch> [--config <path>] [--plugins-root <dir>]
+# check-branch-name.sh <branch> [--config <path>] [--project-dir <dir>]
 #
 # Checks a branch name against the rule the configured platform pack declares
 # under `branch_name:` in its manifest (see shared/pack-manifest.md). Names no
 # platform and no limit: the pack owns both. Deterministic, no model involved.
 #
-#   --config        the project config (default .ai/project-config.yaml)
-#   --plugins-root  where installed packs live (default: the directory that
-#                   holds this plugin, so a pack is a sibling of the core)
+#   --config       the project config (default .ai/project-config.yaml)
+#   --project-dir  passed to resolve-plugin-root.sh, which finds the platform
+#                  pack; a caller in a linked worktree passes the main checkout
 #
 # Characters are checked before length.
 #
@@ -18,16 +18,19 @@
 #   too-long: branch=<name> length=<n> limit=<max>   (exit 1)
 #   bad-chars: branch=<name> pattern=<pattern>       (exit 3)
 #   ok: no constraint declared                       (exit 0) — no config, no
-#       platform pack named or installed, or no `branch_name:` declared
+#       platform pack named, or the resolved pack declares no `branch_name:`
+#   not-resolved: platform=<name> — <reason>         (exit 4) — the named pack
+#       could not be resolved, or holds no pack.yaml; never "no constraint"
 #
-# Exit codes: 0 — acceptable; 1 — too long; 2 — usage error; 3 — characters.
+# Exit codes: 0 — acceptable; 1 — too long; 2 — usage error; 3 — characters;
+# 4 — the platform pack's rule cannot be read.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
-  echo "usage: check-branch-name.sh <branch> [--config <path>] [--plugins-root <dir>]" >&2
+  echo "usage: check-branch-name.sh <branch> [--config <path>] [--project-dir <dir>]" >&2
   exit 2
 }
 
@@ -35,11 +38,11 @@ BRANCH="${1:-}"
 [[ -n "$BRANCH" ]] || usage
 shift
 CONFIG=".ai/project-config.yaml"
-PLUGINS_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+RESOLVE_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --config)       [[ $# -ge 2 ]] || usage; CONFIG="$2"; shift 2 ;;
-    --plugins-root) [[ $# -ge 2 ]] || usage; PLUGINS_ROOT="$2"; shift 2 ;;
+    --config)      [[ $# -ge 2 ]] || usage; CONFIG="$2"; shift 2 ;;
+    --project-dir) [[ $# -ge 2 ]] || usage; RESOLVE_ARGS=(--project-dir "$2"); shift 2 ;;
     *) usage ;;
   esac
 done
@@ -56,8 +59,14 @@ PLATFORM=$(awk '
 ' "$CONFIG")
 [[ -n "$PLATFORM" ]] || unconstrained
 
-MANIFEST="$PLUGINS_ROOT/$PLATFORM/pack.yaml"
-[[ -f "$MANIFEST" ]] || unconstrained
+not_resolved() { echo "not-resolved: platform=$PLATFORM — $1"; exit 4; }
+
+# The resolver prints the root alone on success and one line on stderr otherwise.
+ROOT=$(bash "$SCRIPT_DIR/resolve-plugin-root.sh" "$PLATFORM" ${RESOLVE_ARGS[@]+"${RESOLVE_ARGS[@]}"} 2>&1) \
+  || not_resolved "${ROOT:-resolve-plugin-root.sh exited non-zero}"
+
+MANIFEST="$ROOT/pack.yaml"
+[[ -f "$MANIFEST" ]] || not_resolved "no pack.yaml at $ROOT"
 
 MAX_LENGTH=""
 PATTERN=""

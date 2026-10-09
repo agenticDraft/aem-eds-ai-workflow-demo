@@ -217,9 +217,12 @@ Approved — continue to **Create the onboarding branch**. Declined — go to **
 1. Read `.ai/project-config.yaml`'s `packs.scm` value. If it is absent or `none`, go straight to
    **Report fail** naming that `packs.scm` must name a provider before this skill can open a
    change.
-2. Resolve that pack's `create_branch` operation the same way `eds-adopt-design-system` resolves
-   `packs.design`'s `fetch_reference`: read `${CLAUDE_PLUGIN_ROOT}/../<packs.scm>/pack.yaml`'s
-   `operations.create_branch` skill name.
+2. Resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.scm>`. Exit `0` — the one line
+   it prints is `<scm root>`, and the manifest is `<scm root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
+   Read `<scm root>/pack.yaml`'s `operations.create_branch` skill name.
 3. Invoke `Skill(<packs.scm>:<that skill name>)` with `branch: design-onboarding`. Read the
    `## Result` block it ends with.
 

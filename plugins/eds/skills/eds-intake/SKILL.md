@@ -52,10 +52,11 @@ digraph eds_intake {
 ### Resolve the tracker pack
 
 1. Read `.ai/project-config.yaml`'s `packs.tracker` value — the configured tracker pack's name.
-2. That pack's manifest is a sibling of this skill's own plugin root:
-   `${CLAUDE_PLUGIN_ROOT}/../<packs.tracker>/pack.yaml` — the "installed pack = sibling directory
-   of the plugin root, loaded via `--plugin-dir`" convention, not `.ai/packs/<name>/pack.yaml`
-   (nothing in this project writes a pack there; see `phase-4-task-2-done.md` for why).
+2. Resolve that pack's root by its name:
+   `bash ${CLAUDE_PLUGIN_ROOT}/core/lib/resolve-plugin-root.sh <packs.tracker>`. Exit `0` — the one line
+   it prints is `<tracker root>`, and the manifest is `<tracker root>/pack.yaml`. Any other exit — go
+   straight to **Report fail** with the line it printed; never guess a path and never treat
+   the pack as optional.
 3. Read that manifest's `operations.fetch_item` value — the skill name implementing this role's
    `fetch_item` operation. If `fetch_item` is absent or listed under `unsupported`, go straight to
    **Report fail** naming the missing operation; this is a configuration error pre-flight should
@@ -94,7 +95,7 @@ Run:
 ```
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-intake/scripts/extract-fact-record.py \
   <fetched-item-json-path> \
-  ${CLAUDE_PLUGIN_ROOT}/../<packs.tracker>/pack.yaml \
+  <tracker root>/pack.yaml \
   .ai/run-context/fact-record.yaml \
   .ai/run-context/sanitized-spec.md
 ```

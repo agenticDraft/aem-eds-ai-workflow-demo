@@ -27,12 +27,12 @@ trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/plugins/example-platform"
 printf 'kind: platform\nbranch_name:\n  max_length: 12\n  pattern: "^[a-z0-9/-]+$"\n' \
   > "$WORK/plugins/example-platform/pack.yaml"
-export CHECK_BRANCH_PLUGINS_ROOT="$WORK/plugins"
 
 REPO="$WORK/repo"
 git init -q -b main "$REPO"
-mkdir -p "$REPO/.ai" "$REPO/sub/dir"
+mkdir -p "$REPO/.ai/run-context/plugin-roots" "$REPO/sub/dir"
 printf 'version: 1\n\npacks:\n  platform: example-platform\n' > "$REPO/.ai/project-config.yaml"
+printf '%s\n' "$WORK/plugins/example-platform" > "$REPO/.ai/run-context/plugin-roots/example-platform"
 LOG="$REPO/.ai/logs/branch-name-hook.log"
 
 # hook <command> [cwd] — run the hook on a Bash tool call
@@ -115,6 +115,25 @@ assert_has "log names the reason" "not expanded" "$(cat "$LOG" 2>/dev/null)"
 
 echo "[cwd] a subdirectory resolves the same project config"
 blocked "from sub/dir"               "git switch -c a_b" "$REPO/sub/dir"
+
+echo "[fails closed] a configured platform pack that cannot be resolved blocks"
+UNREG="$WORK/unregistered"
+git init -q -b main "$UNREG"
+mkdir -p "$UNREG/.ai"
+printf 'version: 1\n\npacks:\n  platform: not-registered-platform\n' > "$UNREG/.ai/project-config.yaml"
+blocked "unresolved pack, any name"  "git switch -c ok-name" "$UNREG"
+assert_has "reason carries the check's line" "not-resolved: platform=not-registered-platform" "$ERR"
+
+echo "[worktree] a linked worktree reads the main checkout's registry"
+printf '.ai/run-context/\n.ai/logs/\n' > "$REPO/.gitignore"
+git -C "$REPO" add .gitignore .ai/project-config.yaml
+git -C "$REPO" -c user.name=t -c user.email=t@t commit -q -m config
+git -C "$REPO" worktree add -q -b wt-base "$WORK/wt" 2>/dev/null
+[ -f "$WORK/wt/.ai/project-config.yaml" ] && [ ! -e "$WORK/wt/.ai/run-context" ] \
+  && ok "the worktree holds the config but no registry" || bad "worktree fixture is not as expected"
+blocked "too long, from the worktree" "git switch -c feature-12345" "$WORK/wt"
+assert_has "judged by the registered pack's rule" "too-long: branch=feature-12345" "$ERR"
+allowed "passing name, from the worktree" "git switch -c ok-name" "$WORK/wt"
 
 echo "[silent] a project with no config, and a path outside any repository"
 mkdir -p "$WORK/other"
