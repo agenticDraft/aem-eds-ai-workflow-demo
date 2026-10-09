@@ -5,9 +5,11 @@
 # reads it.
 #
 # Checks the fixed shape shared/project-config.md defines: the six
-# top-level keys, in order, and nothing else; packs, commands, paths and
-# limits as flat sub-mappings with fixed keys; trigger as a token plus a
-# sequence of one or more identities.
+# required top-level keys, in order, then the optional branch_name and
+# platform, and nothing else; packs, commands, paths and limits as flat
+# sub-mappings with fixed keys; trigger as a token plus a sequence of one or
+# more identities; branch_name as max_length alone; platform as a non-empty
+# mapping whose keys belong to the platform pack and are not checked here.
 #
 # Usage:
 #   validate-project-config.sh <path>
@@ -78,7 +80,7 @@ top_level_key() {
 }
 
 # --- top-level key set, in order ------------------------------------------
-EXPECTED_TOP_LEVEL=(version packs commands paths limits trigger)
+EXPECTED_TOP_LEVEL=(version packs commands paths limits trigger branch_name platform)
 
 top_level_key
 found=0
@@ -145,13 +147,38 @@ while [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ -\ \"(.*)\"$ ]]; do
 done
 (( identity_count == 0 )) && fail "trigger.allowed_identities must list at least one identity"
 
+# --- branch_name (optional) -------------------------------------------------
+top_level_key
+if [[ "$TOPKEY" == "branch_name" ]]; then
+  require_line '^branch_name:$' "'branch_name:'"
+  require_line '^  max_length: (.*)$' "'max_length: <positive int>' under branch_name"
+  [[ "$MATCH" =~ ^[1-9][0-9]*$ ]] \
+    || fail "branch_name.max_length must be a positive integer, got '$MATCH'"
+  top_level_key
+fi
+
+# --- platform (optional) -----------------------------------------------------
+if [[ "$TOPKEY" == "platform" ]]; then
+  require_line '^platform:$' "'platform:' with its values on the lines below"
+  entries=0
+  while [[ "${LINES[cursor]:-}" =~ ^\ \  ]]; do
+    entries=$((entries + 1))
+    cursor=$((cursor + 1))
+  done
+  (( entries == 0 )) && fail "platform is empty: omit the key instead"
+  top_level_key
+fi
+
 # --- nothing else may follow --------------------------------------------
 if (( cursor < n )); then
+  if [[ "$TOPKEY" == "branch_name" ]]; then
+    fail "top-level keys out of order: 'branch_name:' must come before 'platform:'"
+  fi
   top_level_key
   if [[ -n "$TOPKEY" ]]; then
     fail "unknown top-level key: '$TOPKEY'"
   fi
-  fail "unexpected content after 'limits:': '${LINES[cursor]}'"
+  fail "unexpected content: '${LINES[cursor]}'"
 fi
 
 echo "valid"

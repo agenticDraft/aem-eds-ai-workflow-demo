@@ -109,6 +109,5 @@ audit_findings_path: ".ai/design/audit.md"
 audit_digest_path: ".ai/design/audit-digest.txt"
 evidence_manifest: evidence-manifest
 branch_name:
-  max_length: 23
   pattern: "^[a-z0-9/-]+$"
 reference_docs: "https://developer.mozilla.org/en-US/"

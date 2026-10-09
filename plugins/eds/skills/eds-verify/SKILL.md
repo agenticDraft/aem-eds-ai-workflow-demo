@@ -552,8 +552,10 @@ See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what ea
   command a human can run to check or start it themselves (`npm run up:draft`, or this project's
   own configured serve command with `--html-folder drafts` appended) — D89's own requirement that
   an escalation names something to do, not only something that failed. When the line is
-  `start-failed: branch name too long`, name renaming the branch to 23 characters or fewer
-  instead (D539): a restart on the same branch fails the same way.
+  `start-failed: branch name too long (<n> > <limit>)`, name renaming the branch to `<limit>`
+  characters or fewer instead (D539): a restart on the same branch fails the same way. When the
+  line is `start-failed: not-configured: branch_name.max_length …`, name adding
+  `branch_name.max_length` to the project config instead: the pack has no default limit.
 - `artifacts: []`
 - `next_action: none`
 

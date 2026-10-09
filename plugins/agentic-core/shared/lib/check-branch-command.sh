@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # check-branch-command.sh — PreToolUse hook on Bash (D544). Blocks a command
-# that creates a branch whose name fails the configured platform pack's
-# `branch_name:` rule, as check-branch-name.sh answers it.
+# that creates a branch whose name fails the project's `branch_name.max_length`
+# or the configured platform pack's `branch_name.pattern`, as
+# check-branch-name.sh answers it.
 #
 # Wired via this plugin's hooks/hooks.json. Reads the tool call as JSON on
 # stdin. Exit 0 lets the command proceed; exit 2 blocks it, with the reason on

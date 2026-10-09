@@ -271,8 +271,9 @@ bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/preview-url.sh \
 Append its stdout unchanged; empty stdout appends nothing. The script decides the PR type
 (`served`, `automation-only`, `branch-too-long`, `branch-unsupported`) and prints it on stderr as
 `pr-type: <type> …`. Keep `<type>` for **Check automated status** and the note. Never write a
-preview URL by hand. Exit `2` or `3` (no default branch resolved, or the diff could not be read) — append
-nothing and record it for **Anything downgraded?**.
+preview URL by hand. Exit `2`, `3` or `4` (no default branch resolved, the diff could not be read, or
+the project config holds no usable `platform.preview_host_suffix` — `pr-type: not-configured`) —
+append nothing, keep no type, and record it for **Anything downgraded?**.
 
 Then invoke `Skill(<packs.scm>:<publish_change skill name>)` with:
 
@@ -419,7 +420,7 @@ Any of the following — go to **Report warn**:
 - `plan.yaml` was missing, so the requirements section degraded to the fact record alone.
 - `delivery-text.py checks` printed `not-green` or `unreadable`, or `check_status` itself did not
   return `pass`.
-- `preview-url.sh` exited `2` or `3`, so the body carries no preview URL decision.
+- `preview-url.sh` exited `2`, `3` or `4`, so the body carries no preview URL decision.
 - Any `attach_file` or `post_note` call did not return a valid `pass`/`warn` envelope — the delivery
   report's own attach, any manifest attachment, or the note.
 - An evidence manifest was found but at least one of its `attachments:` entries named a path that no

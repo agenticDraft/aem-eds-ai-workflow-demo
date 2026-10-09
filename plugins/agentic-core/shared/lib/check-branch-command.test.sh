@@ -25,13 +25,13 @@ WORK=$(mktemp -d "${TMPDIR:-/tmp}/check-branch-command.XXXXXX") || { echo "canno
 trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p "$WORK/plugins/example-platform"
-printf 'kind: platform\nbranch_name:\n  max_length: 12\n  pattern: "^[a-z0-9/-]+$"\n' \
+printf 'kind: platform\nbranch_name:\n  pattern: "^[a-z0-9/-]+$"\n' \
   > "$WORK/plugins/example-platform/pack.yaml"
 
 REPO="$WORK/repo"
 git init -q -b main "$REPO"
 mkdir -p "$REPO/.ai/run-context/plugin-roots" "$REPO/sub/dir"
-printf 'version: 1\n\npacks:\n  platform: example-platform\n' > "$REPO/.ai/project-config.yaml"
+printf 'version: 1\n\npacks:\n  platform: example-platform\n\nbranch_name:\n  max_length: 12\n' > "$REPO/.ai/project-config.yaml"
 printf '%s\n' "$WORK/plugins/example-platform" > "$REPO/.ai/run-context/plugin-roots/example-platform"
 LOG="$REPO/.ai/logs/branch-name-hook.log"
 

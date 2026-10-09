@@ -47,11 +47,14 @@ bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/start-draft-server.sh \
 ```
 
 **Branch length first (D539).** Before it polls or starts anything, the script runs
-`check-branch-length.sh` on the checked-out branch. The dev server refuses a branch over 23
-characters, and that refusal reaches only its log. A too-long branch exits `1` with
-`start-failed: branch name too long (<n> > 23)`, never the poll ladder's `no-answer`. This failure is
-**not** transient: a restart fails the same way. The calling stage's question names the rename, not
-the recovery command. No branch checked out (detached HEAD) leaves nothing to measure.
+`check-branch-length.sh` on the checked-out branch, against the project config's
+`branch_name.max_length`. The dev server refuses a branch over that limit, and that refusal reaches
+only its log. A too-long branch exits `1` with `start-failed: branch name too long (<n> > <limit>)`,
+never the poll ladder's `no-answer`. A project config with no limit exits `1` with
+`start-failed: not-configured: branch_name.max_length — …`; the pack has no default. Neither
+failure is transient: a restart fails the same way. The calling stage's question names the rename,
+or the missing config value, not the recovery command. No branch checked out (detached HEAD) leaves
+nothing to measure.
 
 Polls before starting: the server an earlier stage or an earlier run started is normally still
 answering, and is reused. Only starts a new one when nothing answered, and writes the pid file only

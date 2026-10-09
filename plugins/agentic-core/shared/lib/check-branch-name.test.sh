@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for check-branch-name.sh (D544). Run with:
+# Tests for check-branch-name.sh (D544, D129). Run with:
 #   bash plugins/agentic-core/shared/lib/check-branch-name.test.sh
 #
 # No framework — exits 0 when every case passes, 1 otherwise. Every pack,
@@ -37,15 +37,18 @@ pack() {
   { echo "kind: platform"; printf '%s\n' "$@"; } > "$WORK/plugins/$name/pack.yaml"
   printf '%s\n' "$WORK/plugins/$name" > "$REGISTRY/$name"
 }
-# config <platform> — a project config naming that platform pack
+# config <platform> [max_length] — a project config naming that platform pack,
+# with the project's branch_name.max_length when one is given
 config() {
   printf 'version: 1\n\npacks:\n  platform: %s\n  tracker: example-tracker\n' "$1" > "$WORK/config.yaml"
+  [ -n "${2:-}" ] && printf '\nbranch_name:\n  max_length: %s\n' "$2" >> "$WORK/config.yaml"
+  return 0
 }
 
 run() { OUT=$(bash "$CHECK" "$@" --config "$WORK/config.yaml" --project-dir "$PROJECT" 2>&1); CODE=$?; }
 
-pack example-platform "branch_name:" "  max_length: 12" '  pattern: "^[a-z0-9/-]+$"'
-config example-platform
+pack example-platform "branch_name:" '  pattern: "^[a-z0-9/-]+$"'
+config example-platform 12
 
 echo "[ok] within both rules"
 run feature-1
@@ -67,12 +70,13 @@ run "a_very_long_name_indeed"
 assert_eq "long and bad → bad-chars (exit 3)" "3" "$CODE"
 
 echo "[one rule only]"
-pack length-only "branch_name:" "  max_length: 5"
-config length-only
+pack length-only
+config length-only 5
 run ABC_D
 assert_eq "no pattern → any characters, exit 0" "0" "$CODE"
 run abcdef
 assert_eq "too long → exit 1" "1" "$CODE"
+assert_eq "the limit is the config's" "too-long: branch=abcdef length=6 limit=5" "$OUT"
 pack pattern-only "branch_name:" '  pattern: "^[a-z]+$"'
 config pattern-only
 run "$(printf 'a%.0s' $(seq 1 90))"
@@ -89,6 +93,32 @@ assert_eq "says so" "ok: no constraint declared" "$OUT"
 printf 'version: 1\n' > "$WORK/config.yaml"
 run Anything_Goes
 assert_eq "config names no platform → exit 0" "0" "$CODE"
+
+echo "[D129] the limit is read from the config, never from the pack"
+pack stale-limit "branch_name:" "  max_length: 3" '  pattern: "^[a-z-]+$"'
+config stale-limit
+run abcdefgh
+assert_eq "a max_length left in a manifest is not read → exit 0" "0" "$CODE"
+run ab_c
+assert_eq "its pattern still is → exit 3" "3" "$CODE"
+config stale-limit 6
+run abcdefgh
+assert_eq "the config's limit applies → exit 1" "1" "$CODE"
+assert_has "names the config's limit" "limit=6" "$OUT"
+printf 'version: 1\n\nbranch_name:\n  max_length: 4\n' > "$WORK/config.yaml"
+run abcde
+assert_eq "a limit with no platform named still applies → exit 1" "1" "$CODE"
+run Ab_c
+assert_eq "and no pattern is checked → exit 0" "0" "$CODE"
+printf 'version: 1\n\nbranch_name:\n\nplatform:\n  max_length: 2\n' > "$WORK/config.yaml"
+run abcde
+assert_eq "max_length is read only under branch_name → exit 0" "0" "$CODE"
+for v in abc 0 -2; do
+  printf 'version: 1\n\nbranch_name:\n  max_length: %s\n' "$v" > "$WORK/config.yaml"
+  run abcde
+  assert_eq "max_length '$v' → exit 4, never a silent pass" "4" "$CODE"
+  assert_has "names the bad value" "invalid-config: branch_name.max_length=$v" "$OUT"
+done
 OUT=$(bash "$CHECK" Anything_Goes --config "$WORK/missing.yaml" --project-dir "$PROJECT" 2>&1); CODE=$?
 assert_eq "no config file → exit 0" "0" "$CODE"
 assert_eq "says so" "ok: no constraint declared" "$OUT"
@@ -103,7 +133,7 @@ OUT=$(bash "$CHECK" x --bogus 2>&1); CODE=$?
 assert_eq "unknown option → exit 2" "2" "$CODE"
 
 echo "[fails closed] a named platform pack that cannot be resolved"
-config not-installed
+config not-installed 40
 run anything
 assert_eq "not resolved → exit 4" "4" "$CODE"
 assert_has "says not-resolved, naming the pack" "not-resolved: platform=not-installed" "$OUT"

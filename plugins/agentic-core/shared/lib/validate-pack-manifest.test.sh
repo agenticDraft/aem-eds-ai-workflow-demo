@@ -86,7 +86,7 @@ assert_exit "reason does not misdiagnose as unexpected content" 0 $? ""
 [[ "$OUT" != *"expected "* ]]
 assert_exit "reason does not misdiagnose as a parse error" 0 $? ""
 
-echo "[validator 22] branch_name (D544) — built from an existing fixture in a temp dir"
+echo "[validator 22] branch_name (D544, D129) — built from an existing fixture in a temp dir"
 BN_WORK=$(mktemp -d "${TMPDIR:-/tmp}/pack-manifest-branch-name.XXXXXX") || { echo "cannot create a temp dir" >&2; exit 2; }
 [[ -n "$BN_WORK" && -d "$BN_WORK" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
 trap 'rm -rf "$BN_WORK"' EXIT
@@ -99,26 +99,25 @@ with_branch_name() {
   echo "$case_dir/pack.yaml"
 }
 
-M=$(with_branch_name platform-valid-evidence-manifest both "branch_name:" "  max_length: 23" '  pattern: "^[a-z0-9/-]+$"')
+M=$(with_branch_name platform-valid-evidence-manifest after-em "branch_name:" '  pattern: "^[a-z0-9/-]+$"')
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
-assert_exit "both sub-keys after evidence_manifest accepted" 0 $ST "$OUT"
-M=$(with_branch_name platform-valid length-only "branch_name:" "  max_length: 40")
-OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
-assert_exit "max_length only, no other optional key, accepted" 0 $ST "$OUT"
+assert_exit "pattern after evidence_manifest accepted" 0 $ST "$OUT"
 M=$(with_branch_name platform-valid pattern-only "branch_name:" '  pattern: "^[a-z-]+$"')
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
-assert_exit "pattern only accepted" 0 $ST "$OUT"
+assert_exit "pattern only, no other optional key, accepted" 0 $ST "$OUT"
+
+echo "[validator 22] max_length is the project's, not the pack's (D129)"
+for lines in "  max_length: 23" $'  max_length: 23\n  pattern: "^[a-z-]+$"'; do
+  M=$(with_branch_name platform-valid "len-$RANDOM" "branch_name:" "$lines")
+  OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
+  assert_exit "max_length in the manifest rejected ($(printf '%s' "$lines" | wc -l | tr -d ' ') more line(s))" 1 $ST "$OUT"
+  assert_contains "says where max_length lives" "project config" "$OUT"
+done
 
 M=$(with_branch_name platform-valid empty "branch_name:")
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "no sub-key rejected" 1 $ST "$OUT"
 assert_contains "names the key" "branch_name" "$OUT"
-for bad in "0" "-3" "abc" "2.5"; do
-  M=$(with_branch_name platform-valid "len-$bad" "branch_name:" "  max_length: $bad")
-  OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
-  assert_exit "max_length '$bad' rejected" 1 $ST "$OUT"
-  assert_contains "max_length '$bad' → names max_length" "max_length" "$OUT"
-done
 M=$(with_branch_name platform-valid empty-pattern "branch_name:" '  pattern: ""')
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "empty pattern rejected" 1 $ST "$OUT"
@@ -130,12 +129,12 @@ assert_contains "says it does not compile" "compile" "$OUT"
 M=$(with_branch_name platform-valid unquoted "branch_name:" "  pattern: ^[a-z]+$")
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "unquoted pattern rejected" 1 $ST "$OUT"
-M=$(with_branch_name platform-valid unknown-sub "branch_name:" "  max_length: 23" "  min_length: 3")
+M=$(with_branch_name platform-valid unknown-sub "branch_name:" '  pattern: "^[a-z-]+$"' "  min_length: 3")
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "unknown sub-key rejected" 1 $ST "$OUT"
 
 echo "[validator 23] reference_docs (D117)"
-M=$(with_branch_name platform-valid rd-after-branch "branch_name:" "  max_length: 23" 'reference_docs: "https://docs.example.org/en-US/"')
+M=$(with_branch_name platform-valid rd-after-branch "branch_name:" '  pattern: "^[a-z-]+$"' 'reference_docs: "https://docs.example.org/en-US/"')
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "reference_docs after branch_name accepted" 0 $ST "$OUT"
 M=$(with_branch_name platform-valid rd-alone 'reference_docs: "https://docs.example.org/"')
@@ -147,10 +146,10 @@ for bad in '"http://docs.example.org/"' 'https://docs.example.org/' '""' '"https
   assert_exit "reference_docs $bad rejected" 1 $ST "$OUT"
   assert_contains "reference_docs $bad → names the key" "reference_docs" "$OUT"
 done
-M=$(with_branch_name platform-valid rd-before-branch 'reference_docs: "https://docs.example.org/"' "branch_name:" "  max_length: 23")
+M=$(with_branch_name platform-valid rd-before-branch 'reference_docs: "https://docs.example.org/"' "branch_name:" '  pattern: "^[a-z-]+$"')
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "a key after reference_docs rejected (it is last)" 1 $ST "$OUT"
-M=$(with_branch_name platform-valid-evidence-manifest wrong-order "branch_name:" "  max_length: 23" "evidence_manifest: change-summary")
+M=$(with_branch_name platform-valid-evidence-manifest wrong-order "branch_name:" '  pattern: "^[a-z-]+$"' "evidence_manifest: change-summary")
 OUT=$(bash "$VALIDATOR" "$M" 2>&1); ST=$?
 assert_exit "a key after branch_name rejected (fixed order)" 1 $ST "$OUT"
 

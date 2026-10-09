@@ -9,8 +9,10 @@
 # renders a draft stops it. Only clean-drafts.sh, run by eds-serve, stops it,
 # by the pid file this script writes.
 #
-# Checks the checked-out branch's length first (D539, check-branch-length.sh):
-# too long → `start-failed: branch name too long (<n> > 23)`, before any poll.
+# Checks the checked-out branch's length first (D539, check-branch-length.sh,
+# against the project config's limit): too long → `start-failed: branch name
+# too long (<n> > <limit>)`; no limit configured → `start-failed:
+# not-configured: …`; both before any poll.
 #
 # Polls before starting: the server an earlier stage or run started is
 # normally still answering, and is reused. The pid file is written only when
@@ -24,8 +26,9 @@
 #
 # Exit codes:
 #   0 — something is answering at the draft origin, started by this run or already there
-#   1 — the branch name is too long, the command could not be started, or the
-#       poll ladder was exhausted; reason on stderr
+#   1 — the branch name is too long, the project config holds no branch limit,
+#       the command could not be started, or the poll ladder was exhausted;
+#       reason on stderr
 #   2 — usage error (a missing or empty argument)
 
 set -uo pipefail
@@ -39,17 +42,25 @@ if [[ -z "$PREVIEW_URL" || -z "$LOG_PATH" || -z "$PID_PATH" ]]; then
   exit 2
 fi
 
-# D539: the dev server refuses a branch over 23 characters, and that refusal
-# only reaches its log. Check first, so a too-long branch never polls or
-# starts and the caller sees the real cause. No branch (detached HEAD, or not
-# a repository) leaves nothing to measure.
+# D539: the dev server refuses a branch over the project's limit, and that
+# refusal only reaches its log. Check first, so a too-long branch never polls
+# or starts and the caller sees the real cause. No branch (detached HEAD, or
+# not a repository) leaves nothing to measure.
 BRANCH=$(git branch --show-current 2>/dev/null)
 if [[ -n "$BRANCH" ]]; then
-  if ! CHECK=$(bash "$(dirname "${BASH_SOURCE[0]}")/check-branch-length.sh" "$BRANCH"); then
-    LENGTH=$(printf '%s' "$CHECK" | sed -n 's/.* length=\([0-9]*\) limit=\([0-9]*\)$/\1 > \2/p')
-    echo "start-failed: branch name too long ($LENGTH); rename the branch, then start again" >&2
-    exit 1
-  fi
+  CHECK=$(bash "$(dirname "${BASH_SOURCE[0]}")/check-branch-length.sh" "$BRANCH" 2>&1)
+  case $? in
+    0) ;;
+    1)
+      LENGTH=$(printf '%s' "$CHECK" | sed -n 's/.* length=\([0-9]*\) limit=\([0-9]*\)$/\1 > \2/p')
+      echo "start-failed: branch name too long ($LENGTH); rename the branch, then start again" >&2
+      exit 1
+      ;;
+    *)
+      echo "start-failed: $CHECK" >&2
+      exit 1
+      ;;
+  esac
 fi
 
 PORT=$(printf '%s' "$PREVIEW_URL" | sed -n 's#^[a-zA-Z]*://[^:/]*:\([0-9][0-9]*\).*#\1#p')
