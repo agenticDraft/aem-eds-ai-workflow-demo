@@ -11,7 +11,7 @@ scripts:
 requires:
   - tool: playwright
     probe: [node, <pack>/scripts/probe-tool.cjs, module]
-    remedy: "npm install -g playwright, or add playwright as a project devDependency"
+    remedy: "reinstall or update this plugin so the host installs the playwright version its package.json pins; loaded by path, run npm ci in this plugin's root"
   - tool: chromium
     probe: [node, <pack>/scripts/probe-tool.cjs, browser]
-    remedy: "npx playwright install chromium"
+    remedy: "npx playwright@1.63.0 install chromium"

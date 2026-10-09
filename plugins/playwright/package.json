@@ -1,0 +1,9 @@
+{
+  "name": "playwright-pack",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The browser automation package this pack's operations load.",
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}

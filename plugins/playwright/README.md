@@ -28,10 +28,10 @@ them as data at fixed paths, and it needs a clear answer when the browser is not
    requires:
      - tool: playwright
        probe: [node, <pack>/scripts/probe-tool.cjs, module]
-       remedy: "npm install -g playwright, or add playwright as a project devDependency"
+       remedy: "reinstall or update this plugin so the host installs the playwright version its package.json pins; loaded by path, run npm ci in this plugin's root"
      - tool: chromium
        probe: [node, <pack>/scripts/probe-tool.cjs, browser]
-       remedy: "npx playwright install chromium"
+       remedy: "npx playwright@1.63.0 install chromium"
    ```
 
    `scripts/probe-tool.cjs` answers by exit status alone and installs nothing.
@@ -135,19 +135,22 @@ Exit status 2.
 **The offline test suites, this run:**
 
 ```text
+$ bash plugins/playwright/scripts/declared-dependency.test.sh
+passed: 11, failed: 0
 $ bash plugins/playwright/scripts/next-artifact-path.test.sh
 passed: 13, failed: 0
 $ bash plugins/playwright/scripts/settle.test.sh
-passed: 34, failed: 0
+passed: 30, failed: 0
 $ bash plugins/playwright/skills/measure/scripts/measure.test.sh
-passed: 13, failed: 0
+passed: 15, failed: 0
 ```
 
 ## Running it yourself
 
 1. Make the two declared tools present, using the manifest's own remedies:
-   `npm install -g playwright` (or add `playwright` as a project devDependency), then
-   `npx playwright install chromium`.
+   installed from a marketplace, the host installs the `playwright` version `package.json` pins into
+   the plugin's own directory; loaded by path, run `npm ci` in `plugins/playwright/`. Then
+   `npx playwright@1.63.0 install chromium`.
 2. Load the pack next to the core, from the directory that holds `plugins/`:
 
    ```text

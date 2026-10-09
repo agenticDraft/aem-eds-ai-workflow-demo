@@ -4,11 +4,11 @@
 // probes and run by whatever reads them.
 //
 // This exists because "is the tool present" is not a question a fixed
-// argument list can ask here: the package may be installed beside the
-// project or globally, and the browser binary is a separate download that a
-// present package says nothing about. That resolution logic belongs to the
-// pack that depends on it, so the pack ships it rather than asking the core
-// to guess on its behalf.
+// argument list can ask here: the package is this pack's own declared
+// dependency, installed into the pack's root, or else a global copy, and the
+// browser binary is a separate download that a present package says nothing
+// about. That resolution logic belongs to the pack that depends on it, so the
+// pack ships it rather than asking the core to guess on its behalf.
 //
 // Usage:
 //   probe-tool.cjs module   — is the automation package resolvable?
@@ -25,10 +25,13 @@ const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
-// The same two-step resolution the operations themselves use: beside the
-// project first, then the global root. Kept identical on purpose — a probe
-// that resolved the tool differently from the code that needs it would
-// answer a question nobody asked.
+// The same two-step resolution the operations themselves use: the ordinary
+// module lookup from this file first, then the global root. The lookup finds
+// the `node_modules` the host installs at the pack root from its
+// `package.json`; with none there, as when loaded by path, it carries on up
+// the parent directories. Kept identical on purpose — a probe that resolved
+// the tool differently from the code that needs it would answer a question
+// nobody asked.
 function resolveTool() {
   try {
     return require('playwright');
