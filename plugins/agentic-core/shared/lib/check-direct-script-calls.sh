@@ -15,7 +15,9 @@
 # Invoking an operation as a skill injects its instructions, and the stage
 # then runs the operation's script itself, so a transcript that invoked the
 # operation also holds a command running its script. The two are told apart by
-# order: a command running plugins/<pack>/skills/<skill>/scripts/<file> is the
+# order: a command running <pack>/skills/<skill>/scripts/<file> — under a
+# plugins/ directory when loaded by path, under cache/<marketplace>/<pack>/
+# <version>/ when installed — is the
 # operation's own when the most recent skill invocation before it named
 # <pack>:<skill>, and direct otherwise. Only the executed path counts — the
 # first word of each command segment, or the word after an interpreter — so a
@@ -104,8 +106,15 @@ for transcript in "$@"; do
         [[ -z "$value" ]] && continue
         path="${value%/}/$tail"
       fi
-      [[ "$path" =~ (^|/)plugins/([^/]+)/skills/([^/]+)/scripts/[^/]+$ ]] || continue
-      pack="${BASH_REMATCH[2]}"; skill="${BASH_REMATCH[3]}"
+      # loaded by path: plugins/<pack>/skills/…; installed:
+      # cache/<marketplace>/<pack>/<version>/skills/…
+      if [[ "$path" =~ (^|/)plugins/([^/]+)/skills/([^/]+)/scripts/[^/]+$ ]]; then
+        pack="${BASH_REMATCH[2]}"; skill="${BASH_REMATCH[3]}"
+      elif [[ "$path" =~ (^|/)cache/[^/]+/([^/]+)/[^/]+/skills/([^/]+)/scripts/[^/]+$ ]]; then
+        pack="${BASH_REMATCH[2]}"; skill="${BASH_REMATCH[3]}"
+      else
+        continue
+      fi
       [[ "$pack" == "$OWN" ]] && continue
       [[ "$last_skill" == "$pack:$skill" ]] && continue
       DIRECT=$((DIRECT + 1))

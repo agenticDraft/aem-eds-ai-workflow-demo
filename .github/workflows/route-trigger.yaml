@@ -394,6 +394,9 @@ jobs:
           ROUTE_MAX_TURNS: ${{ vars.ROUTE_MAX_TURNS }}
           ROUTE_TIMEOUT_MINUTES: ${{ vars.ROUTE_TIMEOUT_MINUTES }}
           ROUTE_RESULT_FILE: .ai/run-context/runner-result.txt
+          # The runner has no default plugin directory; the packs load by path
+          # from this checkout.
+          ROUTE_PLUGIN_DIR: plugins
         run: |
           set -u
           PROMPT="${ROUTE_PROMPT_TEMPLATE//\{item_id\}/$ITEM_ID}"

@@ -194,15 +194,32 @@ assert_equal "and nothing was written to stdout" "" "$(python3 "$WORK/lossy.py" 
 echo "[drift] this inverse agrees with the configured consumer's"
 CONFIG=".ai/project-config.yaml"
 CONSUMER=""
+UNRESOLVED=""
 if [[ -f "$CONFIG" ]]; then
   PLATFORM="$(sed -n '/^packs:/,/^[^ ]/p' "$CONFIG" \
               | sed -nE 's/^[[:space:]]+platform:[[:space:]]*([^[:space:]]+).*/\1/p' | head -1)"
-  if [[ -n "$PLATFORM" && -d "plugins/$PLATFORM" ]]; then
-    CONSUMER="$(grep -rl "def adf_to_text" "plugins/$PLATFORM" 2>/dev/null | head -1)"
+  if [[ -n "$PLATFORM" ]]; then
+    # Resolved by name through the core's resolver, after registering this
+    # source tree's plugins into a temp project. A configured pack that does
+    # not resolve fails: it is not the same as no pack configured.
+    CORE_LIB="$SCRIPT_DIR/../core/lib"
+    . "$CORE_LIB/register-source-tree.sh"
+    ROOTS_PROJECT="$(mktemp -d "${TMPDIR:-/tmp}/jira-pack-roots.XXXXXX")" || ROOTS_PROJECT=""
+    if [[ -n "$ROOTS_PROJECT" && -d "$ROOTS_PROJECT" ]] \
+       && register_source_tree "$ROOTS_PROJECT" \
+       && PLATFORM_ROOT="$(bash "$CORE_LIB/resolve-plugin-root.sh" "$PLATFORM" --project-dir "$ROOTS_PROJECT" 2>&1)"; then
+      CONSUMER="$(grep -rl "def adf_to_text" "$PLATFORM_ROOT" 2>/dev/null | head -1)"
+    else
+      FAIL=$((FAIL + 1)); UNRESOLVED=1
+      echo "  FAIL: the configured platform pack $PLATFORM was not resolved: ${PLATFORM_ROOT:-no registry}"
+    fi
+    [[ -n "$ROOTS_PROJECT" ]] && rm -rf "$ROOTS_PROJECT"
   fi
 fi
 
-if [[ -z "$CONSUMER" ]]; then
+if [[ -n "$UNRESOLVED" ]]; then
+  :
+elif [[ -z "$CONSUMER" ]]; then
   echo "  not run: no configured platform pack exposes a flattener to compare against"
   echo "           (this is not a pass — nothing was checked)"
 else

@@ -87,6 +87,7 @@ file:
 export CLAUDE_CODE_OAUTH_TOKEN=…    # the model credential (or ANTHROPIC_API_KEY)
 export <whatever the configured packs read>
 ROUTE_ALLOWED_TOOLS="Skill,Read,Glob,Grep,Bash(bash plugins/*)" \
+ROUTE_PLUGIN_DIR=plugins \
 ROUTE_RESULT_FILE=.ai/run-context/runner-result.txt \
 node plugins/agentic-core/shared/runner/route-agent.mjs "/<pack>:<operation> item_id: <id>"
 bash plugins/agentic-core/shared/lib/validate-result-envelope.sh .ai/run-context/runner-result.txt
@@ -115,6 +116,9 @@ session ended.
 - `sandbox (effective, from managed/parent): … strictAllowlist=true` is the lock as the session
   will see it; `sandbox allowlist (copied from …)` lists every host a command may reach.
 - `network allowlist refused: <reason>` is exit `6`; nothing was started.
+- `plugin directory refused: ROUTE_PLUGIN_DIR is not set` is exit `7`; nothing was started. The
+  runner has no default plugin directory. A directory that does not exist is not refused: it
+  loads no plugin by path, and the log says `plugins by path (…; 0): none`.
 - A tool error naming a host as denied is the lock refusing an undeclared host.
 
 ## The migration cost of the lock
@@ -139,4 +143,5 @@ session started.
 | `4`  | the turn cap was reached |
 | `5`  | the budget cap was reached |
 | `6`  | the network allowlist was refused; nothing was started |
+| `7`  | `ROUTE_PLUGIN_DIR` is not set; nothing was started |
 | `64` | usage: no prompt given |
