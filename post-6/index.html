@@ -340,14 +340,14 @@ pre.envelope .k { color: var(--cyan); }
       <p>The plugins never call each other as programs. Everything goes through the Claude session, which invokes skills by name. Data moves through files and the closing block.</p>
     </div>
     <ol class="steps">
-      <li>You type <code>/agentic-core:run-route ABC-123</code>.</li>
-      <li>The core reads the project config. It names which plugin plays which role.</li>
-      <li>The core finds the platform plugin and reads its list of fifteen stages.</li>
-      <li>The core starts the first stage, <code>intake</code>, as an isolated agent.</li>
-      <li>That stage looks up which plugin is the tracker, and which skill fetches an item.</li>
-      <li>It calls the Jira plugin's <code>fetch-item</code> by name. One script talks to Jira and returns the item.</li>
-      <li>The stage writes the ticket to a file and ends with its own five lines.</li>
-      <li class="read">The core reads those five lines, and nothing else. Then the next stage.</li>
+      <li><span>You type <code>/agentic-core:run-route ABC-123</code>.</span></li>
+      <li><span>The core reads the project config. It names which plugin plays which role.</span></li>
+      <li><span>The core finds the platform plugin and reads its list of fifteen stages.</span></li>
+      <li><span>The core starts the first stage, <code>intake</code>, as an isolated agent.</span></li>
+      <li><span>That stage looks up which plugin is the tracker, and which skill fetches an item.</span></li>
+      <li><span>It calls the Jira plugin's <code>fetch-item</code> by name. One script talks to Jira and returns the item.</span></li>
+      <li><span>The stage writes the ticket to a file and ends with its own five lines.</span></li>
+      <li class="read"><span>The core reads those five lines, and nothing else. Then the next stage.</span></li>
     </ol>
     <p class="claim">The less the orchestrator knows, the longer the route it can run.</p>
   </section>

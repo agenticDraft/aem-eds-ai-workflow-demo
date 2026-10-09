@@ -325,12 +325,12 @@ EOF</pre>
       <p>One file, about eighty lines, read top to bottom.</p>
     </div>
     <ol class="steps">
-      <li>No ticket key given: usage error, exit 2. This is the only exit that is not 0.</li>
-      <li><code>JIRA_SITE</code>, <code>JIRA_EMAIL</code> or <code>JIRA_API_TOKEN</code> missing: fail, naming them.</li>
-      <li>Ticket key not shaped like <code>ABC-123</code>, or the site not a bare hostname: fail.</li>
-      <li>Call Jira with the token on standard input.</li>
-      <li>curl error, or any HTTP status other than 200: fail, naming the status.</li>
-      <li class="read">Otherwise: write the ticket to <code>.ai/tracker/fetch-item-&lt;key&gt;.json</code> and print a pass with its type and status.</li>
+      <li><span>No ticket key given: usage error, exit 2. This is the only exit that is not 0.</span></li>
+      <li><span><code>JIRA_SITE</code>, <code>JIRA_EMAIL</code> or <code>JIRA_API_TOKEN</code> missing: fail, naming them.</span></li>
+      <li><span>Ticket key not shaped like <code>ABC-123</code>, or the site not a bare hostname: fail.</span></li>
+      <li><span>Call Jira with the token on standard input.</span></li>
+      <li><span>curl error, or any HTTP status other than 200: fail, naming the status.</span></li>
+      <li class="read"><span>Otherwise: write the ticket to <code>.ai/tracker/fetch-item-&lt;key&gt;.json</code> and print a pass with its type and status.</span></li>
     </ol>
     <div class="envelope-grid" style="margin-top:2rem">
 <pre class="envelope"><span class="k">## Result</span>
