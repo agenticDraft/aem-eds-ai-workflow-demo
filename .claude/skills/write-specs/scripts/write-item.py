@@ -18,7 +18,8 @@ and this script passes it through as it came.
 Exit codes:
   0 — an operation ran; its envelope is on stdout. `verdict:` says how it went.
   1 — no operation could run: the pack declares it unsupported, or declares
-      no such operation at all. The draft is unwritten and the reason is on
+      no such operation at all, or the update would move an existing item
+      onto another component. The draft is unwritten and the reason is on
       stdout as an envelope, so a caller reports one shape either way.
   2 — usage error, or a config, pack or script that cannot be read.
 """
@@ -28,6 +29,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 SKILL_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SKILL_DIR)
@@ -102,6 +104,50 @@ def item_exists(pack_root, fetch_skill, item_key):
     return "verdict: pass" in (result.stdout or "")
 
 
+def read_target(item, extractor, tracker_pack):
+    """The components and block names an item targets, as the run's own
+    extractor reads them — never a second reading of the text that could
+    disagree with what a route would see."""
+    tmp = tempfile.mkdtemp(prefix="write-item-")
+    item_json = os.path.join(tmp, "item.json")
+    fact_record = os.path.join(tmp, "fact-record.yaml")
+    with open(item_json, "w", encoding="utf-8") as f:
+        json.dump(item, f)
+    result = subprocess.run(
+        ["python3", extractor, item_json, tracker_pack, fact_record,
+         os.path.join(tmp, "sanitized-spec.md")],
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        check_spec.unreadable("intake extractor: " + (result.stderr or "").strip())
+    lists = {}
+    with open(fact_record, encoding="utf-8") as f:
+        for line in f:
+            m = re.match(r"^(components|files_named):\s*\[(.*)\]\s*$", line)
+            if m:
+                lists[m.group(1)] = [v.strip().strip('"') for v in m.group(2).split(",")
+                                     if v.strip()]
+    components = set(lists.get("components", []))
+    blocks = {m.group(1) for p in lists.get("files_named", [])
+              for m in [re.match(r"^blocks/([^/]+)/", p)] if m}
+    return components, blocks
+
+
+def retarget_reason(item_key, live, draft):
+    """Why this update would move the item onto another component, or None.
+
+    A different target is a different item: rewriting one in place leaves the
+    old target in the structured fields, where a route reads it and a person
+    may not see it."""
+    (live_components, live_blocks), (draft_components, draft_blocks) = live, draft
+    if live_components and live_components != draft_components:
+        return (f"{item_key} carries components {sorted(live_components)}; the draft "
+                f"carries {sorted(draft_components)}")
+    if live_blocks and draft_blocks and not live_blocks & draft_blocks:
+        return (f"{item_key} names blocks {sorted(live_blocks)}; the draft names "
+                f"{sorted(draft_blocks)}, none of them the same")
+    return None
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         usage("a draft file is required")
@@ -130,6 +176,25 @@ def main(argv):
         pack_root, fetch_skill, item_key)
 
     if exists:
+        platform_root = check_spec.plugin_root(packs["platform"], os.getcwd())
+        intake_skill = check_spec.read_stage_skill(
+            os.path.join(platform_root, "pack.yaml"), "intake")
+        extractor = os.path.join(platform_root, "skills", intake_skill,
+                                 "scripts", "extract-fact-record.py")
+        if not os.path.isfile(extractor):
+            check_spec.unreadable(f"'{extractor}' not found")
+        fetch_script = os.path.join(pack_root, "skills", fetch_skill, "scripts",
+                                    f"{fetch_skill}.sh")
+        live = read_target(check_spec.fetch_item(fetch_script, item_key),
+                           extractor, pack_yaml)
+        body = check_spec.parse_draft(draft)[1]
+        reason = retarget_reason(item_key, live, read_target(
+            check_spec.synthesize_item(fields, body), extractor, pack_yaml))
+        if reason:
+            envelope("fail", f"{reason} — an item is not rewritten onto another "
+                     f"component; create a new item instead (--project <key>, no "
+                     f"item_id). The draft is unwritten.")
+            return 1
         operation, args = "update_item", [item_key, draft]
     else:
         if not project:

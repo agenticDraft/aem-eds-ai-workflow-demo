@@ -107,6 +107,7 @@ digraph write_specs {
     "Does every criterion hold up?" -> "Write the item" [label="every criterion is an outcome someone could check"];
     "Write the item" -> "Did a write happen?";
     "Did a write happen?" -> "Hand the draft over" [label="no — the pack declines it, or the write failed"];
+    "Did a write happen?" -> "Identify the item" [label="no — refused: the update targets another component"];
     "Did a write happen?" -> "Verify the live item" [label="yes"];
     "Verify the live item" -> "Does the live item pass?";
     "Does the live item pass?" -> "Revise the draft" [label="no — the tracker's copy no longer passes"];
@@ -307,8 +308,16 @@ judged here.
 ### Did a write happen?
 
 - **Exit 0 and `verdict: pass`** — go to **Verify the live item**.
-- **Exit 1** — the configured tracker declines the operation or declares none. The draft is
-  unwritten and the envelope says which. Go to **Hand the draft over**.
+- **Exit 1** — nothing was written, and the envelope's `summary` says why. Two different reasons
+  share this exit:
+  - The configured tracker declines the operation or declares none. Go to **Hand the draft over**.
+  - The update would move an existing item onto another component — the script compared what the
+    live item targets with what the draft targets and found them different. A different target is
+    a different item: rewriting one in place leaves the old target in its structured fields, where
+    a run reads it and a person in the tracker's own view may not see it. Quote the reason, then go
+    to **Identify the item** for a **new** item: the same draft with no `item_id`, written with
+    `--project`. Do not edit the old item's fields so the update passes — that is the rewrite the
+    refusal exists to stop.
 - **Exit 0 and `verdict: fail`** — the operation ran and the tracker refused it: a field it does
   not carry, a type it does not offer, credentials it did not accept. The envelope's `summary`
   names the reason. Go to **Hand the draft over**, and quote it.

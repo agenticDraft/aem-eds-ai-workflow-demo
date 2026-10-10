@@ -185,6 +185,57 @@ rm "$PROJ/.ai/run-context/plugin-roots/$CORE_NAME"
 run_in "no core entry is not resolved" 2 "not resolved: $CORE_NAME" \
   python3 "$PCHECK" "$TMP/registry.md"
 
+echo "[an item is never rewritten onto another component]"
+# A tracker pack whose fetch returns the item in $STUB_ITEM and whose update
+# only reports success, so write-item's own decision is what is under test.
+register "$CORE_NAME" "$CACHE/$CORE_NAME"
+STUB="$TMP/stub-tracker"
+rsync -a "$CACHE/$TRACKER/" "$STUB/"
+fetch_op="$(sed -n 's/^  fetch_item: *//p' "$STUB/pack.yaml")"
+update_op="$(sed -n 's/^  update_item: *//p' "$STUB/pack.yaml")"
+cat > "$STUB/skills/$fetch_op/scripts/$fetch_op.sh" <<'EOF'
+#!/usr/bin/env bash
+mkdir -p .ai/tracker
+cp "$STUB_ITEM" ".ai/tracker/fetch-item-$1.json"
+printf '## Result\nverdict: pass\nsummary: Fetched %s.\nartifacts: []\nnext_action: none\n' "$1"
+EOF
+cat > "$STUB/skills/$update_op/scripts/$update_op.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '## Result\nverdict: pass\nsummary: Stub updated %s.\nartifacts: []\nnext_action: none\n' "$1"
+EOF
+register "$TRACKER" "$STUB"
+
+# live_item <components, comma-separated> <block named in its text>
+live_item() {
+  local comps="" c
+  for c in ${1//,/ }; do comps="$comps${comps:+,}{\"name\":\"$c\"}"; done
+  cat > "$TMP/live.json" <<EOF
+{"key":"EDS-99","fields":{"issuetype":{"name":"Story"},"summary":"Live item","labels":[],
+ "components":[$comps],"attachment":[],
+ "description":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text",
+  "text":"Change blocks/$2/ as the design shows."}]}]}}}
+EOF
+}
+export STUB_ITEM="$TMP/live.json"
+clean_draft | sed 's|^item_type: Story|item_type: Story\
+item_id: EDS-99|' > "$TMP/keyed.md"
+clean_draft | sed 's|^item_type: Story|item_type: Story\
+item_id: EDS-99\
+components: [features-carousel]|' > "$TMP/keyed-component.md"
+
+live_item "carousel" "features-carousel"
+run_in "live component the draft drops is refused" 1 "create a new item" \
+  python3 "$PWRITE" "$TMP/keyed.md"
+live_item "" "carousel"
+run_in "draft naming none of the live blocks is refused" 1 "create a new item" \
+  python3 "$PWRITE" "$TMP/keyed.md"
+live_item "" "features-carousel"
+run_in "same block, no components, is updated" 0 "Stub updated EDS-99" \
+  python3 "$PWRITE" "$TMP/keyed.md"
+live_item "features-carousel" "features-carousel"
+run_in "same component kept in the draft is updated" 0 "Stub updated EDS-99" \
+  python3 "$PWRITE" "$TMP/keyed-component.md"
+
 # Both spellings: a path literal, and a path built from a "plugins" segment.
 if grep -nE "plugins/|[\"']plugins[\"']" "$CHECKER" "$SCRIPT_DIR/write-item.py"; then
   echo "  FAIL: a script names a plugins/ path"
