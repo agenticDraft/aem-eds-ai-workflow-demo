@@ -11,12 +11,6 @@
   font-size: var(--body-font-size-xs);
 }
 
-@media (width >= 600px) {
-  .table table {
-    font-size: var(--body-font-size-s);
-  }
-}
-
 @media (width >= 900px) {
   .table table {
     font-size: var(--body-font-size-m);
