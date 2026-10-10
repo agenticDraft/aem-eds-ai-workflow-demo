@@ -123,6 +123,77 @@ echo "[review notes do not fail the run]"
 run_case "criterion joined with and" 0 "review: AC-2 contains 'and'" \
   "$(clean_draft | sed 's|^AC-2 .*|AC-2 The list and the button render through the global styles.|')"
 
+echo "[plugin roots come from the resolver]"
+# A project of its own: these scripts, this project's config, and a registry
+# naming copies of the plugins in a folder with another name. The copies are
+# found through this project's own registry, the way the scripts find them.
+REAL="$(cd "$SCRIPT_DIR/../../../.." && pwd -P)"
+CORE_NAME="agentic-core"
+REAL_CORE="$(head -n 1 "$REAL/.ai/run-context/plugin-roots/$CORE_NAME" 2>/dev/null)"
+RESOLVER="$REAL_CORE/shared/lib/resolve-plugin-root.sh"
+PROJ="$TMP/project"
+CACHE="$TMP/cache"
+mkdir -p "$PROJ/.claude/skills/write-specs" "$PROJ/.ai/run-context/plugin-roots" "$CACHE"
+cp -R "$SCRIPT_DIR" "$PROJ/.claude/skills/write-specs/scripts"
+cp "$REAL/.ai/project-config.yaml" "$PROJ/.ai/project-config.yaml"
+role_pack() { sed -n "s/^  $1: *//p" "$PROJ/.ai/project-config.yaml"; }
+register() { printf '%s\n' "$2" > "$PROJ/.ai/run-context/plugin-roots/$1"; }
+for name in "$CORE_NAME" "$(role_pack platform)" "$(role_pack tracker)"; do
+  root="$(bash "$RESOLVER" "$name" --project-dir "$REAL" 2>/dev/null)"
+  [[ -n "$root" ]] && rsync -a --exclude node_modules "$root/" "$CACHE/$name/" \
+    && register "$name" "$CACHE/$name"
+done
+
+# run_in <label> <expected exit> <expected substring> <command...> — in $PROJ
+run_in() {
+  local label="$1" expected_exit="$2" expected="$3" out actual_exit
+  shift 3
+  out="$(cd "$PROJ" && "$@" 2>&1)"
+  actual_exit=$?
+  if [[ "$actual_exit" == "$expected_exit" && "$out" == *"$expected"* ]]; then
+    echo "  ok: $label"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $label"
+    echo "    expected exit $expected_exit containing: $expected"
+    echo "    got exit $actual_exit:"
+    echo "$out" | sed 's/^/      /'
+    FAIL=$((FAIL + 1))
+  fi
+}
+PCHECK="$PROJ/.claude/skills/write-specs/scripts/check-spec.py"
+PWRITE="$PROJ/.claude/skills/write-specs/scripts/write-item.py"
+clean_draft > "$TMP/registry.md"
+TRACKER="$(role_pack tracker)"
+
+run_in "checks a draft against the registered copies" 0 "valid: write-specs" \
+  python3 "$PCHECK" "$TMP/registry.md"
+run_in "write-item reaches the registered tracker pack" 2 "this is a create" \
+  python3 "$PWRITE" "$TMP/registry.md"
+
+register "$TRACKER" "$TMP/gone"
+run_in "a stale pack entry is refused" 2 "refused: $TRACKER" \
+  python3 "$PCHECK" "$TMP/registry.md"
+run_in "write-item refuses a stale pack entry" 2 "refused: $TRACKER" \
+  python3 "$PWRITE" "$TMP/registry.md"
+register "$TRACKER" "$CACHE/$TRACKER"
+
+register "$CORE_NAME" "$TMP/gone"
+run_in "a stale core entry is refused" 2 "refused: $CORE_NAME" \
+  python3 "$PCHECK" "$TMP/registry.md"
+rm "$PROJ/.ai/run-context/plugin-roots/$CORE_NAME"
+run_in "no core entry is not resolved" 2 "not resolved: $CORE_NAME" \
+  python3 "$PCHECK" "$TMP/registry.md"
+
+# Both spellings: a path literal, and a path built from a "plugins" segment.
+if grep -nE "plugins/|[\"']plugins[\"']" "$CHECKER" "$SCRIPT_DIR/write-item.py"; then
+  echo "  FAIL: a script names a plugins/ path"
+  FAIL=$((FAIL + 1))
+else
+  echo "  ok: neither script names a plugins/ path"
+  PASS=$((PASS + 1))
+fi
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [[ "$FAIL" -eq 0 ]] || exit 1

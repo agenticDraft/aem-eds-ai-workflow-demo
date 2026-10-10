@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pluginName, pluginSourceLines, pluginSources } from "./plugin-sources.mjs";
+import { pluginDirectory, pluginName, pluginSourceLines, pluginSources } from "./plugin-sources.mjs";
 
 const ENABLED = {
   "core@local-marketplace": true,
@@ -63,4 +63,15 @@ test("the decision is pure: its inputs are not changed", () => {
   pluginSources(names, enabled);
   assert.deepEqual(names, ["pack-c", "pack-a"]);
   assert.deepEqual(enabled, ENABLED);
+});
+
+test("an unset or blank plugin directory is refused, never defaulted", () => {
+  for (const value of [undefined, null, "", "   "]) {
+    assert.deepEqual(pluginDirectory(value), { refused: "ROUTE_PLUGIN_DIR is not set" });
+  }
+});
+
+test("a set plugin directory is taken as given, an absent folder included", () => {
+  assert.deepEqual(pluginDirectory("plugins"), { dir: "plugins" });
+  assert.deepEqual(pluginDirectory("/nowhere/at/all"), { dir: "/nowhere/at/all" });
 });

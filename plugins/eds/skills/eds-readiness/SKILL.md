@@ -8,9 +8,9 @@ context: fork
 This stage always runs. It has no `tracker`/`scm`/`design`/`browser` role dependency — it reads the
 fact record a prior stage wrote and this pack's own manifest.
 
-Read `../../../agentic-core/shared/readiness-criteria.md` for the criteria this stage checks and
-why this gate carries no reviewing-model half, `../../../agentic-core/shared/fact-record.md` for
-the record's shape, and `../../../agentic-core/shared/result-envelope.md` for the envelope this stage writes with
+Read `${CLAUDE_PLUGIN_ROOT}/core/readiness-criteria.md` for the criteria this stage checks and
+why this gate carries no reviewing-model half, `${CLAUDE_PLUGIN_ROOT}/core/fact-record.md` for
+the record's shape, and `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for the envelope this stage writes with
 the emitter.
 
 ## Input
@@ -64,7 +64,7 @@ that artifact is `intake`'s job, and this gate reads it, never recomputes it.
 Run:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-readiness-criteria.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/check-readiness-criteria.sh \
   ${CLAUDE_PLUGIN_ROOT}/pack.yaml \
   .ai/run-context/fact-record.yaml
 ```
@@ -89,12 +89,12 @@ after it (`readiness-criteria.md`).
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-readiness.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the missing-fact-record reason; or the checker's `invalid: <reason>`
@@ -108,12 +108,12 @@ See `../../../agentic-core/shared/result-envelope.md` for every option and what 
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-readiness.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the item's `item_type` and that its declared readiness criteria

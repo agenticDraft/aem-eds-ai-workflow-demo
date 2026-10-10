@@ -9,20 +9,20 @@ This stage always runs. It has no `tracker`/`scm`/`design`/`browser` role depend
 project's configured lint command against this checkout and, if that command fails, edits the
 files it names and tries again, before giving up and reporting what remains.
 
-The loop follows `../../../agentic-core/shared/fix-loop.md`. A **check** is one run of the lint
+The loop follows `${CLAUDE_PLUGIN_ROOT}/core/fix-loop.md`. A **check** is one run of the lint
 command; an **edit** is one pass through **Edit the in-scope files the output names**. Keep a count,
 `edits-made`, starting at `0` and raised by one after each edit, never after a run. The budget is
 this stage's `fix_attempts` in the pack manifest; this file never states it, and the stage never
 compares the count against it itself.
 
-Read `../../../agentic-core/shared/project-config.md` for the shape referenced in **Read the
-configured lint command**, `../../../agentic-core/shared/fix-loop.md` for the loop's unit, `../../../agentic-core/shared/publish-criteria.md`'s "The change,
+Read `${CLAUDE_PLUGIN_ROOT}/core/project-config.md` for the shape referenced in **Read the
+configured lint command**, `${CLAUDE_PLUGIN_ROOT}/core/fix-loop.md` for the loop's unit, `${CLAUDE_PLUGIN_ROOT}/core/publish-criteria.md`'s "The change,
 minimally" section for how this stage resolves the same merge-base diff `publish-gate` reviews
-later, and `../../../agentic-core/shared/result-envelope.md` for the envelope this stage writes
+later, and `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for the envelope this stage writes
 with the emitter.
 
 Where no rule answers a decision this stage makes, read
-`../../../agentic-core/shared/official-reference.md` and follow it: the platform pack's
+`${CLAUDE_PLUGIN_ROOT}/core/official-reference.md` and follow it: the platform pack's
 `reference_docs` page is read before deciding, and each read is cited in this stage's report.
 
 ## Input
@@ -85,7 +85,7 @@ minimally" section defines it — the same diff `publish-gate` reviews later, co
 this stage's own edits never grow it:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/list-changed-files.sh .
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/list-changed-files.sh .
 ```
 
 Run it as this one command; it prints the union, sorted. Exit `2` (no `origin/HEAD`, no merge base)
@@ -135,7 +135,7 @@ Answer two questions, in this order.
 1. **Is the budget spent?** Run:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/check-fix-budget.sh \
+   bash ${CLAUDE_PLUGIN_ROOT}/core/lib/check-fix-budget.sh \
      ${CLAUDE_PLUGIN_ROOT}/pack.yaml .ai/project-config.yaml lint <edits-made>
    ```
 
@@ -167,12 +167,12 @@ each at its cause (`fix-loop.md`) — one rule's violation repeated across a fil
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-lint.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that no lint command is configured, or that the lint edit budget was
@@ -195,12 +195,12 @@ pass, the same convention other stages use for their own downgrade cases.
 Write the envelope with the emitter, never by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../agentic-core/shared/lib/emit-envelope.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
   .ai/run-context/envelope-lint.txt \
   --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
 ```
 
-See `../../../agentic-core/shared/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
+See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many runs it took to exit

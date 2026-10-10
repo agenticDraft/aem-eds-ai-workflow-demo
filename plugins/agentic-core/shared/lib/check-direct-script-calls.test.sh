@@ -98,6 +98,31 @@ run platformpack "$C" "$T"
 [[ "$STATUS" -eq 1 ]] && ok "one direct transcript among several exits 1" || bad "one direct transcript among several exits 1" "got $STATUS"
 has "each line names its transcript" "	direct.jsonl	"
 
+echo "# an installed copy: scripts under cache/<marketplace>/<pack>/<version>/skills/"
+K="$WORK/cache.jsonl"
+CACHE='/home/u/.claude/plugins/cache/a-market'
+{
+  bash_call "node $CACHE/browserpack/1.2.0/skills/capture/scripts/capture.cjs http://localhost:3001/x 1440"
+  bash_call "P=$CACHE/trackerpack/0.3.1/skills; bash \$P/attach-file/scripts/attach-file.sh KEY a"
+  skill_call browserpack:render
+  bash_call "node $CACHE/browserpack/1.2.0/skills/render/scripts/render.cjs http://localhost:3001/x"
+  bash_call "python3 $CACHE/platformpack/2.0.0/skills/stage-x/scripts/own.py"
+  bash_call "bash $CACHE/agentic-core/1.0.0/shared/lib/emit-envelope.sh out.txt --verdict pass"
+  bash_call "bash $CACHE/browserpack/1.2.0/shared/scripts/helper.sh"
+} > "$K"
+run platformpack "$K"
+[[ "$STATUS" -eq 1 ]] && ok "exits 1" || bad "exits 1" "got $STATUS" "$OUT"
+has "a direct call through a cache path is named by its pack, not its version" "direct	browserpack/capture	cache.jsonl	"
+has "a cache path behind a variable prefix is resolved" "direct	trackerpack/attach-file	cache.jsonl	"
+hasnot "the operation's own script, right after its skill, is not reported" "browserpack/render"
+hasnot "the stage's own pack is never reported from the cache either" "platformpack/"
+hasnot "the core's library in the cache is never reported" "agentic-core"
+hasnot "a pack's shared scripts in the cache are never reported" "shared/scripts"
+awk -F'\t' '$1 == "direct" && $2 ~ /^[0-9]/' <<<"$OUT" | grep -q . \
+  && bad "the version is never taken for the pack" "$OUT" \
+  || ok "the version is never taken for the pack"
+has "summary" "invalid: 2 provider script(s) run directly"
+
 echo "# usage errors"
 run platformpack
 [[ "$STATUS" -eq 2 ]] && ok "no transcript → exit 2" || bad "no transcript → exit 2" "got $STATUS"

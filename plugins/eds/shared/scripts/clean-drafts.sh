@@ -41,7 +41,7 @@ if [[ -z "$SCM_ROOT" ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CORE_LIB="$SCRIPT_DIR/../../../agentic-core/shared/lib"
+CORE_LIB="$SCRIPT_DIR/../../core/lib"
 DERIVE="$CORE_LIB/derive-branch-name.sh"
 VALIDATE="$CORE_LIB/validate-result-envelope.sh"
 STOP="$SCRIPT_DIR/stop-draft-server.sh"

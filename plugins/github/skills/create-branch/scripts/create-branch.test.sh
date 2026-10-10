@@ -225,7 +225,7 @@ fi
 # fields, so it is the one whose field order can be wrong without any other
 # case noticing. Checked against the real validator, not by eye.
 printf '%s\n' "$OUT" > "$WORK/question-envelope.txt"
-VALIDATOR="$SCRIPT_DIR/../../../../agentic-core/shared/lib/validate-result-envelope.sh"
+VALIDATOR="$SCRIPT_DIR/../../../core/lib/validate-result-envelope.sh"
 if [[ -f "$VALIDATOR" ]]; then
   bash "$VALIDATOR" "$WORK/question-envelope.txt" >/dev/null 2>&1; VST=$?
   [[ "$VST" == 0 ]] && ok "the question envelope passes the real validator" \

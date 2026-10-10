@@ -10,10 +10,10 @@ this is not a route stage and no pack-manifest condition ever schedules it. A hu
 `eds-adopt-design-system` itself as its own second step, runs it deliberately when there is an
 adopted token set to audit the project against.
 
-Read `../../../agentic-core/shared/audit-taxonomy.md` for the four classes, the severity test, and
+Read `${CLAUDE_PLUGIN_ROOT}/core/audit-taxonomy.md` for the four classes, the severity test, and
 the required shape of a finding this skill writes every one of its findings against, and
-`../../../agentic-core/shared/design-manifest.md` for the manifest shape this skill reads.
-`../../../agentic-core/shared/result-envelope.md` is the `## Result` block every path through this
+`${CLAUDE_PLUGIN_ROOT}/core/design-manifest.md` for the manifest shape this skill reads.
+`${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` is the `## Result` block every path through this
 flow ends with.
 
 **What this platform pack knows, that the core does not:** the design manifest lives at
@@ -79,7 +79,7 @@ digraph eds_audit_design_system {
 ### Read the design manifest
 
 Read `.ai/design/design-system.md` at the project root — the manifest `eds-adopt-design-system`
-writes (`../../../agentic-core/shared/design-manifest.md`). This skill only reads it; nothing in
+writes (`${CLAUDE_PLUGIN_ROOT}/core/design-manifest.md`). This skill only reads it; nothing in
 this flow ever writes to it.
 
 ### Manifest found?
@@ -103,7 +103,7 @@ against.
      claimed value replaced by the corresponding actual value (when both sets have the same
      number of entries) or, when they do not, the claimed list replaced outright by the actual
      set written out in the same prose shape.
-   - `severity`: run `../../../agentic-core/shared/lib/classify-severity.sh AGENTS.project.md
+   - `severity`: run `${CLAUDE_PLUGIN_ROOT}/core/lib/classify-severity.sh AGENTS.project.md
      trusted-context-files.txt` (paths relative to this skill's own directory for the second
      argument). `AGENTS.project.md` is on this pack's own trusted-context list, so this finding is
      always `poisoning` when it exists at all — every stage that reads this document inherits
@@ -133,7 +133,7 @@ against.
 
 1. Search every `blocks/*/*.css` file for a raw hex color literal (`#` followed by 3, 4, 6 or 8
    hex digits).
-2. For each one found, run `../../../agentic-core/shared/lib/classify-hex-token.sh <hex>
+2. For each one found, run `${CLAUDE_PLUGIN_ROOT}/core/lib/classify-hex-token.sh <hex>
    .ai/design/design-system.md`:
    - `mechanical: exact match — <token> (<value>)` — one finding, `class: mechanical`, `diff`
      replacing the literal with `var(--<slug>)`, using the same name-to-slug rule
@@ -151,14 +151,14 @@ against.
 
 1. Parse every `@font-face` rule in `styles/fonts.css`, recording each rule's `font-family` name
    and the file its `src` points at.
-2. For each distinct family name, run `../../../agentic-core/shared/lib/check-reference.sh
+2. For each distinct family name, run `${CLAUDE_PLUGIN_ROOT}/core/lib/check-reference.sh
    <family> styles/ styles/fonts.css` — is that family used in a `font-family` declaration
    anywhere outside the file that declares it.
 3. Exit `1` (`not-referenced`) — one finding per font file that family registers: `class:
    mechanical` (deleting an unreferenced file has one derivable answer), `file`: the font file's
    own path, `diff` removing that file and its own `@font-face` rule, `severity` from
    `classify-severity.sh <the font file> trusted-context-files.txt` — always `cosmetic`: no agent
-   reads a font file as truth, however large it is (`../../../agentic-core/shared/audit-
+   reads a font file as truth, however large it is (`${CLAUDE_PLUGIN_ROOT}/core/audit-
    taxonomy.md`'s own worked example).
    Exit `0` (`referenced: …`) — no finding for that family's files; something outside its own
    declaration still uses it.
@@ -171,7 +171,7 @@ found nothing produces an empty list.
 
 ### Check shallow-repository precondition
 
-Run `../../../agentic-core/shared/lib/check-shallow-clone.sh .` once, before any call to the
+Run `${CLAUDE_PLUGIN_ROOT}/core/lib/check-shallow-clone.sh .` once, before any call to the
 eligibility oracle in the next node — never after. This is the only node in this flow that reads
 the repository's own clone depth rather than its content.
 
@@ -185,7 +185,7 @@ findings**.
 
 ### Check auto-fix eligibility for mechanical findings
 
-For every finding assembled above with `class: mechanical`, run `../../../agentic-core/shared/
+For every finding assembled above with `class: mechanical`, run `${CLAUDE_PLUGIN_ROOT}/core/
 lib/check-auto-fix-eligibility.sh . <file>` against that finding's own `file`. Findings of any
 other class are untouched by this node — the check exists to protect a human's own edit from a
 silent auto-fix, not to reclassify anything else.
@@ -194,16 +194,16 @@ silent auto-fix, not to reclassify anything else.
 - `demoted: <file> (<n> commits)` — the file has been edited since the boilerplate import, so a
   human decision already lives in it. Rewrite that finding in place: `class: judgment`,
   `recommendation` naming the same fix its `diff` already carries, `default` equal to
-  `recommendation` (`../../../agentic-core/shared/audit-taxonomy.md`'s own rule for a `judgment`
+  `recommendation` (`${CLAUDE_PLUGIN_ROOT}/core/audit-taxonomy.md`'s own rule for a `judgment`
   finding's `diff` — the recommended value is what the diff already carries, so accepting the
   default applies exactly that diff, nothing further to construct), `diff` and `file` unchanged.
 
 ### Write the audit
 
 Write `.ai/design/audit.md`: the assembled list — with any node above's demotions applied — in
-`../../../agentic-core/shared/audit-taxonomy.md`'s exact shape, or the literal `[]` when it is
+`${CLAUDE_PLUGIN_ROOT}/core/audit-taxonomy.md`'s exact shape, or the literal `[]` when it is
 empty — never an omitted or blank file.
-Run `../../../agentic-core/shared/lib/validate-findings.sh .ai/design/audit.md` to confirm the
+Run `${CLAUDE_PLUGIN_ROOT}/core/lib/validate-findings.sh .ai/design/audit.md` to confirm the
 file this node just wrote actually conforms to that shape before reporting anything about it.
 
 ### Write the trusted-context digest
@@ -253,7 +253,7 @@ pass**.
 
 ### Report pass
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Emit the `## Result` block as plain `key: value` lines per `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many findings were recorded and that none is `poisoning`.
@@ -263,7 +263,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report warn
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Emit the `## Result` block as plain `key: value` lines per `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: warn`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming how many findings were recorded and how many are `poisoning`.
@@ -277,7 +277,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report fail
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Emit the `## Result` block as plain `key: value` lines per `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong, verbatim from the node that failed — never a

@@ -56,7 +56,8 @@ run_check "$(fixture via-bash 'bash ${CLAUDE_PLUGIN_ROOT}/shared/lib/thing.sh .a
 [[ "$ST" == 0 ]] && ok "'bash <script>' with no exec bit -> valid, not a finding" || bad "'bash <script>' with no exec bit -> valid, not a finding" "exit $ST" "$OUT"
 
 echo "[resolves] a sibling pack's path through ../"
-run_check "$(fixture sibling '${CLAUDE_PLUGIN_ROOT}/../otherpack/shared/lib/sibling.sh' no)"
+UP='..'
+run_check "$(fixture sibling '${CLAUDE_PLUGIN_ROOT}/'"$UP"'/otherpack/shared/lib/sibling.sh' no)"
 [[ "$ST" == 1 && "$OUT" == *"sibling.sh"* ]] && ok "'../<pack>/' resolves to the sibling pack and is checked" \
   || bad "'../<pack>/' resolves to the sibling pack and is checked" "exit $ST" "$OUT"
 
@@ -70,10 +71,17 @@ bash "$CHECK" >/dev/null 2>&1; ST=$?
 bash "$CHECK" "$WORK/nope" >/dev/null 2>&1; ST=$?
 [[ "$ST" == 2 ]] && ok "a directory that does not exist -> exit 2" || bad "a directory that does not exist -> exit 2" "got $ST"
 
-echo "[shipped] this repository's own plugins pass"
-REAL="$SCRIPT_DIR/../../.."
-run_check "$REAL"
-[[ "$ST" == 0 ]] && ok "plugins/ passes ($OUT)" || bad "plugins/ passes" "$OUT"
+echo "[shipped] every plugin in this source tree, registered in a temp project"
+. "$SCRIPT_DIR/register-source-tree.sh"
+register_source_tree "$WORK/real-project" && ok "the source tree's plugins are registered" || bad "the source tree's plugins are registered"
+SEEN=0
+while IFS=$'\t' read -r name root; do
+  [ -n "$root" ] || continue
+  SEEN=$((SEEN + 1))
+  run_check "$root"
+  [[ "$ST" == 0 ]] && ok "$name passes ($OUT)" || bad "$name passes" "$OUT"
+done < <(bash "$SCRIPT_DIR/resolve-plugin-root.sh" --list --project-dir "$WORK/real-project")
+[[ "$SEEN" -gt 1 ]] && ok "more than one plugin checked ($SEEN)" || bad "more than one plugin checked" "$SEEN"
 
 echo
 echo "=== ${PASS} passed, ${FAIL} failed ==="

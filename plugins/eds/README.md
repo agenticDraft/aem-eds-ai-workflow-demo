@@ -27,8 +27,9 @@ that something, and it is the only place that vocabulary lives.
    takes no invocation argument except `intake` (`item_id`) and the two gates (`project_root`),
    reads `.ai/run-context/fact-record.yaml` itself, and ends with the result envelope.
 3. **Provider packs are resolved from the project config.** A stage reads `packs.<role>` from
-   `.ai/project-config.yaml`, opens `${CLAUDE_PLUGIN_ROOT}/../<pack>/pack.yaml` for the skill
-   that implements the operation, and invokes `Skill(<pack>:<skill>)`.
+   `.ai/project-config.yaml`, finds that pack's root with the core's
+   `resolve-plugin-root.sh <pack>` (a non-zero exit fails the stage), opens `<root>/pack.yaml` for
+   the skill that implements the operation, and invokes `Skill(<pack>:<skill>)`.
 4. **Gates run a script first, a reviewer second.** `plan-gate` and `publish-gate` run the core's
    deterministic criteria check, then hand only what survives to `agents/eds-gate-reviewer.md`,
    which runs in a worktree of its own and reports only findings it can defend.
@@ -185,7 +186,7 @@ Validating plugin manifest: .../plugins/eds/.claude-plugin/plugin.json
 **Pack manifest check by the core, this run:**
 
 ```text
-$ bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/eds/pack.yaml
+$ bash plugins/eds/core/lib/validate-pack-manifest.sh plugins/eds/pack.yaml
 valid: platform
 ```
 
@@ -251,7 +252,7 @@ paths:
 7. Before shipping a change under `plugins/eds`, run the core's no-narrative check:
 
    ```text
-   bash plugins/agentic-core/shared/lib/check-no-narrative.sh plugins/eds
+   bash plugins/eds/core/lib/check-no-narrative.sh plugins/eds
    ```
 
 ## Limits you should know

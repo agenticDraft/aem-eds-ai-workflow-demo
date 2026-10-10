@@ -120,7 +120,7 @@ def main(argv):
     item_key = (fields.get("item_id") or "").strip()
 
     packs = check_spec.read_pack_names(CONFIG)
-    pack_root = os.path.join("plugins", packs["tracker"])
+    pack_root = check_spec.plugin_root(packs["tracker"], os.getcwd())
     pack_yaml = os.path.join(pack_root, "pack.yaml")
     if not os.path.isfile(pack_yaml):
         check_spec.unreadable(f"'{pack_yaml}' not found")

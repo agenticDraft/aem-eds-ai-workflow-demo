@@ -16,7 +16,8 @@
 //   ROUTE_ALLOWED_TOOLS    comma-separated allow rules, e.g. "Skill,Read,Bash(bash plugins/*)"
 //                          (empty: only calls that never need approval run)
 //   ROUTE_PLUGIN_DIR       directory whose sub-directories are loaded as plugins by
-//                          path (default: plugins). Not the whole set: the enabledPlugins
+//                          path; required, no default. A folder that does not exist
+//                          loads none by path. Not the whole set: the enabledPlugins
 //                          of the project's settings load too, and a name in both runs
 //                          from the path copy. The startup log names both sets.
 //   ROUTE_MAX_TURNS        may only LOWER the policy's caps.max_turns
@@ -42,6 +43,7 @@
 //   5  the budget cap was reached
 //   6  the network allowlist was refused (missing, malformed or empty list,
 //      or the policy tier did not take the lock); nothing was started
+//   7  ROUTE_PLUGIN_DIR is not set; nothing was started
 //   64 usage: no prompt given
 //
 // Every cap that ends a run logs, and writes to the result file,
@@ -58,7 +60,7 @@ import { TerminalCapture } from "./terminal-capture.mjs";
 import { denialLines } from "./denials.mjs";
 import { shapeProblem } from "./shell-shape.mjs";
 import { isRoutePrompt, stopDecision } from "./stop-guard.mjs";
-import { pluginSourceLines, pluginSources } from "./plugin-sources.mjs";
+import { pluginDirectory, pluginSourceLines, pluginSources } from "./plugin-sources.mjs";
 
 const prompt = process.argv[2];
 if (!prompt) {
@@ -71,7 +73,7 @@ const allowedTools = (env.ROUTE_ALLOWED_TOOLS || "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-const pluginDir = resolve(env.ROUTE_PLUGIN_DIR || "plugins");
+const pluginSetting = pluginDirectory(env.ROUTE_PLUGIN_DIR);
 const resultFile = env.ROUTE_RESULT_FILE || ".ai/run-context/runner-result.txt";
 const projectConfig = env.ROUTE_PROJECT_CONFIG || ".ai/project-config.yaml";
 const policyFile = env.ROUTE_POLICY_FILE || ".ai/route-policy.yaml";
@@ -86,6 +88,14 @@ function writeResult(text) {
   writeFileSync(resultFile, `${text ?? ""}\n`);
   log(`result written: ${resultFile}`);
 }
+
+// The plugin directory has no default; without one nothing starts.
+if (pluginSetting.refused) {
+  log(`plugin directory refused: ${pluginSetting.refused}`);
+  writeResult(`plugin directory refused: ${pluginSetting.refused}`);
+  process.exit(7);
+}
+const pluginDir = resolve(pluginSetting.dir);
 
 // The route policy, through the core's own checker. Anything but a clean
 // read starts nothing: there are no defaults to fall back to.

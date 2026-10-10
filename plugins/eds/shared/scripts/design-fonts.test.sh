@@ -11,7 +11,6 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FONTS="$SCRIPT_DIR/design-fonts.py"
-REPO="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/design-fonts.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
@@ -130,14 +129,24 @@ status_is "exit 0 for an image reference" 0 "$D"
 echo "EDS-18"
 # The four font classes and the Captions variable exactly as the EDS-18 run's
 # .ai/run-context held them (design-context.txt lines 11, 19, 66, 121;
-# design-reference.json line 124), against this repository's own styles/.
+# design-reference.json line 124), against the families that run's project
+# declared — roboto, roboto-condensed and their two fallbacks — written here.
 D="$(case_dir eds-18 '<div className="[word-break:break-word] flex flex-col font-['"'"'DM_Sans:Medium'"'"'] font-medium justify-center leading-[0] relative shrink-0 text-[25.714px] text-black tracking-[-2.0571px] whitespace-nowrap" data-node-id="1:198">
 <p className="[word-break:break-word] font-['"'"'Roboto_Mono:Regular'"'"'] font-normal leading-[1.4] relative shrink-0 text-[12px] text-black text-center tracking-[-0.12px] whitespace-nowrap" data-node-id="I1:199;1:564">x</p>
 <div className="[word-break:break-word] flex flex-col font-['"'"'Rethink_Sans:Medium'"'"'] font-medium justify-center leading-[0] relative shrink-0 text-[#6f6f6f] text-[22.857px] tracking-[-1.8286px] whitespace-nowrap" data-node-id="1:207">
 <div className="[word-break:break-word] flex flex-col font-['"'"'Reddit_Mono:Medium'"'"'] font-medium justify-center leading-[0] relative shrink-0 text-[#6f6f6f] text-[21.654px] tracking-[-1.7323px] whitespace-nowrap" data-node-id="1:216">' \
   '{"Captions": "Font(family: \"Roboto Mono\", style: Regular, size: 12, weight: 400, lineHeight: 1.399999976158142, letterSpacing: -1)"}')"
-mkdir -p "$D/styles"
-cp "$REPO/styles/fonts.css" "$REPO/styles/styles.css" "$D/styles/"
+css "$D" styles/fonts.css '@font-face { font-family: roboto-condensed; src: url("../fonts/roboto-condensed-bold.woff2"); }
+@font-face { font-family: roboto; src: url("../fonts/roboto-bold.woff2"); }
+@font-face { font-family: roboto; src: url("../fonts/roboto-medium.woff2"); }
+@font-face { font-family: roboto; src: url("../fonts/roboto-regular.woff2"); }'
+css "$D" styles/styles.css ':root {
+  --body-font-family: roboto, roboto-fallback, sans-serif;
+  --heading-font-family: roboto-condensed, roboto-condensed-fallback, sans-serif;
+}
+@font-face { font-family: roboto-condensed-fallback; src: local("Arial"); }
+@font-face { font-family: roboto-fallback; src: local("Arial"); }
+body { font-family: var(--body-font-family); }'
 run_fonts "$D"
 out_is "names DM Sans, Roboto Mono, Rethink Sans, Reddit Mono — in first-seen order" "$D" "Roboto Mono
 DM Sans

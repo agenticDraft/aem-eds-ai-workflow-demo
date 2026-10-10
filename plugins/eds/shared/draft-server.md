@@ -40,18 +40,21 @@ ladder's worth of time confirming a fact this section already states as certain.
 ## Start, poll-first
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/start-draft-server.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/start-draft-server.sh \
   <paths.preview value> \
   .ai/logs/draft-server.log \
   .ai/logs/draft-server.pid
 ```
 
 **Branch length first (D539).** Before it polls or starts anything, the script runs
-`check-branch-length.sh` on the checked-out branch. The dev server refuses a branch over 23
-characters, and that refusal reaches only its log. A too-long branch exits `1` with
-`start-failed: branch name too long (<n> > 23)`, never the poll ladder's `no-answer`. This failure is
-**not** transient: a restart fails the same way. The calling stage's question names the rename, not
-the recovery command. No branch checked out (detached HEAD) leaves nothing to measure.
+`check-branch-length.sh` on the checked-out branch, against the project config's
+`branch_name.max_length`. The dev server refuses a branch over that limit, and that refusal reaches
+only its log. A too-long branch exits `1` with `start-failed: branch name too long (<n> > <limit>)`,
+never the poll ladder's `no-answer`. A project config with no limit exits `1` with
+`start-failed: not-configured: branch_name.max_length — …`; the pack has no default. Neither
+failure is transient: a restart fails the same way. The calling stage's question names the rename,
+or the missing config value, not the recovery command. No branch checked out (detached HEAD) leaves
+nothing to measure.
 
 Polls before starting: the server an earlier stage or an earlier run started is normally still
 answering, and is reused. Only starts a new one when nothing answered, and writes the pid file only
@@ -68,12 +71,12 @@ makes correct) a human can run.
 `eds-serve` runs this first, before it starts or polls anything, from the project root:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/../eds/shared/scripts/clean-drafts.sh <scm pack root | none>
+bash ${CLAUDE_PLUGIN_ROOT}/shared/scripts/clean-drafts.sh <scm pack root | none>
 ```
 
 Unsandboxed, because the scm role's script it runs reaches the provider over the network. For each
 earlier run's change record, `.ai/scm/publish-change-<branch>.json`, it runs the scm pack's
-`scripts.check_status` (`../../agentic-core/shared/pack-manifest.md`) once as a subprocess,
+`scripts.check_status` (`${CLAUDE_PLUGIN_ROOT}/core/pack-manifest.md`) once as a subprocess,
 validates the envelope, and reads `change_state` whatever the verdict:
 
 - `merged` or `closed` — deletes every `drafts/<id>.plain.html` whose derived branch name equals

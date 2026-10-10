@@ -35,7 +35,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-READER = os.path.join(HERE, "..", "..", "..", "..", "agentic-core", "shared", "lib", "read-question-answer.sh")
+READER = os.path.join(HERE, "..", "..", "..", "core", "lib", "read-question-answer.sh")
 
 BLOCK_PATH_RE = re.compile(r"blocks/([a-z0-9][a-z0-9-]*)/")
 BLOCK_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")

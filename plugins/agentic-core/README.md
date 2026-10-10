@@ -59,6 +59,47 @@ the core can be pointed at.
 7. **Every decision that can be a script is a script.** The shared library holds the validators,
    writers and checkers the driver and the packs call; each has a `.test.sh` beside it, and none
    involves a model.
+8. **Plugins find each other by name, never by folder.** The core and each pack are separate
+   plugins. Installed, each one lives in its own versioned directory, so `..` from one plugin root
+   does not reach another. Three directions, two mechanisms:
+   - **Who is asked:** the core only knows roles. Project config maps each role to a plugin name
+     (`packs:`); the core never holds a name of its own choosing.
+   - **Core → pack, pack → pack: the root registry.** Each plugin's own `SessionStart` hook writes
+     its `${CLAUDE_PLUGIN_ROOT}` to `.ai/run-context/plugin-roots/<name>`. Only the core's
+     `shared/lib/resolve-plugin-root.sh <name>` reads it: a registry entry naming a directory that
+     exists wins; an entry naming a missing directory is refused; with no entry, the sibling folder
+     is tried, which exists only when every plugin is loaded by path from one source tree; otherwise
+     it exits non-zero and says the name was not resolved.
+   - **Pack → core: the `core` link.** Each pack carries `core`, a link to the core's `shared/`
+     directory, and reaches every contract and script as `${CLAUDE_PLUGIN_ROOT}/core/<path>`.
+   - **What crosses the boundary is the envelope.** Finding a plugin's root only lets a caller run
+     that plugin's skill or script; what comes back is still the result envelope above.
+   - **An unresolved plugin is an error.** The caller stops; it never guesses a path and never
+     treats the plugin as optional.
+
+   **Status: partly shipped.** Shipped: `register-plugin-root.sh`, `resolve-plugin-root.sh`, and a
+   `SessionStart` entry with no `async` in this plugin's `hooks/hooks.json`; the run-context archive
+   leaves `plugin-roots/` in place; each pack's `core` link, through which every pack → core
+   reference, a pack's own hook included, now goes; `shared/lib/rewrite-core-refs.sh`, which moves a
+   pack's references onto its link. Every core → pack and pack → pack lookup now asks the resolver:
+   the driver's pre-flight, `setup`'s pack scan (`resolve-plugin-root.sh --list`, every registered
+   plugin), `health`, each stage that reaches a role's pack, and the branch-name check, which fails
+   (exit 4) rather than allowing every name when the platform pack is not resolved; its hook reads
+   the main checkout's registry, so a command in a linked worktree is judged by the same rule.
+   `shared/lib/check-own-root-refs.sh <plugin root>…` reports a plugin that reaches its own files
+   through `..` and its own name. Not shipped: a run from installed copies has not been made; every
+   plugin is still loaded by path side by side. What was
+   measured, with throwaway plugins, before this rule was adopted:
+   - a link inside a plugin to another plugin's directory arrived as regular files, executable bit
+     kept, in the copy installed from a git-hosted marketplace; a directory marketplace loads in
+     place, where the link resolves;
+   - a `SessionStart` hook wrote the installed path in an interactive session, the source path when
+     loaded by path, and the right one in a headless run in both layouts;
+   - a marketplace pinned to a tag kept its clone at the tagged commit through an update, so one tag
+     pins the core and every pack together;
+   - the registry stays empty after a fresh project's first session, which fetches the plugins
+     without running their hooks; a plugin loaded by path overrides an installed one of the same
+     name; each pack's copy of the core is keyed by the pack's own `version`.
 
 ## The flow
 
@@ -188,7 +229,9 @@ valid: no narrative (477 files scanned)
           --plugin-dir ./plugins/<browser pack>
    ```
 
-   Packs resolve as siblings of the core's plugin root: `${CLAUDE_PLUGIN_ROOT}/../<pack>/pack.yaml`.
+   Loaded this way, every plugin sits beside the others. Plugins find each other through the
+   resolver, but no run from installed copies has been made yet (see "Plugins find each other by
+   name" above).
    Installed from a marketplace, use `claude plugin install agentic-core@<marketplace>`; a pack
    that declares `"dependencies": ["agentic-core"]` enables the core with it.
 2. Configure the project once: `/agentic-core:setup`. It confirms every value before writing
@@ -258,6 +301,20 @@ envelope and everything the next stage needs goes to a fixed path under `.ai/run
 stage skill declares `context: fork` and ends with the envelope; a provider operation returns its
 script's stdout unchanged and lets the script decide the verdict. A stage is never told which
 stages ran before it.
+
+How a pack reaches anything outside itself:
+
+- **The core, through `${CLAUDE_PLUGIN_ROOT}/core/…`** — never through `..` and the core's folder
+  name.
+- **Another plugin, through its role.** A stage calls another pack only through that role's
+  operation skill (`shared/role-operations.md`). When it needs that pack's root, it asks
+  `resolve-plugin-root.sh <name>` with the name project config gives the role; it never builds
+  `../<pack>/` itself and never hard-codes a pack name.
+- **Its own files, through `${CLAUDE_PLUGIN_ROOT}/…`** — never through `..` and its own name,
+  which breaks the moment the plugin is installed or renamed. `shared/lib/check-own-root-refs.sh`
+  reports every such reference, reading each plugin's name from its own manifest.
+- **A registry writer of its own.** Each pack's `SessionStart` hook writes its root to the registry
+  and declares no `async`, so the entry exists before the session's first tool call.
 
 This core is a small instance of one rule: what the driver cannot see, it cannot drift into
 re-doing. A pack can be swapped only because the core never learned its name.

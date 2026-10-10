@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Run: python3 .claude/skills/write-specs/scripts/check-spec.py <draft-file | ITEM-KEY>
 """check-spec.py — Deterministic conformance check for a work-item draft, or for
 a work item already in the tracker. No model involved.
 
@@ -104,6 +105,49 @@ def read_pack_names(config_path):
         if role not in names:
             unreadable(f"'{config_path}' declares no {role} pack")
     return names
+
+
+# --- plugin roots --------------------------------------------------------------
+
+CORE_NAME = "agentic-core"
+REGISTRY = os.path.join(".ai", "run-context", "plugin-roots")
+
+
+def registry_project(start_dir):
+    """The checkout that holds the plugin root registry: the main one, since
+    the registry is not versioned and a linked worktree carries none."""
+    result = subprocess.run(
+        ["git", "-C", start_dir, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        capture_output=True, text=True)
+    common = result.stdout.strip()
+    return os.path.dirname(common) if result.returncode == 0 and common else start_dir
+
+
+def core_resolver(project):
+    """The resolver's path. The core's own registry entry is read for this one
+    lookup only; every root, the core's included, is then asked of the resolver."""
+    entry = os.path.join(project, REGISTRY, CORE_NAME)
+    if not os.path.isfile(entry):
+        unreadable(f"not resolved: {CORE_NAME} — no registry entry at {entry}")
+    with open(entry, encoding="utf-8") as f:
+        root = f.readline().strip()
+    resolver = os.path.join(root, "shared", "lib", "resolve-plugin-root.sh")
+    if not os.path.isabs(root) or not os.path.isfile(resolver):
+        unreadable(f"refused: {CORE_NAME} — registry entry {entry} names '{root}', "
+                   f"which holds no resolver")
+    return resolver
+
+
+def plugin_root(name, start_dir):
+    """The root of the plugin called <name>, as the core's resolver answers it.
+    A non-zero answer stops the script with the resolver's own reason."""
+    project = registry_project(start_dir)
+    result = subprocess.run(
+        ["bash", core_resolver(project), name, "--project-dir", project],
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        unreadable((result.stderr or "").strip() or f"not resolved: {name}")
+    return result.stdout.strip()
 
 
 def read_stage_skill(pack_yaml, stage_id):
@@ -357,14 +401,16 @@ def main():
     os.chdir(repo_root)
 
     packs = read_pack_names(os.path.join(".ai", "project-config.yaml"))
-    platform_pack = os.path.join("plugins", packs["platform"], "pack.yaml")
-    tracker_pack = os.path.join("plugins", packs["tracker"], "pack.yaml")
+    platform_root = plugin_root(packs["platform"], repo_root)
+    tracker_root = plugin_root(packs["tracker"], repo_root)
+    platform_pack = os.path.join(platform_root, "pack.yaml")
+    tracker_pack = os.path.join(tracker_root, "pack.yaml")
     intake_skill = read_stage_skill(platform_pack, "intake")
-    extractor = os.path.join("plugins", packs["platform"], "skills", intake_skill,
+    extractor = os.path.join(platform_root, "skills", intake_skill,
                              "scripts", "extract-fact-record.py")
     if not os.path.isfile(extractor):
         unreadable(f"'{extractor}' not found")
-    lib = os.path.join("plugins", "agentic-core", "shared", "lib")
+    lib = os.path.join(plugin_root(CORE_NAME, repo_root), "shared", "lib")
     conventions = read_text_conventions(tracker_pack)
 
     if os.path.isfile(target_path):
@@ -373,7 +419,7 @@ def main():
         source = f"draft {target}"
     elif ITEM_KEY_RE.match(target):
         fetch_skill = read_operation_skill(tracker_pack, "fetch_item")
-        fetch_script = os.path.join("plugins", packs["tracker"], "skills", fetch_skill,
+        fetch_script = os.path.join(tracker_root, "skills", fetch_skill,
                                     "scripts", "fetch-item.sh")
         item = fetch_item(fetch_script, target)
         source = f"item {target}"

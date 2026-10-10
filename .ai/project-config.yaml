@@ -25,3 +25,9 @@ trigger:
   token: "@agentic-run"
   allowed_identities:
     - "557058:7ae59138-4bd7-40b2-a4f6-06da356b86a4"
+
+branch_name:
+  max_length: 23
+
+platform:
+  preview_host_suffix: "--aem-eds-ai-workflow-demo--agenticdraft"

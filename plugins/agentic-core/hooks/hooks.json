@@ -1,6 +1,18 @@
 {
-  "description": "Blocks a command that creates a branch whose name fails the configured platform pack's branch_name rule.",
+  "description": "Records this plugin's root in the project's root registry at session start, and blocks a command that creates a branch whose name fails the project config's branch length limit or the configured platform pack's branch_name pattern.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/shared/lib/register-plugin-root.sh"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",

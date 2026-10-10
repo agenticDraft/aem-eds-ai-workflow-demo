@@ -10,7 +10,7 @@
 # need, which is why this denies by default rather than warning.
 #
 # Wired via the skill-scoped hooks: frontmatter key in
-# plugins/agentic-core/skills/run-route/SKILL.md (PreToolUse on Read).
+# this plugin's skills/run-route/SKILL.md (PreToolUse on Read).
 # Exit 0 lets the read proceed. Exit 2 blocks it and returns the reason to the
 # caller, leaving the run to continue: a blocked read is recoverable, a
 # terminated route is not.
@@ -58,8 +58,22 @@ fi
 BOOKKEEPING=".ai/project-config.yaml .ai/run-state.json .ai/progress.md .ai/route-progress.txt"
 
 # The shared contracts. Fixed-size, versioned with the plugin, read at run time
-# by design.
-CONTRACT_DIR="plugins/agentic-core/shared"
+# by design. They are this plugin's own shared/ directory, wherever the plugin
+# is loaded from; with no plugin root there is no contract directory to allow.
+CONTRACT_DIR=""
+[ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && CONTRACT_DIR="${CLAUDE_PLUGIN_ROOT%/}/shared"
+
+# canonical <path> — the path with its directory in canonical form, so one
+# directory spelled two ways compares equal; unchanged when the directory does
+# not exist.
+canonical() {
+  local dir
+  if dir="$(cd "$(dirname "$1")" 2>/dev/null && pwd -P)"; then
+    printf '%s/%s\n' "$dir" "$(basename "$1")"
+  else
+    printf '%s\n' "$1"
+  fi
+}
 
 VERDICT=DENY
 
@@ -72,11 +86,19 @@ done
 
 # Contracts are the .md files directly in CONTRACT_DIR. Its lib/ subdirectory
 # holds scripts, which the driver invokes and never reads, so a nested path
-# stays denied.
-if [ "$VERDICT" = DENY ]; then
-  case "$REL" in
-    "$CONTRACT_DIR"/*.md)
-      REST="${REL#"$CONTRACT_DIR"/}"
+# stays denied. Both sides are compared absolute and canonical: the plugin root
+# may lie outside the project.
+if [ "$VERDICT" = DENY ] && [ -n "$CONTRACT_DIR" ]; then
+  case "$FILE_PATH" in
+    /*) ABS="$FILE_PATH" ;;
+    *) ABS="$PROJECT_DIR/${FILE_PATH#./}" ;;
+  esac
+  ABS="$(canonical "$ABS")"
+  CONTRACTS="$(canonical "$CONTRACT_DIR/x")"
+  CONTRACTS="${CONTRACTS%/x}"
+  case "$ABS" in
+    "$CONTRACTS"/*.md)
+      REST="${ABS#"$CONTRACTS"/}"
       case "$REST" in
         */*) ;;
         *) VERDICT=ALLOW ;;
@@ -97,8 +119,13 @@ printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$VERDICT" "$REL" >> "$LOG_
   for allowed in $BOOKKEEPING; do
     echo "  $allowed"
   done
-  echo "and the shared contracts:"
-  echo "  $CONTRACT_DIR/*.md"
+  if [ -n "$CONTRACT_DIR" ]; then
+    echo "and the shared contracts:"
+    echo "  $CONTRACT_DIR/*.md"
+  else
+    echo "and no shared contract: the plugin root is not set, so no contract"
+    echo "directory is known."
+  fi
   echo
   echo "Reading anything else is a stage's own job, done inside that stage's"
   echo "isolated subagent. Take a stage's output from the fields of its result"

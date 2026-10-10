@@ -73,11 +73,23 @@ input.**
   stage; not an artifact any later stage reads, purely this skill's own scratch space for handing
   a captured envelope to `run-stage.sh`
 
-**Pack roots**, resolved from project config's `packs:` map: each pack's manifest is a sibling of
-this skill's own plugin root — `${CLAUDE_PLUGIN_ROOT}/../<pack name>/pack.yaml`, the "installed
-pack = sibling directory of the plugin root, loaded via `--plugin-dir`" convention every stage
-adapter's own pack resolution already uses (see, e.g., `eds-intake`'s "Resolve the tracker pack"
-and `eds-extract`'s "Resolve the design pack"). Nothing in this project writes a pack manifest to
+**Pack roots**, one per name in project config's `packs:` map; a pack's manifest is
+`<pack root>/pack.yaml`. A pack name is a plugin name, never a path, and an installed plugin lives
+in its own versioned directory, so a pack root is never derived from this skill's own location.
+The core contract's location rule says where a plugin is found:
+- **Core → pack and pack → pack:** the root registry, `.ai/run-context/plugin-roots/<name>`, which
+  each plugin's own `SessionStart` hook writes, read only through the core's
+  `resolve-plugin-root.sh <name>`. Its order: a registry entry naming a directory that exists; a
+  registry entry naming a missing directory is refused; with no entry, the folder of that name
+  beside the core's own plugin root, which exists only when every plugin is loaded by path from one
+  source tree; otherwise a non-zero exit.
+- **Pack → core:** the `core` link inside the pack, `${CLAUDE_PLUGIN_ROOT}/core/…`.
+- **A pack that cannot be resolved is a contract violation** → `failed`. Never guess a path, never
+  fall back silently, never treat the pack as optional.
+
+**Resolve a pack root** with `bash ${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-plugin-root.sh <pack name>`:
+exit `0` prints the root on one line; any other exit, or a root holding no `pack.yaml`, is that
+contract violation. Nothing in this project writes a pack manifest to
 `.ai/packs/<pack name>/pack.yaml` — that path names no real convention.
 
 ## How a stage adapter is invoked
@@ -358,8 +370,11 @@ this file. You never write it.
 flow is one a reader following the flow can pass over without ever deciding to skip it. This node is
 the first the flow reaches, so a driver that runs at all runs this.
 
-**Step 2.** Resolve each role's pack path from `.ai/project-config.yaml`'s `packs:` map, using
-**Pack roots**' convention above (`${CLAUDE_PLUGIN_ROOT}/../<pack name>/pack.yaml`), then run:
+**Step 2.** Resolve each role's pack path from `.ai/project-config.yaml`'s `packs:` map, as
+**Pack roots** above says: for each name, `bash ${CLAUDE_PLUGIN_ROOT}/shared/lib/resolve-plugin-root.sh <pack name>`;
+the path is `<the printed root>/pack.yaml`. Any other exit: no branch, run state or marker exists
+yet, so there is nothing to finalize — report `terminal: failed` immediately as a contract
+violation, naming the pack and the line the resolver printed, and do not proceed. Otherwise run:
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/shared/lib/check-preflight.sh .ai/project-config.yaml \
@@ -898,4 +913,4 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: fb6392a11419 -->
+<!-- instructions-stamp: dae050ae4f07 -->

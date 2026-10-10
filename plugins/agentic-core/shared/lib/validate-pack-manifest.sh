@@ -22,9 +22,9 @@
 #     job at runtime, against a real project. A third optional key,
 #     `evidence_manifest` (D86), when present, must name an artifact id this
 #     same pack registers in its own `artifacts:` list above. A last optional
-#     key, `branch_name` (D544), declares `max_length` (a positive integer),
-#     `pattern` (a double-quoted expression that compiles), or both, in that
-#     order, and nothing else.
+#     key, `branch_name` (D544, D129), declares `pattern` (a double-quoted
+#     expression that compiles) and nothing else; `max_length` there is
+#     refused, since the length limit is the project config's.
 #
 #   provider — `role` is one of the four core roles; every key in
 #     `operations` and every entry in `unsupported` is an operation that
@@ -403,31 +403,24 @@ if [[ "$kind" == "platform" ]]; then
     cursor=$((cursor + 1))
   fi
 
-  # --- branch_name (validator 22, D544) -------------------------------------
-  # Optional. The rule a branch name must meet on this platform: max_length,
-  # pattern, or both, in that order. The core never learns why a platform
-  # limits a name; check-branch-name.sh enforces whatever is declared here.
+  # --- branch_name (validator 22, D544, D129) -------------------------------
+  # Optional. The character rule a branch name must meet on this platform:
+  # pattern. The length limit is the project's (the project config's
+  # branch_name.max_length), so it is refused here. check-branch-name.sh
+  # enforces both.
   if [[ "${LINES[cursor]:-}" == "branch_name:" ]]; then
     cursor=$((cursor + 1))
-    declared=0
-    if [[ "${LINES[cursor]:-}" =~ ^\ \ max_length:\ (.*)$ ]]; then
-      value="${BASH_REMATCH[1]}"
-      [[ "$value" =~ ^[1-9][0-9]*$ ]] \
-        || fail "branch_name max_length must be a positive integer, got '$value'"
-      declared=1
-      cursor=$((cursor + 1))
-    fi
-    if [[ "${LINES[cursor]:-}" =~ ^\ \ pattern:\ (.*)$ ]]; then
-      value="${BASH_REMATCH[1]}"
-      [[ "$value" =~ ^\"(.+)\"$ ]] \
-        || fail "branch_name pattern must be a non-empty, double-quoted expression, got '$value'"
-      pattern="${BASH_REMATCH[1]}"
-      printf '' | grep -E -- "$pattern" >/dev/null 2>&1
-      (( $? == 2 )) && fail "branch_name pattern does not compile: '$pattern'"
-      declared=1
-      cursor=$((cursor + 1))
-    fi
-    (( declared == 1 )) || fail "branch_name declares neither max_length nor pattern"
+    [[ "${LINES[cursor]:-}" =~ ^\ \ max_length: ]] \
+      && fail "branch_name max_length belongs in the project config (branch_name.max_length), not in the pack manifest"
+    [[ "${LINES[cursor]:-}" =~ ^\ \ pattern:\ (.*)$ ]] \
+      || fail "branch_name declares no pattern"
+    value="${BASH_REMATCH[1]}"
+    [[ "$value" =~ ^\"(.+)\"$ ]] \
+      || fail "branch_name pattern must be a non-empty, double-quoted expression, got '$value'"
+    pattern="${BASH_REMATCH[1]}"
+    printf '' | grep -E -- "$pattern" >/dev/null 2>&1
+    (( $? == 2 )) && fail "branch_name pattern does not compile: '$pattern'"
+    cursor=$((cursor + 1))
   fi
 
   # --- reference_docs (validator 23, D117) ----------------------------------

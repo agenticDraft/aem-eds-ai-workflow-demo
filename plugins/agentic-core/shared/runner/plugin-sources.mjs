@@ -11,6 +11,15 @@
 // read but does not run. An empty plugin directory therefore does not mean a
 // session without plugins, and the log says so.
 
+// value: ROUTE_PLUGIN_DIR as the environment holds it. The runner has no
+// default: a relative default names a folder of one checkout's layout. A set
+// value is taken as given; a folder that does not exist loads nothing by path,
+// which is what a run from installed copies wants.
+export function pluginDirectory(value) {
+  if (value == null || String(value).trim() === "") return { refused: "ROUTE_PLUGIN_DIR is not set" };
+  return { dir: String(value) };
+}
+
 export function pluginName(id) {
   const s = String(id);
   const at = s.indexOf("@");

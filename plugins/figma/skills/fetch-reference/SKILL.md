@@ -359,7 +359,7 @@ Match in this order and stop at the first that holds:
 
 Carry the class to **Class is TRANSIENT and attempts remain?**.
 
-`../../../agentic-core/shared/error-handling.md` is the authority on what each class means and what
+`${CLAUDE_PLUGIN_ROOT}/core/error-handling.md` is the authority on what each class means and what
 recovery each one permits; this node applies it, it does not restate it.
 
 ### Class is TRANSIENT and attempts remain?
@@ -434,7 +434,7 @@ steps 2 and 3 write nothing. Instead:
 
 ### Report pass
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Emit the `## Result` block as plain `key: value` lines per `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the node and the Figma file the reference came from.
@@ -454,7 +454,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report fail
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Emit the `## Result` block as plain `key: value` lines per `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming what went wrong — the unsupported URL shape, the missing `figma` plugin, the
@@ -473,7 +473,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report question
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Emit the `## Result` block as plain `key: value` lines per `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: question`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — the given URL has no node-id, or the node is a page or holds several frames.

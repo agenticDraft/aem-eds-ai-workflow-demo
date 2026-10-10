@@ -12,7 +12,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EM="$SCRIPT_DIR/evidence-manifest.py"
 FIX="$SCRIPT_DIR/fixtures/evidence-manifest"
-VALIDATE="$SCRIPT_DIR/../../../agentic-core/shared/lib/validate-evidence-manifest.sh"
+VALIDATE="$SCRIPT_DIR/../../core/lib/validate-evidence-manifest.sh"
 
 TMP_ROOT="${TMPDIR:-/tmp}"
 WORK="$(mktemp -d "${TMP_ROOT%/}/evidence-manifest.XXXXXX")"

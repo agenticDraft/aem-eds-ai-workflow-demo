@@ -28,7 +28,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EMITTER="$SCRIPT_DIR/../../../../agentic-core/shared/lib/emit-envelope.sh"
+EMITTER="$SCRIPT_DIR/../../../core/lib/emit-envelope.sh"
 
 usage() {
   echo "usage: create-branch.sh [--envelope <file>] <branch-name> [base-branch]" >&2

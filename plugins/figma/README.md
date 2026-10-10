@@ -87,7 +87,7 @@ Validating plugin manifest: .../plugins/figma/.claude-plugin/plugin.json
 **Pack manifest check by the core, this run:**
 
 ```text
-$ bash plugins/agentic-core/shared/lib/validate-pack-manifest.sh plugins/figma/pack.yaml
+$ bash plugins/figma/core/lib/validate-pack-manifest.sh plugins/figma/pack.yaml
 valid: provider
 ```
 

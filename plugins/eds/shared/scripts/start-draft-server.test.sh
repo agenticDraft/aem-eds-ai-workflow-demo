@@ -35,10 +35,15 @@ printf '#!/usr/bin/env bash\necho "$*" >> "%s/npx-calls"\nexit 1\n' "$WORK" > "$
 chmod +x "$WORK/bin/curl" "$WORK/bin/npx"
 export PATH="$WORK/bin:$PATH"
 
-# repo_on <branch> — a fresh repository with <branch> checked out; prints its path
+# repo_on <branch> [--no-config] — a fresh repository with <branch> checked out
+# and a fixture project config whose branch limit is 23; prints its path
 repo_on() {
   local dir="$WORK/repo-$RANDOM$RANDOM"
   git init -q -b "$1" "$dir" >/dev/null 2>&1 || return 1
+  if [ "${2:-}" != "--no-config" ]; then
+    mkdir -p "$dir/.ai"
+    printf 'version: 1\n\nbranch_name:\n  max_length: 23\n' > "$dir/.ai/project-config.yaml"
+  fi
   echo "$dir"
 }
 
@@ -81,6 +86,15 @@ echo "[ok] this task's own 22-character branch"
 DIR=$(repo_on "phase-28-task-4-verify")
 run_in "$DIR"
 assert_eq "exit 0" "0" "$CODE"
+
+echo "[not-configured] a project config without the limit fails before any poll or start"
+DIR=$(repo_on "short" --no-config)
+run_in "$DIR"
+assert_eq "exit 1" "1" "$CODE"
+assert_has "start-failed carries the checker's reason" "start-failed: not-configured: branch_name.max_length" "$OUT"
+assert_lacks "never reported as a long branch" "branch name too long" "$OUT"
+assert_no_file "curl never called (no poll)" "$WORK/curl-calls"
+assert_no_file "npx never called (no start)" "$WORK/npx-calls"
 
 echo "[no branch] outside a repository there is nothing to measure; the poll runs"
 mkdir -p "$WORK/plain"

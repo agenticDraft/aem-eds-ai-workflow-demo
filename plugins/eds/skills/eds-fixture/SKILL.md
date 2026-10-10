@@ -13,7 +13,7 @@ invokes it as a fallback from its own **Renderable content found?** node when no
 render, and a human preparing a unit for local development can invoke it the same way. See D70 for
 why it is shaped this way.
 
-Read `../../../agentic-core/shared/result-envelope.md` for the `## Result` block this skill must
+Read `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for the `## Result` block this skill must
 end with.
 
 **What this skill does not do.** It does not infer, guess, or fetch real content for the block —
@@ -193,7 +193,7 @@ Create `drafts/` if it does not already exist. Write the composed markup to
 
 ### Report fail
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Emit the `## Result` block as plain `key: value` lines per `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: fail`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — either that `block` or `item_id` was missing or `item_id` failed the
@@ -203,7 +203,7 @@ Emit the `## Result` block as plain `key: value` lines per `../../../agentic-cor
 
 ### Report pass
 
-Emit the `## Result` block as plain `key: value` lines per `../../../agentic-core/shared/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
+Emit the `## Result` block as plain `key: value` lines per `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` — never as a bulleted or backtick-wrapped list, with `verdict:` as the very next line, nothing between it and the heading, and never followed by anything else — not even a summary explicitly labeled as commentary or "not part of the envelope"; if that's worth writing, put it before the heading instead, where it is already sanctioned. Fields:
 
 - `verdict: pass`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming the block, the item id, and the rows×columns generated, and how many image cells per row when `image_cells` was greater than zero.

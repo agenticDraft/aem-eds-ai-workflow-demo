@@ -310,8 +310,23 @@ fi
 rm -rf "$SCAN_TMP"
 
 echo "[drift] every changed-file-set resolution unions the untracked half"
-ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-OFFENDERS="$(offenders "$ROOT")"
+. "$SCRIPT_DIR/register-source-tree.sh"
+REAL_PROJECT="$(mktemp -d "${TMPDIR:-/tmp}/publish-real.XXXXXX")" || { echo "cannot create a temp dir" >&2; exit 2; }
+[[ -n "$REAL_PROJECT" && -d "$REAL_PROJECT" ]] || { echo "cannot create a temp dir" >&2; exit 2; }
+register_source_tree "$REAL_PROJECT" || { FAIL=$((FAIL + 1)); echo "  FAIL: the source tree's plugins could not be registered"; }
+OFFENDERS=""
+SEEN=0
+while IFS=$'\t' read -r name root; do
+  [[ -n "$root" ]] || continue
+  SEEN=$((SEEN + 1))
+  OFFENDERS+="$(offenders "$root")"
+done < <(bash "$SCRIPT_DIR/resolve-plugin-root.sh" --list --project-dir "$REAL_PROJECT")
+rm -rf "$REAL_PROJECT"
+if [[ "$SEEN" -gt 1 ]]; then
+  PASS=$((PASS + 1)); echo "  ok: $SEEN plugins scanned"
+else
+  FAIL=$((FAIL + 1)); echo "  FAIL: expected more than one plugin, scanned $SEEN"
+fi
 
 if [[ -z "$OFFENDERS" ]]; then
   PASS=$((PASS + 1))

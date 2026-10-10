@@ -42,13 +42,19 @@ trigger:
   token: "<token>"
   allowed_identities:
     - "<opaque identity handle>"
+
+branch_name:                 # optional
+  max_length: <positive int>
+
+platform:                    # optional
+  <key>: <value>
 ```
 
 ## Top-level keys
 
-Exactly six, in this order: `version`, `packs`, `commands`, `paths`, `limits`, `trigger`. No other
-key may appear at this level. A key outside this set, a required key missing, or the six out of
-order is a contract violation.
+Six required, in this order: `version`, `packs`, `commands`, `paths`, `limits`, `trigger`. Then two
+optional, in this order: `branch_name`, `platform`. No other key may appear at this level. A key
+outside this set, a required key missing, or the keys out of order is a contract violation.
 
 ## Field rules
 
@@ -67,6 +73,16 @@ order is a contract violation.
   more quoted, non-empty opaque identity handles whose format the tracker pack defines; the comment
   author is checked against it before any run starts (D98). An empty sequence is a contract
   violation, not a permissive default.
+- `branch_name` — optional, one sub-key: `max_length`, a positive integer. The longest branch name
+  this project accepts. `lib/check-branch-name.sh` reads it together with the platform pack's
+  `branch_name.pattern`; absent, no length is checked.
+- `platform` — optional, a non-empty mapping of values the configured platform pack reads: this
+  project's own values, which a pack never carries. Its keys and their meaning belong to that pack
+  and are documented by it; this contract checks only that the block is a non-empty mapping. A pack
+  script that needs one of its values and finds none refuses rather than guess.
+
+**A project's own values live here, never in a pack.** A value that differs from one repository to
+the next — a limit derived from the repository's name, a host built from it — is the project's.
 
 **No stage list lives here.** The platform pack owns the one stage list and every stage's own
 condition (`pack-manifest.md`'s Condition semantics section); this file describes the project and
@@ -111,6 +127,9 @@ trigger:
 - A top-level key outside the six named above.
 - A required top-level key missing, or the six out of order.
 - A negative value under `limits`.
+- `branch_name` without `max_length`, with a `max_length` that is not a positive integer, or with any
+  other sub-key.
+- `platform` present but empty, or holding a scalar instead of a mapping.
 
 ## Reference, not restatement
 

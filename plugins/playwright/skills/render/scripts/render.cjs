@@ -3,10 +3,10 @@
 //
 // browser.render — load a target URL in a real headless Chromium and report
 // its load state, then print the result envelope. `playwright` is resolved
-// as an ordinary Node module (project-local first, then the machine's
-// global npm root) — the same "installed on the machine" precondition the
-// scm pack holds `gh` to; nothing here calls a live Claude session's MCP
-// tools.
+// as an ordinary Node module (the pack's own declared dependency first, then
+// the machine's global npm root) — the same "installed on the machine"
+// precondition the scm pack holds `gh` to; nothing here calls a live Claude
+// session's MCP tools.
 //
 // `verdict: pass` reports that the page could be loaded and its state
 // observed — an HTTP 404/500 is a successfully observed state, not an
