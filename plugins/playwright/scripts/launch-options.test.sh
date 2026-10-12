@@ -45,6 +45,20 @@ assert_eq "lower-case variable, no credentials" \
   "$(options_for '{"http_proxy":"http://localhost:3128"}')"
 assert_eq "an unparseable proxy is ignored" '{"headless":true}' "$(options_for '{"HTTP_PROXY":"not a url"}')"
 
+# timeout_for <env-json> — prints operationTimeoutMs(env)
+timeout_for() {
+  node -e '
+const { operationTimeoutMs } = require(process.argv[1]);
+process.stdout.write(String(operationTimeoutMs(JSON.parse(process.argv[2]))));
+' "$HELPER" "$1" 2>&1
+}
+
+echo "[watchdog limit] 30 s unless the environment names another"
+assert_eq "default" "30000" "$(timeout_for '{}')"
+assert_eq "override" "5000" "$(timeout_for '{"PLAYWRIGHT_OPERATION_TIMEOUT_MS":"5000"}')"
+assert_eq "zero is ignored" "30000" "$(timeout_for '{"PLAYWRIGHT_OPERATION_TIMEOUT_MS":"0"}')"
+assert_eq "non-numeric is ignored" "30000" "$(timeout_for '{"PLAYWRIGHT_OPERATION_TIMEOUT_MS":"soon"}')"
+
 echo "[operations] every operation launches through the helper"
 for op in render capture measure interact; do
   f="$PACK/skills/$op/scripts/$op.cjs"
