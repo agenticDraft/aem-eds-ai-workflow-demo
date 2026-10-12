@@ -4,6 +4,8 @@
 // it in the environment; the browser does not read that variable itself, so
 // it is passed explicitly, credentials included. With no proxy set the
 // options are headless and nothing else.
+//
+// The operation watchdog's limit is read from the environment here too.
 
 function proxyFrom(env) {
   const raw = env.HTTP_PROXY || env.http_proxy;
@@ -25,4 +27,15 @@ function launchOptions(env) {
   return proxy ? { headless: true, proxy } : { headless: true };
 }
 
-module.exports = { launchOptions };
+// The longest an operation may run, in milliseconds, before its watchdog
+// ends it. PLAYWRIGHT_OPERATION_TIMEOUT_MS overrides the default; a value
+// that is not a positive integer is ignored.
+const DEFAULT_OPERATION_TIMEOUT_MS = 30000;
+
+function operationTimeoutMs(env) {
+  const raw = env.PLAYWRIGHT_OPERATION_TIMEOUT_MS;
+  if (!/^[1-9][0-9]*$/.test(raw || '')) return DEFAULT_OPERATION_TIMEOUT_MS;
+  return Number(raw);
+}
+
+module.exports = { launchOptions, operationTimeoutMs, DEFAULT_OPERATION_TIMEOUT_MS };
