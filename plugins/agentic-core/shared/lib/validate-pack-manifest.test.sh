@@ -535,6 +535,132 @@ assert_contains "reason names the kind it belongs to" "requires belongs to a pro
 assert_exit "reason does not misdiagnose as unexpected content" 0 $? ""
 rm -rf "$PLAT_TMP"
 
+echo "[accept] validator 24 — session_tools declaring a tool and a remedy"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+session_tools:
+  - tool: mcp__example-server__read_item
+    remedy: "enable the example plugin, then restart the session"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+assert_contains "still reports the kind" "valid: provider" "$OUT"
+
+echo "[accept] validator 24 — two entries after a requires block"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+requires:
+  - tool: example-tool
+    probe: [example-tool, --version]
+    remedy: "install example-tool"
+session_tools:
+  - tool: mcp__example-server__read_item
+    remedy: "enable the example plugin"
+  - tool: mcp__example-server__read_image
+    remedy: "enable the example plugin"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "accepted (exit 0)" 0 $ST "$OUT"
+
+echo "[reject] validator 24 — an empty tool name"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+session_tools:
+  - tool:
+    remedy: "enable the example plugin"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the empty tool" "session_tools: an entry declares an empty 'tool'" "$OUT"
+
+echo "[reject] validator 24 — a tool name that is a pattern, not a registered name"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+session_tools:
+  - tool: mcp__example-server__*
+    remedy: "enable the example plugin"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the tool and the allowed characters" "session_tools.mcp__example-server__*: 'tool' must be an exact tool name" "$OUT"
+
+echo "[reject] validator 24 — a missing remedy"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+session_tools:
+  - tool: mcp__example-server__read_item
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the tool and remedy" "session_tools.mcp__example-server__read_item: expected 'remedy:" "$OUT"
+
+echo "[reject] validator 24 — an empty remedy"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+session_tools:
+  - tool: mcp__example-server__read_item
+    remedy: "  "
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says the remedy is empty" "'remedy' is empty" "$OUT"
+
+echo "[reject] validator 24 — the same tool declared twice"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+session_tools:
+  - tool: mcp__example-server__read_item
+    remedy: "enable the example plugin"
+  - tool: mcp__example-server__read_item
+    remedy: "enable the example plugin"
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the duplicate" "session_tools: 'mcp__example-server__read_item' is declared twice" "$OUT"
+
+echo "[reject] validator 24 — session_tools present but empty"
+cat > "$PROV_TMP/pack.yaml" <<'EOF'
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+session_tools:
+EOF
+OUT=$(bash "$VALIDATOR" "$PROV_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason says omit the key" "'session_tools:' is present but declares no entries" "$OUT"
+
+echo "[reject] validator 24 — session_tools on a platform pack"
+PLAT_TMP="$(mktemp -d "${TMPDIR:-/tmp}/validate-pack-manifest-platform.XXXXXX")"
+cp -R "$FIXDIR/platform-valid/." "$PLAT_TMP/"
+printf 'session_tools:\n  - tool: mcp__example-server__read_item\n    remedy: "enable the example plugin"\n' \
+  >> "$PLAT_TMP/pack.yaml"
+OUT=$(bash "$VALIDATOR" "$PLAT_TMP/pack.yaml" 2>&1); ST=$?
+assert_exit "rejected (exit 1)" 1 $ST "$OUT"
+assert_contains "reason names the kind it belongs to" "session_tools belongs to a provider pack, not a platform pack" "$OUT"
+rm -rf "$PLAT_TMP"
+
 rm -rf "$PROV_TMP"
 
 # --- committed rejection fixtures -------------------------------------------

@@ -38,7 +38,10 @@
 #     `requires` (D97), declares what the pack needs present on the machine
 #     that runs it — per entry a non-empty `tool`, a `probe` given as argv
 #     rather than a string, and a non-empty `remedy`. Shape only: nothing
-#     here runs a probe or tests a machine.
+#     here runs a probe or tests a machine. A last optional key,
+#     `session_tools` (validator 24), declares the tools only the session
+#     provides — per entry an exact, unique `tool` name and a non-empty
+#     `remedy`.
 #
 # The pack root is the directory containing the manifest, matching
 # "pack.yaml at the pack root".
@@ -441,6 +444,9 @@ if [[ "$kind" == "platform" ]]; then
   if [[ "${LINES[cursor]:-}" == "requires:" ]]; then
     fail "requires belongs to a provider pack, not a platform pack"
   fi
+  if [[ "${LINES[cursor]:-}" == "session_tools:" ]]; then
+    fail "session_tools belongs to a provider pack, not a platform pack"
+  fi
 
   if (( cursor < n )); then
     fail "unexpected content after the last platform key: '${LINES[cursor]}'"
@@ -695,6 +701,36 @@ if [[ "$kind" == "provider" ]]; then
     done
     [[ $req_count -eq 0 ]] \
       && fail "'requires:' is present but declares no entries — omit the key instead"
+  fi
+
+  # --- session_tools (validator 24) -----------------------------------------
+  # Optional. The tools this pack's operations call that only the session can
+  # provide, each with the remedy a human applies when one is absent. Absent
+  # means ungated. Shape only: the session's registry is asked by the route
+  # driver at run time, never by a script.
+  if [[ "${LINES[cursor]:-}" =~ ^session_tools:$ ]]; then
+    cursor=$((cursor + 1))
+    ST_NAMES=()
+    while [[ "${LINES[cursor]:-}" =~ ^\ \ -\ tool:(.*)$ ]]; do
+      st_tool="${BASH_REMATCH[1]# }"
+      [[ -n "${st_tool//[[:space:]]/}" ]] \
+        || fail "session_tools: an entry declares an empty 'tool'"
+      [[ "$st_tool" =~ ^[A-Za-z0-9_-]+$ ]] \
+        || fail "session_tools.$st_tool: 'tool' must be an exact tool name (letters, digits, '_' and '-' only)"
+      for seen in "${ST_NAMES[@]:-}"; do
+        [[ "$seen" == "$st_tool" ]] && fail "session_tools: '$st_tool' is declared twice"
+      done
+      ST_NAMES+=("$st_tool")
+      cursor=$((cursor + 1))
+
+      [[ "${LINES[cursor]:-}" =~ ^\ \ \ \ remedy:\ \"(.*)\"$ ]] \
+        || fail "session_tools.$st_tool: expected 'remedy: \"<what a human does>\"', got '${LINES[cursor]:-<end of file>}'"
+      [[ -n "${BASH_REMATCH[1]//[[:space:]]/}" ]] \
+        || fail "session_tools.$st_tool: 'remedy' is empty — a missing tool with no remedy is a dead end for whoever hits it"
+      cursor=$((cursor + 1))
+    done
+    [[ ${#ST_NAMES[@]} -eq 0 ]] \
+      && fail "'session_tools:' is present but declares no entries — omit the key instead"
   fi
 
   if (( cursor < n )); then
