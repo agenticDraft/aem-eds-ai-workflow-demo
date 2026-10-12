@@ -59,6 +59,9 @@ requires:                       # optional
   - tool: <identifier>
     probe: [<argv>, …]
     remedy: "<what a human runs to fix it>"
+session_tools:                  # optional; last
+  - tool: <exact tool name>
+    remedy: "<what a human does to fix it>"
 ```
 
 ## Top-level keys
@@ -71,9 +74,10 @@ Fixed per kind, in order.
   `onboarding_state_path`, `audit_findings_path` (D80) and `audit_digest_path` (G500) are the
   exceptions to "all required" — all three optional, and a pack may declare any subset of them,
   including none.
-- **provider** — `kind`, `role`, `operations`, `unsupported`, `scripts`, and `text_conventions` for
-  the `tracker` role. The first four are required; `unsupported` may be empty (`[]`) but must be
-  present. `scripts` and `text_conventions` are both optional.
+- **provider** — `kind`, `role`, `operations`, `unsupported`, `scripts`, `text_conventions` for
+  the `tracker` role, `requires`, `session_tools`. The first four are required; `unsupported` may be
+  empty (`[]`) but must be present. `scripts`, `text_conventions`, `requires` and `session_tools`
+  are all optional.
 
 ## The stage vocabulary
 
@@ -259,6 +263,8 @@ digraph route {
 - `scripts` naming an operation absent from `operations`, or a path that does not resolve to a real
   file under the pack root.
 - `scripts` present but empty. Omit the key instead.
+- `session_tools` present but empty, on a platform pack, with an entry whose `tool` is empty, a
+  pattern, or declared twice, or whose `remedy` is missing or empty.
 - A stage skill's frontmatter omitting `context: fork`.
 - A top-level key outside the fixed set for the manifest's `kind`, or a required key missing.
 - `onboarding_state_path`, `audit_findings_path` or `audit_digest_path` present but empty, absolute
@@ -331,6 +337,21 @@ digraph route {
     than composing their own. The capability check that runs before a route starts reads manifests
     only and never probes a machine, so a missing tool is reported, never guessed at, and never
     discovered by a route that already created a branch.
+- `session_tools` — optional, the last provider key. The tools this pack's operations call that only
+  the session running the route can provide — a tool a plugin or a server registers in the session,
+  which no script on the machine can see. Each entry declares two things.
+  - `tool` — the exact name the session registers the tool under: letters, digits, `_` and `-`
+    only, never a pattern. Each name at most once.
+  - `remedy` — what a human does to make the tool present. Quoted text, printed verbatim by whatever
+    reports the tool missing, and never executed.
+  - **Absent means ungated**, as for `requires`.
+  - **One reader decides, at run time.** The component that drives a route checks every declared
+    tool of every pack whose role the run will use, once the fact record exists and before any
+    branch, run state or outbound write exists, by asking the session's own tool registry; a missing
+    tool ends the run `blocked` with its `remedy`. The comparison of names declared against names
+    found is `lib/check-session-tools.sh`'s, never the driver's. The read-only diagnostic lists the
+    declared tools and says they are checked at run time, since it cannot see the registry either.
+    Pre-flight does not read this key.
 - Every skill named in `operations` must resolve to `<pack root>/skills/<skill name>/SKILL.md`.
 
 ## Example — platform
@@ -417,6 +438,9 @@ holds `missing-operation`, `unknown-operation` and `dangling-skill`. `scripts`'s
 (unknown operation, dangling script, present-but-empty) are inline in the validator's test suite,
 alongside the remaining shape errors that fit a single block.
 
+`fixtures/session-tools/` holds the session-tools comparison's inputs: `one-tool`, `two-tools` (after a
+`requires:` block, which the comparison never reads), `none-declared`, and `no-remedy` (malformed).
+
 ## Verification
 
 `lib/validate-pack-manifest.sh <path-to-pack.yaml>` is the deterministic checker — no model
@@ -427,7 +451,13 @@ involved. It exits `0` and prints `valid: <kind>` for a conformant manifest, `1`
 stage's `when:` against a fact record and prints, in list order, one `run: <stage id>` or
 `skipped: <stage id> — <canonical rendering>` line per stage. Also deterministic, also no model.
 
+`lib/check-session-tools.sh --list <pack.yaml>…` prints the declared session tools to ask the
+registry for (`tool: <name>`, each once) or `none declared`; `lib/check-session-tools.sh <pack.yaml>…
+--found <name>…` exits `0` with `ok: <tool>` per declared tool found, `1` with `missing: <tool> —
+<remedy>` per one not found, `2` for a usage error or a malformed block. Exact names only.
+
 ```bash
 bash plugins/agentic-core/shared/lib/validate-pack-manifest.test.sh
 bash plugins/agentic-core/shared/lib/evaluate-stage-conditions.test.sh
+bash plugins/agentic-core/shared/lib/check-session-tools.test.sh
 ```

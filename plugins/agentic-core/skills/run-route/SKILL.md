@@ -256,6 +256,8 @@ digraph run_route {
     "Fresh start: run intake" [shape=box];
     "Intake decision?" [shape=diamond];
     "Evaluate stage conditions" [shape=box];
+    "Check session tools" [shape=box];
+    "Session tools present?" [shape=diamond];
     "Record intake stage" [shape=box];
     "Resume: re-evaluate stage conditions" [shape=box];
     "Stage list matches?" [shape=diamond];
@@ -296,7 +298,10 @@ digraph run_route {
     "Fresh start: run intake" -> "Intake decision?";
     "Intake decision?" -> "failed" [label="terminate-failed / terminate-contract-violation"];
     "Intake decision?" -> "Evaluate stage conditions" [label="continue / continue-warn"];
-    "Evaluate stage conditions" -> "Record intake stage";
+    "Evaluate stage conditions" -> "Check session tools";
+    "Check session tools" -> "Session tools present?";
+    "Session tools present?" -> "Record intake stage" [label="ok, or none declared"];
+    "Session tools present?" -> "blocked" [label="missing — remedy quoted"];
     "Record intake stage" -> "Handle question" [label="intake asked a question"];
     "Record intake stage" -> "Drive next stage" [label="no question asked"];
     "Resume: re-evaluate stage conditions" -> "Stage list matches?";
@@ -492,7 +497,40 @@ The platform pack owns the stage list; nothing selects it, and there is no route
 `stages:` from the platform pack's `pack.yaml` — that list, in that order, is the run.
 
 Evaluate each stage's condition against the fact record and write both files — see **Skipped
-stages** above. Then go to **Record intake stage**.
+stages** above. Then go to **Check session tools**.
+
+### Check session tools
+
+A pack can declare tools the session itself must offer (`session_tools:`, `shared/pack-manifest.md`).
+Only you can see the session's tool registry; `check-session-tools.sh` owns the comparison. Ask the
+registry once, hand the script what came back, and let its exit code decide.
+
+1. **Pick the packs.** The tracker, scm and browser pack paths resolved in **Resolve pre-flight**,
+   always. The design pack path only when `.ai/project-config.yaml`'s `packs.design` is not `none`
+   **and** `grep -qx 'run: extract' .ai/run-context/stage-conditions.txt` succeeds — `extract` is
+   the stage that calls the design role (core contract §4), so a run that skips it never needs the
+   design pack's tools.
+2. `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-session-tools.sh --list <picked pack.yaml paths>`
+   - `none declared` — nothing to ask; go to **Record intake stage**.
+   - exit 2 — a malformed declaration; route to **failed**, naming the script's message.
+   - otherwise — one `tool: <name>` line per name.
+3. **Ask the registry once:** one `ToolSearch` call with query `select:<every listed name,
+   comma-separated>`. `<found>` is the names of the tool definitions that call returned — nothing
+   else, never a name from the listing in your own context. If `ToolSearch` itself is not in your
+   tools (tool search disabled, `ENABLE_TOOL_SEARCH=false`), every tool is already loaded:
+   `<found>` is the listed names that appear in your own tool list.
+4. `${CLAUDE_PLUGIN_ROOT}/shared/lib/check-session-tools.sh <picked pack.yaml paths> --found <found names>`
+   — print its output verbatim, then go to **Session tools present?**.
+
+### Session tools present?
+
+- **Exit 0** — go to **Record intake stage**.
+- **Exit 1** — no marker, branch or run state of this run exists yet, so there is nothing to
+  finalize. Route to **blocked** with `<missing>` set to `session tools: ` followed by the text of
+  each `missing:` line after `missing: `, joined with `; `, and `<recorded-at>` set to
+  `nowhere — refused before the run began`. Quote each remedy as the script printed it; it is the
+  human's to carry out, never yours to run.
+- **Exit 2** — route to **failed**, naming the script's message.
 
 ### Record intake stage
 
@@ -910,7 +948,10 @@ gate, none for every other stage). The adapter reads its answer itself from the 
 - Starting fresh without `check-tree-clean.sh`, running it on a resume, composing the same check
   from `git` commands of your own, or cleaning, stashing or committing a path it names so the run
   can go on.
+- Deciding a session tool's presence yourself instead of `check-session-tools.sh`, asking the
+  registry more than once, probing a tool by calling it, or checking a pack whose role the run will
+  not use.
 - Inferring mode from anything other than the exact trailing `autonomous` token in `$ARGUMENTS` —
   a work item summary that sounds like it wants no interruptions is not a flag (core contract §8).
 
-<!-- instructions-stamp: dae050ae4f07 -->
+<!-- instructions-stamp: a969a7d9ff02 -->
