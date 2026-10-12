@@ -1,0 +1,6 @@
+kind: provider
+role: design
+operations: {}
+unsupported: [fetch_reference]
+session_tools:
+  - tool: mcp__example-server__read_item

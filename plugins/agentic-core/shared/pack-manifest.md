@@ -438,6 +438,9 @@ holds `missing-operation`, `unknown-operation` and `dangling-skill`. `scripts`'s
 (unknown operation, dangling script, present-but-empty) are inline in the validator's test suite,
 alongside the remaining shape errors that fit a single block.
 
+`fixtures/session-tools/` holds the session-tools comparison's inputs: `one-tool`, `two-tools` (after a
+`requires:` block, which the comparison never reads), `none-declared`, and `no-remedy` (malformed).
+
 ## Verification
 
 `lib/validate-pack-manifest.sh <path-to-pack.yaml>` is the deterministic checker — no model
@@ -448,7 +451,13 @@ involved. It exits `0` and prints `valid: <kind>` for a conformant manifest, `1`
 stage's `when:` against a fact record and prints, in list order, one `run: <stage id>` or
 `skipped: <stage id> — <canonical rendering>` line per stage. Also deterministic, also no model.
 
+`lib/check-session-tools.sh --list <pack.yaml>…` prints the declared session tools to ask the
+registry for (`tool: <name>`, each once) or `none declared`; `lib/check-session-tools.sh <pack.yaml>…
+--found <name>…` exits `0` with `ok: <tool>` per declared tool found, `1` with `missing: <tool> —
+<remedy>` per one not found, `2` for a usage error or a malformed block. Exact names only.
+
 ```bash
 bash plugins/agentic-core/shared/lib/validate-pack-manifest.test.sh
 bash plugins/agentic-core/shared/lib/evaluate-stage-conditions.test.sh
+bash plugins/agentic-core/shared/lib/check-session-tools.test.sh
 ```
