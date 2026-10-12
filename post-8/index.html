@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Readable Is Not Reachable</title>
+<title>Figma Extract, Step by Step</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: Delivery Factory companion page, same world as posts 6 and 7. One dark look on purpose:
+/* Layout: Delivery Factory companion page, same world as the agentic-core page. One dark look on purpose:
    navy ground, spectrum accents, square edges. The figure is drawn at 1200x627 so a screenshot is the post image. */
 :root {
   color-scheme: dark;
@@ -24,7 +24,6 @@
   --cyan: #55e8ff;
   --violet: #a96eff;
   --red: #ff9a8f;
-  --amber: #ffcf6e;
   --spectrum: linear-gradient(110deg, var(--cyan), #75a0ff 58%, #c588ff);
   --sans: "Manrope", Arial, sans-serif;
   --mono: "DM Mono", ui-monospace, Menlo, monospace;
@@ -107,8 +106,7 @@ h2 { margin-bottom: 0; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.05; l
 .compare .tag { display: block; margin-bottom: 1rem; font: .74rem/1.5 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
 .compare .bad .tag { color: var(--red); }
 .compare .good .tag { color: var(--cyan); }
-.compare ul { margin: 0; padding-left: 1.1rem; color: var(--muted); display: grid; gap: .6rem; }
-.compare li code { white-space: nowrap; }
+.compare ul { margin: 0; padding-left: 1.1rem; color: var(--muted); display: grid; gap: .45rem; }
 
 pre.envelope { margin: 0; padding: 1.3rem 1.4rem; background: var(--navy-2); border: 1px solid rgba(85, 232, 255, .3);
   color: var(--code-fg); font: .95rem/1.7 var(--mono); overflow-x: auto; }
@@ -125,11 +123,17 @@ pre.envelope .k { color: var(--cyan); }
 .row h3 { margin: 0 0 .3rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; }
 .row p { margin: 0; max-width: 72ch; color: var(--muted); font-size: 1rem; line-height: 1.62; }
 
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 1rem; padding: .95rem .5rem;
+  border-bottom: 1px solid rgba(156, 182, 226, .2); color: var(--muted); }
+.steps li::before { content: counter(s, decimal-leading-zero); color: var(--cyan); font: .85rem/1.9 var(--mono); }
+.steps li.read { color: var(--ink); }
+
 .chapters { margin: 0; padding: 0; list-style: none; }
 .chapter { display: grid; grid-template-columns: minmax(150px, .28fr) minmax(0, 1fr); gap: clamp(1rem, 4vw, 3rem);
   padding: 1.3rem 0; border-top: 1px solid var(--line); }
 .chapter-marker { margin: .2rem 0 0; color: var(--cyan); font: .8rem/1.5 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
-.chapter.warn .chapter-marker { color: var(--amber); }
+.chapter.warn .chapter-marker { color: #ffcf6e; }
 .chapter p:last-child { margin: 0; max-width: var(--measure); color: var(--muted); font-size: 1.02rem; line-height: 1.7; }
 
 .site-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem 2rem;
@@ -146,225 +150,274 @@ pre.envelope .k { color: var(--cyan); }
 @media (max-width: 640px) {
   .site-header { flex-direction: column; align-items: flex-start; gap: .7rem; }
   .site-nav { width: 100%; gap: 1.2rem; font-size: .92rem; }
-  .row { padding-inline: 0; }
+  .row, .steps li { padding-inline: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .row, .site-nav a { transition-duration: 0s; }
 }
+
 </style>
 </head>
 <body>
-
 <header class="site-header">
   <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span>Delivery Factory · 08</a>
   <nav class="site-nav" aria-label="Sections">
     <a href="#picture">The picture</a>
-    <a href="#gate">The gate</a>
-    <a href="#link">One link</a>
-    <a href="#rewrite">The rewrite</a>
-    <a href="#limits">What it doesn't solve</a>
+    <a href="#parts">The parts</a>
+    <a href="#classify">The classifier</a>
+    <a href="#fetch">The fetch</a>
+    <a href="#outcomes">Pass, ask, stop</a>
+    <a href="#limits">What it doesn't cover</a>
   </nav>
 </header>
 
 <main id="top">
   <section class="hero">
     <div class="hero-glow" aria-hidden="true"></div>
-    <p class="eyebrow">Delivery Factory · Part 3 · Readiness</p>
-    <h1>Readable is not <em>reachable</em>.</h1>
-    <p class="lede">The readiness gate passed EDS-26, a logo block with a Figma design. It was right to: the ticket had everything the gate checks. The run still could not deliver it, because two criteria pointed at designs the pipeline never opens.</p>
+    <p class="eyebrow">Delivery Factory · Part 4 · Figma Extract</p>
+    <h1>Scripts sort the link. The model <em>fetches</em>.</h1>
+    <p class="lede">The design stage needs the values, the images and a screenshot of one Figma node. The plugin that provides them is a separate pack with one operation. This page follows it from the link to the files: which tools it calls, which scripts decide, and when it passes, asks a human or stops.</p>
     <div class="proof">
       <p class="proof-label">Checked in <b>Code</b></p>
-      <p>The gate and the design stage were read in their scripts, skills and manifests, not only in a README. The criteria come from the ticket's own git history, before and after. Paths are relative to <code>plugins/</code>. The delivered change is <a href="https://github.com/agenticDraft/aem-eds-ai-workflow-demo/pull/246">pull request #246</a>.</p>
+      <p>Everything on this page was read in the plugin's skill, scripts, manifest and README, not only in the README. Paths are relative to <code>plugins/figma/</code> unless said otherwise.</p>
     </div>
   </section>
 
   <section class="section" id="picture">
     <figure class="shot">
-      <div class="shot-label"><span>Readable, not reachable</span><span>1200 × 627</span></div>
+      <div class="shot-label"><span>From link to files</span><span>1200 × 627</span></div>
       <div class="shot-frame">
-      <svg viewBox="0 0 1200 627" role="img" aria-label="Left: the readiness script checks three fields of the Story and passes. Middle: the ticket carries three Figma links, desktop, tablet and mobile; the design stage opens only the desktop one. Right: an acceptance criterion asks for the size and spacing shown in the design at the matching width, which at tablet and mobile points at designs that were never opened, so there is no number to check." style="font-family:Manrope, Arial, sans-serif">
+      <svg viewBox="0 0 1200 627" role="img" aria-label="A Figma link is checked, then get_metadata reads the node and classify-node.py sorts it. A single frame or viewport variants are fetched with get_design_context, get_variable_defs and get_screenshot and the plugin passes. A page or several frames become a question that lists every candidate. A wrong link, a missing node, no access or a missing plugin is a fail." style="font-family:Manrope, Arial, sans-serif">
         <defs>
-          <linearGradient id="r-sp" x1="0" x2="1"><stop offset="0" stop-color="#55e8ff"/><stop offset=".58" stop-color="#75a0ff"/><stop offset="1" stop-color="#c588ff"/></linearGradient>
-          <radialGradient id="r-glow" cx="0" cy="0" r="1"><stop offset="0" stop-color="#3787ff" stop-opacity=".16"/><stop offset="1" stop-color="#3787ff" stop-opacity="0"/></radialGradient>
-          <marker id="r-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9ba7bd"/></marker>
-          <marker id="r-arr-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff9a8f"/></marker>
+          <linearGradient id="f-sp" x1="0" x2="1"><stop offset="0" stop-color="#55e8ff"/><stop offset=".58" stop-color="#75a0ff"/><stop offset="1" stop-color="#c588ff"/></linearGradient>
+          <radialGradient id="f-glow" cx="0" cy="0" r="1"><stop offset="0" stop-color="#3787ff" stop-opacity=".16"/><stop offset="1" stop-color="#3787ff" stop-opacity="0"/></radialGradient>
+          <marker id="f-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9ba7bd"/></marker>
+          <marker id="f-arr-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#55e8ff"/></marker>
+          <marker id="f-arr-y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ffcf6e"/></marker>
+          <marker id="f-arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff9a8f"/></marker>
         </defs>
         <rect width="1200" height="627" fill="#071020"/>
-        <rect width="760" height="627" fill="url(#r-glow)"/>
+        <rect width="760" height="627" fill="url(#f-glow)"/>
 
-        <rect x="56" y="46" width="36" height="2" fill="url(#r-sp)"/>
-        <text x="104" y="52" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13" letter-spacing="2.2">DELIVERY FACTORY · PART 3</text>
-        <text x="56" y="104" fill="#f7f8fb" font-size="38" font-weight="700" letter-spacing="-1.4">Readiness passed the ticket.</text>
-        <text x="56" y="148" fill="#55e8ff" font-size="38" font-weight="700" letter-spacing="-1.4">The pipeline couldn't reach it.</text>
+        <rect x="56" y="46" width="36" height="2" fill="url(#f-sp)"/>
+        <text x="104" y="52" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13" letter-spacing="2.2">DELIVERY FACTORY · PART 4</text>
+        <text x="56" y="104" fill="#f7f8fb" font-size="38" font-weight="700" letter-spacing="-1.4">Scripts sort the link.</text>
+        <text x="56" y="148" fill="#55e8ff" font-size="38" font-weight="700" letter-spacing="-1.4">The model fetches what they name.</text>
 
         <g font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6" fill="#8391a8">
-          <text x="56" y="214">READINESS · SCRIPT, NO MODEL</text>
-          <text x="420" y="214">TICKET · THREE DESIGN LINKS</text>
-          <text x="824" y="214">CRITERION · AS WRITTEN</text>
+          <text x="56" y="188">INPUT</text>
+          <text x="296" y="188">MCP TOOL</text>
+          <text x="536" y="188">SCRIPT · SORTS</text>
+          <text x="796" y="188">OUTCOME</text>
         </g>
 
-        <!-- readiness -->
-        <rect x="56" y="230" width="320" height="250" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
-        <g font-family="DM Mono, monospace" font-size="13.5">
-          <text x="76" y="270" fill="#cdd6e4">has_description</text><text x="356" y="270" fill="#55e8ff" text-anchor="end">true</text>
-          <text x="76" y="306" fill="#cdd6e4">has_acceptance_criteria</text><text x="356" y="306" fill="#55e8ff" text-anchor="end">true</text>
-          <text x="76" y="342" fill="#cdd6e4">reproduction_content_ok</text><text x="356" y="342" fill="#55e8ff" text-anchor="end">true</text>
-        </g>
-        <line x1="76" y1="372" x2="356" y2="372" stroke="rgba(156,182,226,.3)"/>
-        <text x="76" y="410" fill="#55e8ff" font-size="22" font-weight="700">pass</text>
-        <text x="76" y="440" fill="#9fb0cc" font-size="13.5">Story · 3 fields checked</text>
+        <!-- input -> metadata -> classifier -->
+        <rect x="56" y="204" width="190" height="92" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
+        <text x="76" y="238" fill="#f7f8fb" font-size="17" font-weight="700">reference</text>
+        <text x="76" y="262" fill="#cdd6e4" font-size="13">figma.com/design/…</text>
+        <text x="76" y="282" fill="#cdd6e4" font-size="13">?node-id=…</text>
 
-        <!-- ticket links -->
-        <rect x="420" y="230" width="360" height="72" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
-        <text x="440" y="260" fill="#f7f8fb" font-size="16" font-weight="700">Desktop · 1200</text>
-        <text x="440" y="284" fill="#9fb0cc" font-family="DM Mono, monospace" font-size="12">node 1-126</text>
-        <text x="760" y="272" fill="#55e8ff" font-size="13" font-weight="700" text-anchor="end">opened</text>
+        <rect x="296" y="204" width="190" height="92" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
+        <text x="316" y="238" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="14" font-weight="500">get_metadata</text>
+        <text x="316" y="264" fill="#cdd6e4" font-size="13">the node, its size,</text>
+        <text x="316" y="282" fill="#cdd6e4" font-size="13">its children</text>
 
-        <rect x="420" y="319" width="360" height="72" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/>
-        <text x="440" y="349" fill="#9ba7bd" font-size="16" font-weight="700">Tablet · 720</text>
-        <text x="440" y="373" fill="#8391a8" font-family="DM Mono, monospace" font-size="12">node 1-282</text>
-        <text x="760" y="361" fill="#ff9a8f" font-size="13" font-weight="700" text-anchor="end">never opened</text>
+        <rect x="536" y="204" width="210" height="92" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="556" y="238" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">classify-node.py</text>
+        <text x="556" y="264" fill="#cdd6e4" font-size="13">single · variants</text>
+        <text x="556" y="282" fill="#cdd6e4" font-size="13">page · multi-frame</text>
 
-        <rect x="420" y="408" width="360" height="72" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/>
-        <text x="440" y="438" fill="#9ba7bd" font-size="16" font-weight="700">Mobile · 375</text>
-        <text x="440" y="462" fill="#8391a8" font-family="DM Mono, monospace" font-size="12">node 1-435</text>
-        <text x="760" y="450" fill="#ff9a8f" font-size="13" font-weight="700" text-anchor="end">never opened</text>
+        <line x1="248" y1="250" x2="292" y2="250" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#f-arr)"/>
+        <line x1="488" y1="250" x2="532" y2="250" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#f-arr)"/>
+        <line x1="748" y1="250" x2="770" y2="250" stroke="#9ba7bd" stroke-width="1.6"/>
+        <line x1="770" y1="250" x2="770" y2="466" stroke="#9ba7bd" stroke-width="1.6"/>
 
-        <!-- criterion -->
-        <rect x="824" y="230" width="320" height="250" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
-        <text x="844" y="262" fill="#9fb0cc" font-family="DM Mono, monospace" font-size="12" letter-spacing="1.2">OLD AC-7</text>
-        <g fill="#f7f8fb" font-size="15.5">
-          <text x="844" y="296">“Every logo renders inside a</text>
-          <text x="844" y="320">cell of the size and spacing</text>
-          <text x="844" y="344">shown in the design reference</text>
-          <text x="844" y="368">at the matching width.”</text>
-        </g>
-        <line x1="844" y1="398" x2="1124" y2="398" stroke="rgba(156,182,226,.3)"/>
-        <text x="844" y="432" fill="#ff9a8f" font-size="18" font-weight="700">at 720 and 375:</text>
-        <text x="844" y="458" fill="#ff9a8f" font-size="18" font-weight="700">no number to check</text>
+        <!-- outcomes -->
+        <rect x="796" y="204" width="348" height="92" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="816" y="236" fill="#55e8ff" font-family="DM Mono, monospace" font-size="12" letter-spacing="1.6">PASS</text>
+        <text x="816" y="260" fill="#f7f8fb" font-size="15" font-weight="700">one frame, or its viewport versions</text>
+        <text x="816" y="282" fill="#cdd6e4" font-size="13">each fetched, widest first</text>
+        <line x1="770" y1="250" x2="792" y2="250" stroke="#55e8ff" stroke-width="1.6" marker-end="url(#f-arr-c)"/>
 
-        <line x1="822" y1="355" x2="784" y2="355" stroke="#ff9a8f" stroke-width="1.6" stroke-dasharray="3 4" marker-end="url(#r-arr-red)"/>
-        <line x1="822" y1="444" x2="784" y2="444" stroke="#ff9a8f" stroke-width="1.6" stroke-dasharray="3 4" marker-end="url(#r-arr-red)"/>
+        <rect x="796" y="312" width="348" height="92" fill="#0a1427" stroke="#ffcf6e" stroke-width="1.6"/>
+        <text x="816" y="344" fill="#ffcf6e" font-family="DM Mono, monospace" font-size="12" letter-spacing="1.6">QUESTION</text>
+        <text x="816" y="368" fill="#f7f8fb" font-size="15" font-weight="700">a page, or several frames</text>
+        <text x="816" y="390" fill="#cdd6e4" font-size="13">every candidate listed, none picked</text>
+        <line x1="770" y1="358" x2="792" y2="358" stroke="#ffcf6e" stroke-width="1.6" marker-end="url(#f-arr-y)"/>
 
-        <text x="56" y="560" fill="#f7f8fb" font-size="17" font-weight="600">The gate checks that the criteria are there.</text>
-        <text x="56" y="588" fill="#9ba7bd" font-size="17">Nothing checks that the pipeline can reach what they point at.</text>
+        <rect x="796" y="420" width="348" height="92" fill="#0a1427" stroke="#ff9a8f" stroke-width="1.6"/>
+        <text x="816" y="452" fill="#ff9a8f" font-family="DM Mono, monospace" font-size="12" letter-spacing="1.6">FAIL</text>
+        <text x="816" y="476" fill="#f7f8fb" font-size="15" font-weight="700">bad link · no node · no access</text>
+        <text x="816" y="498" fill="#cdd6e4" font-size="13">or the plugin is missing · error class set</text>
+        <line x1="770" y1="466" x2="792" y2="466" stroke="#ff9a8f" stroke-width="1.6" marker-end="url(#f-arr-r)"/>
+
+        <!-- fetch box -->
+        <rect x="56" y="332" width="690" height="104" fill="none" stroke="rgba(85,232,255,.5)" stroke-dasharray="4 4"/>
+        <text x="76" y="360" fill="#55e8ff" font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6">PER TARGET, ONE AT A TIME</text>
+        <text x="76" y="388" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13">get_design_context</text>
+        <text x="256" y="388" fill="#9fb0cc" font-size="12.5">values + images and icons</text>
+        <text x="76" y="410" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13">get_variable_defs</text>
+        <text x="256" y="410" fill="#9fb0cc" font-size="12.5">design tokens, once</text>
+        <text x="76" y="430" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13">get_screenshot</text>
+        <text x="256" y="430" fill="#9fb0cc" font-size="12.5">reference image</text>
+        <line x1="641" y1="298" x2="641" y2="328" stroke="#55e8ff" stroke-width="1.6" marker-end="url(#f-arr-c)"/>
+
+        <!-- files -->
+        <rect x="56" y="468" width="690" height="64" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/>
+        <text x="76" y="494" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13">.ai/figma/&lt;file&gt;-&lt;node&gt;.json · .png · .context.txt · assets/</text>
+        <text x="76" y="516" fill="#9fb0cc" font-size="12.5">what the next stage reads, in a fixed shape</text>
+
+        <text x="56" y="584" fill="#9ba7bd" font-size="15">A link with no node id is a question before any tool is loaded. A link that is not a /design/ URL is a fail.</text>
       </svg>
       </div>
-      <figcaption>EDS-26 as it first went into the run. Every field readiness checks was true. Two of the three design links were never read, and the criteria that depended on them gave the plan nothing it could measure.</figcaption>
+      <figcaption>One input line in, one verdict and a folder of files out. The model calls the tools. Which frames to fetch comes from scripts reading the metadata on disk.</figcaption>
     </figure>
   </section>
 
-  <section class="section alt" id="gate">
+  <section class="section alt" id="parts">
     <div class="section-head">
-      <p class="eyebrow">The gate</p>
-      <h2>A script answers <em>"can this be worked at all"</em></h2>
-      <p>Readiness runs on every ticket, right after intake. It has no model: every criterion is a comparison between a fact record and the platform's manifest.</p>
+      <p class="eyebrow">The parts</p>
+      <h2>A plugin of its <em>own</em></h2>
+      <p>The Figma pack plays one role in the pipeline: design. It has its own manifest, skill, scripts and tests, and it runs no server.</p>
     </div>
-    <div class="envelope-grid">
-<pre class="envelope"><span class="k"># eds/pack.yaml</span>
-readiness_criteria:
-  Story:
-    require: [has_description,
-              has_acceptance_criteria,
-              reproduction_content_ok]
-  Bug:
-    require: [has_description,
-              has_reproduction_url,
-              has_reproduction_steps,
-              reproduction_content_ok]</pre>
-      <div class="prose">
-        <p>Intake writes the facts first. "Has acceptance criteria" is a literal match: the Jira manifest names the headings it accepts, <code>Acceptance Criteria</code> or <code>AC</code>. No model reads the ticket and forms an opinion, so two runs on the same ticket get the same facts.</p>
-        <p>Then <code>check-readiness-criteria.sh</code> compares the two files. The answer is pass or fail. There is no warn, no "ready, with reservations".</p>
-      </div>
-    </div>
-    <ul class="rows" style="margin-top:2.5rem">
-      <li class="row key"><div><h3>A ticket type with no declared criteria fails</h3><p>It never falls back to another type's rules and never guesses.</p></div></li>
-      <li class="row"><div><h3>A field the record could not determine never counts as met</h3><p>Absent or <code>null</code> is not <code>true</code>.</p></div></li>
-      <li class="row key"><div><h3>A check that could not run is a fail, not a pass</h3><p>The script exits 2 on a usage error, and the stage reports it as a fail of its own kind. The skill gives the reason: treating "did not run" as "passed" is how a gate becomes decorative.</p></div></li>
-      <li class="row"><div><h3>Two fixed rules, whatever the type</h3><p>A ticket that asks for a visual change with no design attached fails. So does one that compares against a before-state no stage can capture.</p></div></li>
+    <ul class="rows">
+      <li class="row key"><div><h3><code>pack.yaml</code> declares the role</h3><p><code>kind: provider</code>, <code>role: design</code>, one operation: <code>fetch_reference → fetch-reference</code>. It also lists the four tools only the session can provide, each with a remedy for when one is missing, so the run can check them before it does any work.</p></div></li>
+      <li class="row"><div><h3><code>.claude-plugin/plugin.json</code> names it</h3><p>Name <code>figma</code>, version <code>0.1.0</code>, one dependency: <code>agentic-core</code>. The project picks it as its design source with <code>packs.design: figma</code> in <code>.ai/project-config.yaml</code>.</p></div></li>
+      <li class="row key"><div><h3><code>skills/fetch-reference/SKILL.md</code> is the flow</h3><p>A decision graph from the link to a verdict, with one section per node. Its allowed tools are exactly the four Figma tools plus <code>ToolSearch</code> and <code>Skill</code>.</p></div></li>
+      <li class="row"><div><h3>Five scripts decide</h3><p><code>classify-node.py</code> sorts the node. <code>viewports.py</code> plans the targets. <code>fetch-assets.py</code> downloads images and icons. <code>sniff-asset.py</code> names a file's format. <code>screenshot-size.py</code> sizes the screenshot request and records what came back.</p></div></li>
+      <li class="row"><div><h3>Five offline test suites</h3><p>One per script, 221 assertions in total, no network. They cover the scripts. The MCP calls themselves are not exercised by them.</p></div></li>
     </ul>
-    <div class="envelope-grid" style="margin-top:2.5rem">
-<pre class="envelope"><span class="k">## Result</span>
-<span class="k">verdict:</span> pass
-<span class="k">summary:</span> Item type Story: its declared
-  readiness criteria all hold (3 fields checked).
-<span class="k">artifacts:</span> []
-<span class="k">next_action:</span> none</pre>
-      <div class="prose">
-        <p>What the gate returned for EDS-26. A failure names the exact field instead, for example <code>item_type 'Story' requires 'has_acceptance_criteria' to be true, found false</code>.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="link">
-    <div class="section-head">
-      <p class="eyebrow">One link</p>
-      <h2>The design stage takes <em>one</em> reference</h2>
-      <p>The ticket gave three Figma links: desktop, tablet and mobile. The stage that reads the design is built around a single one.</p>
-    </div>
-    <div class="envelope-grid">
-<pre class="envelope"><span class="k"># eds/skills/eds-extract: decision= lines</span>
-url        one design-tool URL,
-           reference=&lt;url&gt;
-image      no URL, images resolved
-           to one reference
-ambiguous  no URL, images did not
-           resolve: ask a question
-missing    a design was called for,
-           none found: fail</pre>
-      <div class="prose">
-        <p>A script, <code>resolve-design-source.py</code>, makes this decision, not the model. When the ticket has a URL, the result carries one <code>reference=</code>, and the skill says a URL never arrives as ambiguous.</p>
-        <p>The question path exists only for images without a URL. Several Figma links do not trigger it. On EDS-26 the stage reported <em>"Figma node Logo Row, 1200x84"</em>, the desktop design, and nothing about the other two.</p>
-      </div>
-    </div>
-    <p class="claim">The old ticket said so itself: the tablet and mobile captures were what AC-4, AC-5 and AC-7 were compared against below the breakpoint.</p>
-  </section>
-
-  <section class="section alt" id="rewrite">
-    <div class="section-head">
-      <p class="eyebrow">The rewrite</p>
-      <h2>From <em>"as shown"</em> to a number</h2>
-      <p>The gate stayed as it was. The ticket changed: every size and spacing was measured on the design nodes and written into the criteria. 13 criteria became 16.</p>
-    </div>
-    <div class="compare">
-      <div class="bad">
-        <span class="tag">Before · 13 criteria</span>
-        <h3>Points at a picture</h3>
+    <div class="compare" style="margin-top:2.4rem">
+      <div class="good">
+        <span class="tag">Four tools from the Figma plugin</span>
+        <h3>Each with one job</h3>
         <ul>
-          <li>AC-4: Below the widest project breakpoint, the logos wrap into as many rows as the viewport needs, as laid out in the tablet and mobile design references.</li>
-          <li>AC-5: A row that is not full renders centred, as the tablet design reference shows for its second row.</li>
-          <li>AC-7: Every logo renders inside a cell of the size and spacing shown in the design reference at the matching width.</li>
+          <li><code>get_metadata</code>: confirms the node exists; its name, size and children.</li>
+          <li><code>get_design_context</code>: reference code whose classes carry layout, colour and type, and the download links for images and icons.</li>
+          <li><code>get_variable_defs</code>: a map of token name to value. An empty map is a normal result.</li>
+          <li><code>get_screenshot</code>: a short-lived image link with rendered and original size.</li>
         </ul>
       </div>
       <div class="good">
-        <span class="tag">After · 16 criteria</span>
-        <h3>Carries a number</h3>
+        <span class="tag">Before any call</span>
+        <h3>Load, then use</h3>
         <ul>
-          <li>AC-4: At a viewport 720 wide, the first row holds four logos.</li>
-          <li>AC-5: At a viewport 720 wide, the second row holds two logos.</li>
-          <li>AC-8: Each logo sits in a cell 150 by 82 pixels, within 1 pixel, at viewports 375, 720 and 1200 wide.</li>
-          <li>AC-9: Adjacent cells in a row are 40 pixels apart, within 1 pixel.</li>
-          <li>AC-10: Adjacent rows are 20 pixels apart, within 1 pixel, at viewports 375 and 720 wide.</li>
+          <li>The skill loads the four tools through <code>ToolSearch</code>, then loads <code>figma:figma-design-to-code</code>, which <code>get_design_context</code> asks for.</li>
+          <li>That skill is loaded for its prerequisite only. The operation writes no application code.</li>
+          <li>It never calls <code>authenticate</code>. An unattended run has nobody to open the sign-in link.</li>
         </ul>
       </div>
     </div>
-    <div class="prose" style="margin-top:2rem">
-      <p>The rewritten ticket names the one place the design disagrees with itself: the first five desktop cells measure 154 by 84, the sixth 150 by 82. It takes 150 by 82 as intended and says why. That is a decision a human made once, in the ticket, instead of one the pipeline would have made silently in every run.</p>
-      <p>The same ticket, rewritten, went through the route and was delivered as <a href="https://github.com/agenticDraft/aem-eds-ai-workflow-demo/pull/246">pull request #246</a>: two files, <code>logo-cloud.js</code> and <code>logo-cloud.css</code>.</p>
+  </section>
+
+  <section class="section" id="classify">
+    <div class="section-head">
+      <p class="eyebrow">The classifier</p>
+      <h2>Four classes, decided by a <em>script</em></h2>
+      <p><code>classify-node.py</code> reads the metadata file from disk. The model reads its first line and never re-decides the class from names, sizes or the ticket.</p>
+    </div>
+    <ul class="rows">
+      <li class="row key"><div><h3><code>single</code>: one target</h3><p>Anything that is not one of the three below. The node itself is fetched.</p></div></li>
+      <li class="row key"><div><h3><code>variants</code>: one target per version</h3><p>Every frame-like child belongs to one group of two or more viewport versions of the same design. Each is fetched, widest first.</p></div></li>
+      <li class="row"><div><h3><code>page</code>: a question</h3><p>The node is a page. Every frame-like child is a candidate.</p></div></li>
+      <li class="row"><div><h3><code>multi-frame</code>: a question</h3><p>A section, or children that mix variants with other frames, or hold several variant groups. Every frame-like child is a candidate.</p></div></li>
+    </ul>
+    <div class="envelope-grid" style="margin-top:2rem">
+      <div class="prose">
+        <p>A child is a viewport version when its own name matches a rule, checked in this order (pattern, keyword, width), or when size alone separates same-named frames:</p>
+        <p><strong>Pattern:</strong> <code>Hero / Desktop</code>, <code>Hero - Mobile</code>, <code>Desktop View</code>, <code>@mobile</code>.</p>
+        <p><strong>Keyword:</strong> a name token is <code>desktop</code>, <code>mobile</code>, <code>tablet</code>, <code>responsive</code>, <code>phone</code> or <code>web</code>.</p>
+        <p><strong>Width:</strong> a name token is <code>1440</code>, <code>1280</code>, <code>1024</code>, <code>768</code>, <code>375</code>, <code>390</code> or <code>414</code>, with or without <code>px</code>.</p>
+        <p><strong>Size:</strong> frames with the same base name where one is wider than 900 and one is narrower than 500.</p>
+      </div>
+<pre class="envelope"><span class="k"># classification.tsv, one line per frame-like child (example names)</span>
+class	variants
+node	frame	1:100	Logo Row
+child	1:118	1200	variant	name:pattern=desktop	Logo Row / Desktop
+child	1:131	720	variant	name:pattern=tablet	Logo Row / Tablet
+child	1:144	375	variant	name:pattern=mobile	Logo Row / Mobile</pre>
+    </div>
+    <p class="claim">A page or several frames: the question lists every candidate, none dropped, reordered or marked as preferred. Not even one whose name matches the work item.</p>
+  </section>
+
+  <section class="section alt" id="fetch">
+    <div class="section-head">
+      <p class="eyebrow">The fetch</p>
+      <h2>What it writes, and what it keeps <em>out</em> of files</h2>
+      <p>Design values and images land in <code>.ai/figma/</code> in a fixed shape. Download links are short-lived and never written down.</p>
+    </div>
+    <ol class="steps">
+      <li><span>Check the link: a <code>figma.com/design/</code> URL with a <code>node-id</code>. For a branch URL the branch key is used as the file key.</span></li>
+      <li><span>Load the four tools. <code>get_metadata</code>, then write its response whole to <code>&lt;file&gt;-&lt;node&gt;.metadata.xml</code>.</span></li>
+      <li><span><code>classify-node.py</code> writes <code>.classification.tsv</code>. For <code>variants</code>, <code>viewports.py plan</code> prints one target per version, widest first, and only those are fetched.</span></li>
+      <li><span>Per target: <code>get_design_context</code>, with the screenshot left out of it. Keep the code block and the styles line verbatim.</span></li>
+      <li><span>The code block goes to <code>fetch-assets.py</code> on stdin. It downloads every image and icon, names each format from its bytes, and rewrites the code to point at local files.</span></li>
+      <li><span><code>get_variable_defs</code> once, for the referenced node.</span></li>
+      <li><span><code>screenshot-size.py max</code> sizes the request to the node's longer edge. <code>get_screenshot</code> per target, downloaded before the link expires.</span></li>
+      <li class="read"><span>Write <code>&lt;file&gt;-&lt;node&gt;.json</code> and report pass with the list of files written.</span></li>
+    </ol>
+    <div class="envelope-grid" style="margin-top:2rem">
+      <div class="prose">
+        <p><strong>Formats from bytes.</strong> <code>sniff-asset.py</code> recognises png, jpg, gif, webp and svg from the first bytes of the file. The name or the URL is never trusted. Bytes of no known format stop the operation.</p>
+        <p><strong>Files named by content.</strong> Each asset is written as the first 16 hex digits of its SHA-256 plus the extension. Identical bytes are one file. A name already holding different bytes is refused, so no earlier file is replaced.</p>
+        <p><strong>No URL on disk.</strong> The asset links and the screenshot link exist only in the tool response and in the command that uses them. The script refuses a result that still contains one.</p>
+      </div>
+<pre class="envelope"><span class="k">## Result</span>
+<span class="k">verdict:</span> pass
+<span class="k">summary:</span> &lt;node name&gt; from &lt;Figma file&gt;
+<span class="k">artifacts:</span>
+  - .ai/figma/&lt;file&gt;-&lt;node&gt;.json
+  - .ai/figma/&lt;file&gt;-&lt;node&gt;.png
+  - .ai/figma/&lt;file&gt;-&lt;node&gt;.metadata.xml
+  - .ai/figma/&lt;file&gt;-&lt;node&gt;.classification.tsv
+  - .ai/figma/&lt;file&gt;-&lt;node&gt;.context.txt
+<span class="k">next_action:</span> none
+<span class="k">metrics:</span> variables=&lt;n&gt; design_context=code
+  node_class=single downscaled=0 assets=&lt;n&gt;</pre>
+    </div>
+    <p class="claim">A design context returned as structure only, or cut short by the tool's size cap, is recorded as <code>structure_only</code>. It is a pass, not an error: metadata, tokens and the screenshot still cover the node.</p>
+  </section>
+
+  <section class="section" id="outcomes">
+    <div class="section-head">
+      <p class="eyebrow">Pass, ask, stop</p>
+      <h2>Three verdicts, and the <em>class</em> behind a fail</h2>
+      <p>The operation ends in exactly one of three verdicts. A fail always carries an error class, read off what the tool actually returned.</p>
+    </div>
+    <ul class="chapters">
+      <li class="chapter"><p class="chapter-marker">Pass</p><p>The link is one frame, or the viewport versions of one design. Every target is fetched, the files are written, the result lists them.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Question</p><p>The link has no <code>node-id</code>, or the node is a page or holds several frames. The question comes verbatim from <code>classify-node.py --question</code>, with one option per candidate from <code>--options</code>. No error class: it is a clarification the ticket's author can answer.</p></li>
+      <li class="chapter"><p class="chapter-marker">Fail · VALIDATION</p><p>The reference itself is wrong: not a <code>figma.com/design/</code> URL (<code>/file/</code>, <code>/board/</code>, <code>/slides/</code> and <code>/make/</code> are not supported), or the file or node is not found, or the node id is malformed. Re-running it unchanged cannot succeed.</p></li>
+      <li class="chapter"><p class="chapter-marker">Fail · PERMANENT</p><p>The plugin is not installed, or installed but not authenticated, or the sign-in was rejected (401), or this session has no access (403). Also any error nothing else matches, because an unrecognised error is not evidence that retrying is safe. A script exit of 2 is here too: unreadable metadata, bytes of no known image format, an asset link that would be written.</p></li>
+      <li class="chapter"><p class="chapter-marker">Fail · TRANSIENT</p><p>A rate limit, a quota or a plan's call limit, a timeout, or an image download that failed. The only class that is retried: twice, after 2 seconds and then 4. If the third attempt fails, the operation reports a fail. It does not ask a question of its own, because only the stage that called it knows whether another source exists.</p></li>
+    </ul>
+    <div class="envelope-grid" style="margin-top:2rem">
+<pre class="envelope"><span class="k">## Result</span>
+<span class="k">verdict:</span> fail
+<span class="k">summary:</span> Figma is not authenticated: run /plugin,
+  select figma, choose Authenticate, finish
+  sign-in in the browser, then re-run.
+<span class="k">artifacts:</span> []
+<span class="k">next_action:</span> none
+<span class="k">error_class:</span> PERMANENT</pre>
+      <div class="prose">
+        <p>The shape of a fail, with the exact summary the plugin uses when authentication is what is missing. The text tells the person what to do, not only that it failed.</p>
+        <p>The authentication remedy is also declared in <code>pack.yaml</code> for each of the four session tools, so the run can name it before any work starts.</p>
+      </div>
     </div>
   </section>
 
-  <section class="section" id="limits">
+  <section class="section alt" id="limits">
     <div class="section-head">
-      <p class="eyebrow">What it doesn't solve</p>
-      <h2>Readiness still checks <em>presence</em></h2>
-      <p>The fix lives in the ticket, not in the gate. The next ticket written "as shown in the design" will pass readiness the same way.</p>
+      <p class="eyebrow">What it doesn't cover</p>
+      <h2>It reads the design <em>as drawn</em></h2>
+      <p>The plugin gets the values and the picture. It does not judge them.</p>
     </div>
     <ul class="chapters">
-      <li class="chapter warn"><p class="chapter-marker">The gap</p><p>Readiness checks that criteria exist under the right heading. It does not check that the pipeline can reach what they point at, and it is not allowed to re-read the ticket's text to find out.</p></li>
-      <li class="chapter warn"><p class="chapter-marker">Numbers find new problems</p><p>Even the rewritten ticket was not clean. At 375 wide the page's content box is 327 px, while two 150 px cells and a 40 px gap need 340. The plan gate returned warn for that. The delivered CSS answers it with <code>margin-inline: -24px</code> below the breakpoint. With "as shown in the design" the conflict would not have been measurable at all.</p></li>
-      <li class="chapter"><p class="chapter-marker">Next</p><p>Why the pipeline takes one design link, and when it asks a human instead.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Needs</p><p>The Figma plugin installed and signed in, and the network. The five test suites cover the scripts; the tool calls and the skill's own branching are not covered by them.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Scope</p><p><code>/design/</code> URLs only. One reference per call: the operation takes one <code>reference:</code> line and fetches that node and, when it holds viewport versions, each of them.</p></li>
+      <li class="chapter"><p class="chapter-marker">Next</p><p>Building the prototype against these files, and checking it in a real browser.</p></li>
     </ul>
   </section>
 </main>
@@ -373,5 +426,6 @@ missing    a design was called for,
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span>Zoran Markovic · Delivery Factory</span>
   <p>Companion to LinkedIn post 8</p>
 </footer>
+
 </body>
 </html>
