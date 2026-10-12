@@ -5,7 +5,8 @@ which retrieves a Figma node's layout, colour and typography values, the images 
 references, and a reference screenshot through the `figma` marketplace plugin's MCP server.
 
 **The scripts own every classification decision. The model fetches what they name and never
-picks a frame on its own.**
+picks a frame on its own.** **Without the four Figma MCP tools in the session, nothing runs: a
+route that needs design is stopped before it does any work.**
 
 ## The problem it solves
 
@@ -21,10 +22,27 @@ or turned into a question.
    `get_design_context` returns the reference code whose classes carry the values, plus the
    styles line; `get_variable_defs` returns the token map; `get_screenshot` returns the reference
    image. The skill's `allowed-tools` lists exactly these four plus `ToolSearch` and `Skill`.
-2. **The URL is checked before any tool is loaded.** A design URL without a `node-id` is a
+2. **The four tools are declared, and checked before a run starts.** `pack.yaml` lists them under
+   `session_tools:`, each with its remedy:
+
+   | Tool | Job |
+   | --- | --- |
+   | `mcp__plugin_figma_figma__get_design_context` | reference code, styles line |
+   | `mcp__plugin_figma_figma__get_metadata` | node, geometry |
+   | `mcp__plugin_figma_figma__get_variable_defs` | token map |
+   | `mcp__plugin_figma_figma__get_screenshot` | reference image |
+
+   The core's route driver reads that list after `intake`, asks the session's own tool registry
+   for those names once (`ToolSearch`), and passes what it found to
+   `core/lib/check-session-tools.sh`. Any name missing ends the run `blocked`, with the remedy,
+   before any run state, branch or tracker note exists. The check runs only when the item needs
+   design, that is when `extract` will run; an item with no design reference is not blocked.
+   `health` lists the four names and never looks them up. A script cannot see the session, so the
+   driver collects the names and the script makes the decision.
+3. **The URL is checked before any tool is loaded.** A design URL without a `node-id` is a
    `question`; a URL that is not a supported design URL is a `fail` with `error_class:
    VALIDATION`.
-3. **Authentication is reported, never started.** When the marketplace plugin is installed but not
+4. **Authentication is reported, never started.** When the marketplace plugin is installed but not
    authenticated, the envelope carries this exact summary and the operation never calls
    `authenticate`:
 
@@ -32,21 +50,28 @@ or turned into a question.
    Figma is not authenticated: run /plugin, select figma, choose Authenticate, finish sign-in in the browser, then re-run.
    ```
 
-4. **Classification is a script.** `scripts/classify-node.py` reads the metadata and answers
+   That text predates the session check and still names `/plugin` for sign-in. The remedy in
+   `pack.yaml`, which the driver prints, names `/mcp`. The skill's text has not been changed yet.
+5. **Classification is a script.** `scripts/classify-node.py` reads the metadata and answers
    `single`, `variants`, `page` or `multi-frame`. `page` and `multi-frame` become a `question`;
    the skill never picks a candidate, even one whose name matches the work item.
-5. **Viewport variants are planned by a script.** `scripts/viewports.py plan` prints one target per
+6. **Viewport variants are planned by a script.** `scripts/viewports.py plan` prints one target per
    variant, widest first; the skill fetches exactly those and no other.
-6. **Asset URLs never reach a file.** The code block goes to `scripts/fetch-assets.py` on stdin;
+7. **Asset URLs never reach a file.** The code block goes to `scripts/fetch-assets.py` on stdin;
    the script downloads each asset, names its format from its bytes (`scripts/sniff-asset.py`),
    and rewrites the code with local paths. `scripts/screenshot-size.py` records each screenshot's
    requested and actual size and marks a downscaled render.
-7. **Tool errors are classified, and only `TRANSIENT` is retried.** The class rides in the
+8. **Tool errors are classified, and only `TRANSIENT` is retried.** The class rides in the
    envelope's `error_class`.
 
 ## The flow
 
 ```text
+route driver, after intake, only when extract will run
+  ToolSearch for the four session_tools → check-session-tools.sh --found …
+  ├── any missing → terminal: blocked, remedy printed, nothing written
+  └── all four ok
+  ↓
 Skill(figma:fetch-reference)   reference: https://www.figma.com/design/<file_key>/...?node-id=<id>
   ↓
 parse URL ── no node-id → question
@@ -91,6 +116,34 @@ $ bash plugins/figma/core/lib/validate-pack-manifest.sh plugins/figma/pack.yaml
 valid: provider
 ```
 
+**The session-tools check against this pack, this run** (the driver does the registry lookup; here
+the found names are passed by hand):
+
+```text
+$ bash plugins/agentic-core/shared/lib/check-session-tools.sh --list plugins/figma/pack.yaml
+tool: mcp__plugin_figma_figma__get_design_context
+tool: mcp__plugin_figma_figma__get_metadata
+tool: mcp__plugin_figma_figma__get_variable_defs
+tool: mcp__plugin_figma_figma__get_screenshot
+
+$ bash plugins/agentic-core/shared/lib/check-session-tools.sh plugins/figma/pack.yaml --found
+missing: mcp__plugin_figma_figma__get_design_context — Plugin disabled: run /plugin, enable figma, restart the session. Enabled but not authenticated: run /mcp, select the figma server, Authenticate, finish sign-in in the browser.
+missing: mcp__plugin_figma_figma__get_metadata — …same remedy
+missing: mcp__plugin_figma_figma__get_variable_defs — …same remedy
+missing: mcp__plugin_figma_figma__get_screenshot — …same remedy
+4 of 4 declared session tools are missing          (exit 1)
+
+$ bash plugins/agentic-core/shared/lib/check-session-tools.sh plugins/figma/pack.yaml --found <all four names>
+ok: mcp__plugin_figma_figma__get_design_context
+ok: mcp__plugin_figma_figma__get_metadata
+ok: mcp__plugin_figma_figma__get_variable_defs
+ok: mcp__plugin_figma_figma__get_screenshot     (exit 0)
+```
+
+In a live run on EDS-26 (2026-10-12) with the plugin disabled, the driver printed those four
+`missing:` lines and ended `terminal: blocked` before any run state; with the plugin enabled it
+printed the four `ok:` lines and went on to `readiness`.
+
 **The offline test suites, this run:**
 
 ```text
@@ -110,9 +163,10 @@ Five files, 221 assertions, no network.
 
 ## Running it yourself
 
-1. Install the `figma` marketplace plugin and authenticate it: `/plugin`, select `figma`, choose
-   Authenticate, finish sign-in in the browser. This pack calls that plugin's MCP tools; it ships
-   no server of its own.
+1. Install and enable the `figma` marketplace plugin with `/plugin`, then restart the session.
+   Authenticate it with `/mcp`: select the figma server, choose Authenticate, finish sign-in in the
+   browser. This pack calls that plugin's MCP tools; it ships no server of its own. Check that
+   the four tools are in the session before a run; without them a design item is `blocked`.
 2. Load the pack next to the core, from the directory that holds `plugins/`:
 
    ```text
@@ -139,6 +193,12 @@ To make this pack the project's design source, set `packs.design: figma` in
 - **The operation needs the marketplace plugin, its authentication and the network.** The five
   test files cover the scripts; the MCP calls and the skill's own branching were not exercised
   in producing this README.
+- **The session check sees names, not a working sign-in.** It proves the four tools are listed.
+  Whether a plugin that is enabled but not authenticated still lists them was not measured;
+  if it does, the run passes the check and fails at `fetch_reference` with the authentication
+  summary above.
+- **Adding or renaming a tool means editing `session_tools:`.** The driver checks only what the
+  manifest declares; `core/lib/validate-pack-manifest.sh` refuses an entry without a remedy.
 - **`/design/` URLs only.** `/file/`, `/board/`, `/slides/` and `/make/` URLs are refused as
   `VALIDATION`.
 - **One pack, one name shared with what it wraps.** This pack and the marketplace plugin are both
