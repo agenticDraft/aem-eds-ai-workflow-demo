@@ -57,6 +57,14 @@ them as data at fixed paths, and it needs a clear answer when the browser is not
 7. **`interact` snapshots before and after.** Every `read:` selector is captured once before the
    first action and once after the last, with geometry, `color`, `background-color`,
    `font-family`, `font-size`, `font-weight`, `line-height`, every `aria-*` attribute and `class`.
+8. **Every operation keeps a log and runs under a watchdog.** `scripts/operation-guard.cjs` appends
+   each step, each console error and each uncaught page exception to
+   `.ai/playwright/<operation>-<slug>-log-<n>.log` the moment it happens, so a run that is killed
+   still leaves what it saw. The whole operation runs under a watchdog whose limit is
+   `PLAYWRIGHT_OPERATION_TIMEOUT_MS` (30000 ms by default; a value that is not a positive integer is
+   ignored; `scripts/launch-options.cjs` reads it). On expiry the envelope is `fail`, names the
+   timeout and the step the run was on, lists the log, the browser is closed within 2 s, and the
+   process exits 0. The log is listed in the envelope's `artifacts` on pass and on fail.
 
 ## The flow
 
@@ -65,6 +73,8 @@ Skill(playwright:<operation>)   target: <URL> [+ width | selector… | click/pre
   ↓
 skills/<operation>/scripts/<operation>.cjs
   ├── requires.cjs: a declared tool is missing → fail envelope with the manifest's remedy
+  ├── operation-guard.cjs: log every step and page error; watchdog over the whole run
+  │     └── limit reached → fail envelope naming the step, exit 0
   ├── launch headless Chromium, load target
   │     └── load never completes / browser cannot launch → fail envelope
   ├── settle.cjs: fonts loaded, no blocked target
@@ -119,9 +129,13 @@ $ node plugins/playwright/skills/render/scripts/render.cjs http://127.0.0.1:1/
 ## Result
 verdict: fail
 summary: could not launch Chromium: browserType.launch: Target page, context or browser has been closed
-artifacts: []
+artifacts:
+  - .ai/playwright/render-127-0-0-1-1-log-1.log
 next_action: none
 ```
+
+The log is listed because the guard opens it before the browser launch; its contents are the
+steps the run took and the errors it saw.
 
 **A usage error, this run:**
 
@@ -143,7 +157,22 @@ $ bash plugins/playwright/scripts/settle.test.sh
 passed: 30, failed: 0
 $ bash plugins/playwright/skills/measure/scripts/measure.test.sh
 passed: 15, failed: 0
+$ bash plugins/playwright/scripts/launch-options.test.sh
+=== 17 passed, 0 failed ===
+$ bash plugins/playwright/scripts/skill-grants.test.sh
+=== 8 passed, 0 failed ===
 ```
+
+**The browser suite, this run outside the command sandbox.** It starts a local fixture server and
+drives all four operations against a page that blocks its main thread and one that throws:
+
+```text
+$ bash plugins/playwright/scripts/operation-guard.test.sh
+=== 36 passed, 0 failed ===
+```
+
+Inside the command sandbox the same suite failed 18 of 36 checks: the fixture server could not
+listen on loopback (`listen EPERM`) and Chromium could not launch.
 
 ## Running it yourself
 
@@ -175,7 +204,10 @@ passed: 15, failed: 0
    lines as the argument; from a prompt, `/playwright:render` followed by `target: <URL>`.
    Every operation writes its artifact under `.ai/playwright/` at the project root: a PNG for
    `capture`, a JSON file for the other three, each named `<operation>-<target slug>[-<width>]-<n>`.
-6. Run the offline tests, listed above.
+   Every run also writes a `.log` file of its steps and page errors, named
+   `<operation>-<target slug>-log-<n>`, and lists it in the envelope's `artifacts`.
+6. Run the offline tests, listed above, and the browser suite `operation-guard.test.sh`, which
+   needs a real Chromium and loopback, so run it outside the command sandbox.
 
 To make this pack the project's browser, set `packs.browser: playwright` in
 `.ai/project-config.yaml`.
@@ -183,12 +215,17 @@ To make this pack the project's browser, set `packs.browser: playwright` in
 ## Limits you should know
 
 - **Chromium only.** The scripts launch one engine; no other browser is declared or probed.
+- **The watchdog limit covers the whole run, not one step.** A run that is slow but legitimate
+  and exceeds `PLAYWRIGHT_OPERATION_TIMEOUT_MS` is reported as timed out; raise the variable for
+  such a page rather than expecting a partial result.
 - **A sandbox that blocks the browser process turns every operation into `fail`.** The envelope
   above is what that looks like; it is indistinguishable from a missing binary except by its
   summary text. Each operation skill therefore runs its script with the command sandbox off,
   unconditionally; a caller that runs a script itself, sandboxed, gets that envelope.
-- **Three test files cover the helpers and `measure`'s parsing.** `render`, `capture` and
-  `interact` have no offline test; a real page was not loaded in producing this README.
+- **Test coverage is uneven.** The offline suites cover the helpers, the launch options, the
+  skill grants and `measure`'s parsing. `operation-guard.test.sh` is the only test that runs
+  `render`, `capture`, `measure` and `interact` against a real browser, and it covers only the
+  hang and error paths, not their normal output. `capture`'s normal output has no test.
 - **A local preview needs loopback.** The operations connect to whatever URL they are given;
   a sandbox that denies loopback connections denies them too.
 - **The style set is fixed.** A value outside the list under `measure` is not returned.

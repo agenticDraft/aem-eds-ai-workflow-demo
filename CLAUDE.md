@@ -25,6 +25,11 @@ Neither is auto-imported, so nothing loads them for you.
 (`.claude/skills/write-specs/`) rather than writing it by hand — it owns the ticket shape and
 proves conformance with its own checker before anything is pasted in.
 
+**Changing anything under `plugins/<name>/`? Update that plugin's `README.md` in the same change.**
+Scripts, skills, manifest, environment variables and tests all count. Rewrite every README section
+that describes the old behaviour, and re-run each test the README quotes and update its output.
+A plugin change without its README update is not finished.
+
 <!-- This file carries project POLICY plus an INDEX of documents to read on a trigger.
      Reference material — how EDS works, how a tool behaves — belongs in the referenced
      file, never here: every line loads into every session. Keep it under 200 lines. -->
