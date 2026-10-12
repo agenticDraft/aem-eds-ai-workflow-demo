@@ -1,0 +1,35 @@
+.logo-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 40px;
+  justify-content: center;
+  align-items: center;
+  margin-inline: -24px;
+}
+
+@media (width >= 900px) {
+  .logo-cloud {
+    margin-inline: 0;
+  }
+}
+
+.logo-cloud > div {
+  box-sizing: border-box;
+  width: 150px;
+  height: 81.818px;
+  padding: 20px;
+}
+
+.logo-cloud > div > div,
+.logo-cloud picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.logo-cloud img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
