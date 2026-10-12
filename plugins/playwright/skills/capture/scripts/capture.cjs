@@ -19,6 +19,8 @@ const { missingToolSummary } = require('../../../scripts/requires.cjs');
 // Every call writes a new file; an earlier call's artifact is never replaced.
 const { nextArtifactPath } = require('../../../scripts/next-artifact-path.cjs');
 const { launchOptions } = require('../../../scripts/launch-options.cjs');
+// Ends an operation that hangs, and logs what the page did as it did it.
+const { createGuard } = require('../../../scripts/operation-guard.cjs');
 
 function printEnvelope(fields) {
   const lines = ['## Result', `verdict: ${fields.verdict}`, `summary: ${fields.summary}`];
@@ -33,8 +35,8 @@ function printEnvelope(fields) {
   console.log(lines.join('\n'));
 }
 
-function fail(summary) {
-  printEnvelope({ verdict: 'fail', summary, artifacts: [] });
+function fail(summary, artifacts = []) {
+  printEnvelope({ verdict: 'fail', summary, artifacts });
 }
 
 function resolvePlaywright() {
@@ -56,7 +58,7 @@ function slugify(url) {
   return (slug || 'target').slice(0, 80);
 }
 
-async function main() {
+async function main(guard) {
   const target = process.argv[2];
   const widthArg = process.argv[3];
   if (!target || !widthArg) {
@@ -88,31 +90,37 @@ async function main() {
     return;
   }
 
+  guard.openLog();
+  guard.step('launching Chromium');
   let browser;
   try {
     browser = await playwright.chromium.launch(launchOptions(process.env));
+    guard.setBrowser(browser);
   } catch (e) {
     if (/Executable doesn't exist/.test(e.message)) {
-      fail(missingToolSummary('chromium'));
+      fail(missingToolSummary('chromium'), guard.artifacts());
       return;
     }
-    fail(`could not launch Chromium: ${e.message.split('\n')[0]}`);
+    fail(`could not launch Chromium: ${e.message.split('\n')[0]}`, guard.artifacts());
     return;
   }
 
   const page = await browser.newPage({ viewport: { width, height: 800 } });
 
+  guard.watch(page);
+  guard.step(`loading ${target}`);
   try {
     await page.goto(target, { waitUntil: 'load', timeout: 15000 });
   } catch (e) {
     await browser.close();
-    fail(`could not load ${target}: ${e.message.split('\n')[0]}`);
+    fail(`could not load ${target}: ${e.message.split('\n')[0]}`, guard.artifacts());
     return;
   }
 
   const outDir = '.ai/playwright';
   fs.mkdirSync(outDir, { recursive: true });
   const outFile = nextArtifactPath(outDir, `capture-${slugify(target)}-${width}`, 'png');
+  guard.step('taking the screenshot');
   await page.screenshot({ path: outFile, fullPage: true });
 
   await browser.close();
@@ -122,13 +130,14 @@ async function main() {
   printEnvelope({
     verdict: 'pass',
     summary: `Captured ${target} at width ${width} to ${outFile}.`,
-    artifacts: [outFile],
+    artifacts: [outFile, ...guard.artifacts()],
     next_action: 'none',
     metrics: `width=${width} bytes=${bytes}`,
   });
 }
 
-main().catch((err) => {
+const guard = createGuard({ operation: 'capture', slug: slugify(process.argv[2] || ''), env: process.env });
+guard.run(() => main(guard), fail).catch((err) => {
   console.error(err && err.stack ? err.stack : err);
   process.exit(1);
 });

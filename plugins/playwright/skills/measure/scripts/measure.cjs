@@ -32,6 +32,8 @@ const { missingToolSummary } = require('../../../scripts/requires.cjs');
 // Every call writes a new file; an earlier call's artifact is never replaced.
 const { nextArtifactPath } = require('../../../scripts/next-artifact-path.cjs');
 const { launchOptions } = require('../../../scripts/launch-options.cjs');
+// Ends an operation that hangs, and logs what the page did as it did it.
+const { createGuard } = require('../../../scripts/operation-guard.cjs');
 const { settle } = require('../../../scripts/settle.cjs');
 
 // Longhands only: no padding shorthand is ever reported.
@@ -79,8 +81,8 @@ function printEnvelope(fields) {
   console.log(lines.join('\n'));
 }
 
-function fail(summary) {
-  printEnvelope({ verdict: 'fail', summary, artifacts: [] });
+function fail(summary, artifacts = []) {
+  printEnvelope({ verdict: 'fail', summary, artifacts });
 }
 
 function resolvePlaywright() {
@@ -181,7 +183,7 @@ async function probe(page, selectors) {
   return { value: results, blockers };
 }
 
-async function main() {
+async function main(guard) {
   const args = parseArgs(process.argv.slice(2));
   if (args.error === 'usage') {
     console.error('usage: measure.cjs [--width <n>] <target-url> <selector> [selector...]');
@@ -211,15 +213,18 @@ async function main() {
     return;
   }
 
+  guard.openLog();
+  guard.step('launching Chromium');
   let browser;
   try {
     browser = await playwright.chromium.launch(launchOptions(process.env));
+    guard.setBrowser(browser);
   } catch (e) {
     if (/Executable doesn't exist/.test(e.message)) {
-      fail(missingToolSummary('chromium'));
+      fail(missingToolSummary('chromium'), guard.artifacts());
       return;
     }
-    fail(`could not launch Chromium: ${e.message.split('\n')[0]}`);
+    fail(`could not launch Chromium: ${e.message.split('\n')[0]}`, guard.artifacts());
     return;
   }
 
@@ -228,21 +233,24 @@ async function main() {
   );
   const width = page.viewportSize().width;
 
+  guard.watch(page);
+  guard.step(`loading ${target}`);
   try {
     await page.goto(target, { waitUntil: 'load', timeout: 15000 });
   } catch (e) {
     await browser.close();
-    fail(`could not load ${target}: ${e.message.split('\n')[0]}`);
+    fail(`could not load ${target}: ${e.message.split('\n')[0]}`, guard.artifacts());
     return;
   }
 
+  guard.step('reading the selectors');
   const read = await settle({
     fontsReady: () => page.evaluate(() => document.fonts.ready.then(() => true)),
     probe: () => probe(page, selectors),
   });
   await browser.close();
   if (!read.settled) {
-    fail(`could not measure ${target}: ${read.reason}`);
+    fail(`could not measure ${target}: ${read.reason}`, guard.artifacts());
     return;
   }
   const results = read.value;
@@ -257,7 +265,7 @@ async function main() {
   printEnvelope({
     verdict: 'pass',
     summary: `Measured ${selectors.length} selector(s) on ${target} at width ${width}: ${foundCount} found, ${hiddenCount} hidden.`,
-    artifacts: [outFile],
+    artifacts: [outFile, ...guard.artifacts()],
     next_action: 'none',
     metrics: `width=${width} selectors=${selectors.length} found=${foundCount} hidden=${hiddenCount}`,
   });
@@ -266,7 +274,9 @@ async function main() {
 module.exports = { PROPERTIES, parseArgs, readSelectors };
 
 if (require.main === module) {
-  main().catch((err) => {
+  const target = process.argv.slice(2).find((a) => /^https?:/.test(a)) || '';
+  const guard = createGuard({ operation: 'measure', slug: slugify(target), env: process.env });
+  guard.run(() => main(guard), fail).catch((err) => {
     console.error(err && err.stack ? err.stack : err);
     process.exit(1);
   });

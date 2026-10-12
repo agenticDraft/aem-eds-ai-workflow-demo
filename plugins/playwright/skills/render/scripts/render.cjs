@@ -14,6 +14,12 @@
 // happening: no playwright, no browser binary, or navigation never
 // completing (DNS, connection refused, timeout).
 //
+// A watchdog (PLAYWRIGHT_OPERATION_TIMEOUT_MS, 30 s by default) ends a run
+// that does not finish — a page that blocks its own main thread after load —
+// with a failed envelope. Every console error and uncaught page exception is
+// appended to a log the moment it happens, and the log is listed in the
+// envelope's artifacts on pass and on fail.
+//
 // Exit codes: 0 with an envelope on stdout for every operational outcome
 // (pass or fail); 2 for a usage error (missing argument).
 
@@ -26,6 +32,8 @@ const { missingToolSummary } = require('../../../scripts/requires.cjs');
 // Every call writes a new file; an earlier call's artifact is never replaced.
 const { nextArtifactPath } = require('../../../scripts/next-artifact-path.cjs');
 const { launchOptions } = require('../../../scripts/launch-options.cjs');
+// Ends an operation that hangs, and logs what the page did as it did it.
+const { createGuard } = require('../../../scripts/operation-guard.cjs');
 
 function printEnvelope(fields) {
   const lines = ['## Result', `verdict: ${fields.verdict}`, `summary: ${fields.summary}`];
@@ -40,8 +48,8 @@ function printEnvelope(fields) {
   console.log(lines.join('\n'));
 }
 
-function fail(summary) {
-  printEnvelope({ verdict: 'fail', summary, artifacts: [] });
+function fail(summary, artifacts = []) {
+  printEnvelope({ verdict: 'fail', summary, artifacts });
 }
 
 function resolvePlaywright() {
@@ -63,7 +71,7 @@ function slugify(url) {
   return (slug || 'target').slice(0, 80);
 }
 
-async function main() {
+async function main(guard) {
   const target = process.argv[2];
   if (!target) {
     console.error('usage: render.cjs <target-url>');
@@ -88,35 +96,38 @@ async function main() {
     return;
   }
 
+  guard.openLog();
+  guard.step('launching Chromium');
   let browser;
   try {
     browser = await playwright.chromium.launch(launchOptions(process.env));
+    guard.setBrowser(browser);
   } catch (e) {
     if (/Executable doesn't exist/.test(e.message)) {
-      fail(missingToolSummary('chromium'));
+      fail(missingToolSummary('chromium'), guard.artifacts());
       return;
     }
-    fail(`could not launch Chromium: ${e.message.split('\n')[0]}`);
+    fail(`could not launch Chromium: ${e.message.split('\n')[0]}`, guard.artifacts());
     return;
   }
 
   const consoleErrors = [];
   const page = await browser.newPage();
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') consoleErrors.push(msg.text());
-  });
+  guard.watch(page, (text) => consoleErrors.push(text));
 
   const start = Date.now();
   let response;
+  guard.step(`loading ${target}`);
   try {
     response = await page.goto(target, { waitUntil: 'load', timeout: 15000 });
   } catch (e) {
     await browser.close();
-    fail(`could not load ${target}: ${e.message.split('\n')[0]}`);
+    fail(`could not load ${target}: ${e.message.split('\n')[0]}`, guard.artifacts());
     return;
   }
   const loadTimeMs = Date.now() - start;
 
+  guard.step('reading the page title');
   const state = {
     target,
     final_url: page.url(),
@@ -136,13 +147,14 @@ async function main() {
   printEnvelope({
     verdict: 'pass',
     summary: `Rendered ${target}: HTTP ${state.status}, ${consoleErrors.length} console error(s).`,
-    artifacts: [outFile],
+    artifacts: [outFile, ...guard.artifacts()],
     next_action: 'none',
     metrics: `status=${state.status} console_errors=${consoleErrors.length} load_time_ms=${loadTimeMs}`,
   });
 }
 
-main().catch((err) => {
+const guard = createGuard({ operation: 'render', slug: slugify(process.argv[2] || ''), env: process.env });
+guard.run(() => main(guard), fail).catch((err) => {
   console.error(err && err.stack ? err.stack : err);
   process.exit(1);
 });
