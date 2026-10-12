@@ -1,5 +1,5 @@
 ---
-description: Report what is loaded and whether every provider pack this project selected can actually run — which plugin is active and from where, then, per configured role, the pack bound to it and the result of probing each precondition that pack declares. Read-only: it reports, it never fixes, never installs, and never blocks a run.
+description: Report what is loaded and whether every provider pack this project selected can actually run — which plugin is active and from where, then, per configured role, the pack bound to it and the result of probing each precondition that pack declares, and the session tools it declares (listed, never looked up — the run's driver checks those). Read-only: it reports, it never fixes, never installs, and never blocks a run.
 disable-model-invocation: true
 ---
 
@@ -62,14 +62,32 @@ and point at the manifest validator — this skill diagnoses an environment, not
 A pack that declares no preconditions reports exactly that. It is a normal, common answer, not a
 gap: most packs need nothing beyond what is already here.
 
-## 4. Report
+## 4. What each pack expects the session to offer
+
+For every pack that resolved, also run:
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/lib/check-session-tools.sh --list <path to that pack.yaml>
+```
+
+Report its lines verbatim, per pack, each marked **checked by the driver at run time**. `none
+declared` is a normal answer. Exit `2` means the pack's `session_tools:` block is malformed — say the
+manifest is at fault, as in step 3.
+
+List these names; never look them up in your own tool registry and never call one. Whether a session
+offers a tool depends on that session — which plugins are enabled, whether one is authenticated — so
+an answer from this session says nothing reliable about the one that will drive a run. The driver
+asks its own registry after intake, and that answer is the one that counts.
+
+## 5. Report
 
 State plainly, in this order:
 
 1. what is loaded, and from where
 2. per role: the configured pack, and whether it resolved
 3. per resolved pack: its precondition results, remedies verbatim
-4. one closing line naming what you did **not** do: nothing was installed, fixed, or changed, and
+4. per resolved pack: its declared session tools, each marked checked by the driver at run time
+5. one closing line naming what you did **not** do: nothing was installed, fixed, or changed, and
    no run was blocked
 
 The closing line is not a formality. Someone reading a list of missing tools will wonder whether
@@ -91,8 +109,11 @@ this skill has already dealt with any of them, and the answer is always no.
   others. A sweep of the machine for things that look useful is how a diagnostic turns into a
   surveillance tool nobody asked for.
 
+- **Asking the tool registry about a declared session tool**, or calling one to see if it answers.
+  Presence is the driver's question, asked in the session that runs.
+
 ## Reference, not restatement
 
-The `requires:` shape is defined in `shared/pack-manifest.md`; the project config shape in
+The `requires:` and `session_tools:` shapes are defined in `shared/pack-manifest.md`; the project config shape in
 `shared/project-config.md`. Read them there. Do not restate either here — a second copy of a
 contract is a second thing to keep true.
