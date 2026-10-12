@@ -3,3 +3,12 @@ role: design
 operations:
   fetch_reference: fetch-reference
 unsupported: []
+session_tools:
+  - tool: mcp__plugin_figma_figma__get_design_context
+    remedy: "Plugin disabled: run /plugin, enable figma, restart the session. Enabled but not authenticated: run /mcp, select the figma server, Authenticate, finish sign-in in the browser."
+  - tool: mcp__plugin_figma_figma__get_metadata
+    remedy: "Plugin disabled: run /plugin, enable figma, restart the session. Enabled but not authenticated: run /mcp, select the figma server, Authenticate, finish sign-in in the browser."
+  - tool: mcp__plugin_figma_figma__get_variable_defs
+    remedy: "Plugin disabled: run /plugin, enable figma, restart the session. Enabled but not authenticated: run /mcp, select the figma server, Authenticate, finish sign-in in the browser."
+  - tool: mcp__plugin_figma_figma__get_screenshot
+    remedy: "Plugin disabled: run /plugin, enable figma, restart the session. Enabled but not authenticated: run /mcp, select the figma server, Authenticate, finish sign-in in the browser."
