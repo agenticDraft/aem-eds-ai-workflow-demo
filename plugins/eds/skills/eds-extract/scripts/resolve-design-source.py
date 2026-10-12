@@ -25,8 +25,8 @@
 # the caller can name them all when it asks.
 #
 # A design-tool URL outranks the attachments entirely: it is the design
-# source, and the reserved-name scan only decides whether a fallback can be
-# named alongside it. An item with a URL is never `ambiguous`.
+# source, and its attachments are not read at all. An item with a URL is
+# never `ambiguous`.
 #
 # Prints exactly one `decision=...` line to stdout and exits 0 for every
 # outcome this script is able to determine at all, including a decline or an
@@ -34,11 +34,6 @@
 # usage error (bad arguments, an unreadable fact record) exits non-zero, so
 # the caller can distinguish "I resolved this item's design source" from "I
 # could not even read the input" without inspecting stdout.
-#
-# The `url` decision additionally carries `fallback_image=`, `fallback_url=`
-# and `fallback_mime=` when the item also carries exactly one reserved-name
-# image, so a caller whose design provider refuses has something to fall back
-# to. Any other image set leaves the `url` line exactly as it was.
 #
 # Exit codes: 0 always paired with a `decision=` line; 2 for a usage error.
 
@@ -147,24 +142,13 @@ def main():
         with open(sanitized_spec_path, encoding="utf-8") as f:
             spec_text = f.read()
 
-    images = image_attachments(fetched_item_path)
-    reserved = reserved_images(images)
-
     design_url = find_design_url(spec_text)
     if design_url:
-        line = f"decision=url reference={design_url}"
-        # Exactly one reserved-name image is the only set that names a fallback
-        # without a guess. The URL itself is unaffected either way: it is this
-        # item's design source whatever its attachments look like.
-        if len(reserved) == 1:
-            a = reserved[0]
-            line += (
-                f" fallback_image={a['filename']}"
-                f" fallback_url={a['content_url']}"
-                f" fallback_mime={a['mime']}"
-            )
-        print(line)
+        print(f"decision=url reference={design_url}")
         sys.exit(0)
+
+    images = image_attachments(fetched_item_path)
+    reserved = reserved_images(images)
 
     if len(reserved) == 1:
         a = reserved[0]

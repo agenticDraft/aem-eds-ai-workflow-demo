@@ -9,8 +9,8 @@
 # The attachment cases are a matrix: seven image sets, each run twice — once
 # with a design URL in the sanitized text and once without. The two halves
 # answer different questions. Without a URL the image set decides the whole
-# outcome; with one, the URL is the design source and the image set only
-# decides whether a fallback is named.
+# outcome; with one, the URL is the design source and the image set must not
+# change the decision line at all — no attachment is ever named as a fallback.
 #
 # Two invariants are asserted on EVERY decision case, not just the new ones:
 # exactly one `decision=` line on stdout, and exit 0. Callers depend on both.
@@ -123,19 +123,19 @@ assert_decision "no images -> missing" \
   "$(fixture n-zero true "$NO_URL" "$NO_IMAGES")" \
   "decision=missing"
 
-echo "[design URL] the URL is the source; the image set only names a fallback"
+echo "[design URL] the URL is the source; no image set adds anything to the line"
 
-assert_decision "reserved name among several images -> url + that fallback" \
+assert_decision "reserved name among several images -> url alone, no fallback" \
   "$(fixture u-among true "$DESIGN_URL" "$RESERVED_AMONG")" \
-  "decision=url reference=$URL fallback_image=design-reference.png fallback_url=https://tracker.example/attach/2 fallback_mime=image/png"
+  "decision=url reference=$URL"
 
-assert_decision "reserved name alone -> url + that fallback" \
+assert_decision "reserved name alone -> url alone, no fallback" \
   "$(fixture u-alone true "$DESIGN_URL" "$RESERVED_ALONE")" \
-  "decision=url reference=$URL fallback_image=design-reference.png fallback_url=https://tracker.example/attach/2 fallback_mime=image/png"
+  "decision=url reference=$URL"
 
-assert_decision "reserved name in different case -> url + that fallback" \
+assert_decision "reserved name in different case -> url alone, no fallback" \
   "$(fixture u-case true "$DESIGN_URL" "$RESERVED_CASE")" \
-  "decision=url reference=$URL fallback_image=Design-Reference.JPG fallback_url=https://tracker.example/attach/4 fallback_mime=image/jpeg"
+  "decision=url reference=$URL"
 
 assert_decision "several images, none reserved -> url alone, no fallback" \
   "$(fixture u-many true "$DESIGN_URL" "$UNMARKED_MANY")" \
@@ -163,7 +163,7 @@ assert_decision "the reserved name on a non-image attachment does not count" \
   "$(fixture non-image true "$NO_URL" "$NON_IMAGE")" \
   "decision=missing"
 
-assert_decision "the reserved name on a non-image attachment names no fallback either" \
+assert_decision "the reserved name on a non-image attachment -> url alone" \
   "$(fixture non-image-url true "$DESIGN_URL" "$NON_IMAGE")" \
   "decision=url reference=$URL"
 

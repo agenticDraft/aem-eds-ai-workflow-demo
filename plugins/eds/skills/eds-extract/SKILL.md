@@ -40,13 +40,11 @@ digraph eds_extract {
     "Fetch via the design role" [shape=box];
     "Design fetch result?" [shape=diamond];
     "Normalize the design-tool reference" [shape=box];
-    "Fallback available?" [shape=diamond];
     "Download the attachment" [shape=box];
     "Download succeeded?" [shape=diamond];
     "Write the image reference" [shape=box];
     "Report skip" [shape=doublecircle];
     "Report pass" [shape=doublecircle];
-    "Report warn" [shape=doublecircle];
     "Report question" [shape=doublecircle];
     "Report fail" [shape=doublecircle];
 
@@ -62,18 +60,14 @@ digraph eds_extract {
     "Fetch via the design role" -> "Design fetch result?";
     "Design fetch result?" -> "Normalize the design-tool reference" [label="pass/warn"];
     "Design fetch result?" -> "Report question" [label="question"];
-    "Design fetch result?" -> "Fallback available?" [label="fail"];
+    "Design fetch result?" -> "Report fail" [label="fail"];
     "Design fetch result?" -> "Report fail" [label="invalid envelope"];
-    "Fallback available?" -> "Download the attachment" [label="yes — TRANSIENT or PERMANENT,\nand a declared reference image"];
-    "Fallback available?" -> "Report question" [label="no attachment, TRANSIENT"];
-    "Fallback available?" -> "Report fail" [label="VALIDATION, or no attachment\nwith any other class"];
     "Normalize the design-tool reference" -> "Report pass" [label="exit 0"];
     "Normalize the design-tool reference" -> "Report fail" [label="exit 2"];
     "Download the attachment" -> "Download succeeded?";
     "Download succeeded?" -> "Write the image reference" [label="yes"];
     "Download succeeded?" -> "Report fail" [label="no"];
     "Write the image reference" -> "Report pass" [label="the item's own image source"];
-    "Write the image reference" -> "Report warn" [label="substituted for a refused provider"];
 }
 ```
 
@@ -109,12 +103,9 @@ Read the script's `decision=` line from stdout.
   `when:` condition does not hold. Go to **Report skip**. (Reached only on a standalone invocation
   outside a route — inside a route the runner never spawns this stage unless the condition already
   matched.)
-- `url` — a design-tool URL was found; the line also carries `reference=<url>`, and, when the item
-  additionally carries a resolved fallback image, `fallback_image=`, `fallback_url=` and
-  `fallback_mime=`. Keep those three values: nothing reads them unless the provider refuses, and
-  **Fallback available?** is the only node that does. Go to **Resolve the design pack**. A URL is
-  this item's design source whatever its attachments look like, so a URL never arrives as
-  `ambiguous`.
+- `url` — a design-tool URL was found; the line carries `reference=<url>`. Go to **Resolve the
+  design pack**. A URL is this item's design source whatever its attachments look like, so a URL
+  never arrives as `ambiguous`.
 - `image` — no URL, and the item's images resolved to one design reference; the line also carries
   `filename=`, `content_url=` and `mime=`. Go to **Download the attachment**.
 - `ambiguous` — no URL, and the item's images did not resolve to one design reference; the line
@@ -164,40 +155,11 @@ Read the captured envelope's `verdict`.
   unchanged; extract itself could not resolve this and is raising it at its own stage boundary
   (core contract §3: "an adapter resolves what its own subagent could not, or raises its own
   `question` at its own boundary").
-- `fail` — go to **Fallback available?**. This stage does not turn a provider's failure into its
-  own before asking whether it has another way to get a reference.
-- An envelope that does not validate at all — go to **Report fail**. There is no trustworthy
-  `error_class` to read off a block that is not a conformant envelope, and guessing one would be
-  guessing whether substitution is permitted.
-
-### Fallback available?
-
-Two values decide this, and both are already in hand: the `fallback_url=` the decision line carried
-(or did not), and the `error_class` on the provider's own envelope. See
-`${CLAUDE_PLUGIN_ROOT}/core/error-handling.md` for what each class means.
-
-- The decision line carried `fallback_url=` **and** the envelope's `error_class` is `TRANSIENT` or
-  `PERMANENT` — go to **Download the attachment**, using the `fallback_url=` and `fallback_mime=`
-  values in place of the `content_url=` and `mime=` that node reads on the `image` path. Both of
-  those classes describe **the provider**: it is busy, or it cannot run here. The reference the
-  item named is not in question, so putting the item's own attached image in its place is a
-  substitution the item already sanctions.
-- The envelope's `error_class` is `VALIDATION` — go to **Report fail**, exactly as this stage did
-  before the fallback existed, whether or not an attachment exists. `VALIDATION` describes **the
-  request**: the reference this item named is wrong. Substituting a different artifact for one the
-  item explicitly named would answer a question nobody asked.
-- No `fallback_url=` on the decision line, and the class is `TRANSIENT` — go to **Report question**.
-  The reference could not be fetched, the item carries no usable image, and a human doing one
-  concrete thing is what unblocks it. This is the escalation the provider operation deliberately
-  did not raise: it could not see whether this stage had an alternative, and this node is where
-  that is known.
-- No `fallback_url=`, and any other class — go to **Report fail**, exactly as today.
-
-The rule the four branches share, stated once: **`TRANSIENT` and `PERMANENT` describe the provider
-and permit substitution; `VALIDATION` describes the request and forbids it.**
-
-An envelope carrying no `error_class` at all is read as "no class known" and takes the last branch:
-an unclassified failure is not evidence that substitution is safe.
+- `fail` — go to **Report fail**, relaying the provider's own `summary` unchanged. This stage has
+  no other source for the design reference, so a refused provider stops the run here.
+- An envelope that does not validate at all — go to **Report fail** with `error_class:
+  VALIDATION`. There is no trustworthy `error_class` to relay off a block that is not a
+  conformant envelope.
 
 ### Normalize the design-tool reference
 
@@ -272,16 +234,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/eds-extract/scripts/write-design-reference.
 
 This writes `design-reference.json` with `source_kind: "image"`, `has_values: false`,
 `node_name: null`, `variables: null`, `geometry: null`, `design_context: null`, `assets: []` — §6.1's no-values case, represented
-explicitly rather than as an empty result. It is the same artifact on both paths into this node, which is the point: every
-downstream consumer already honors `has_values: false`, so none of them has to learn that a
-substitution happened.
+explicitly rather than as an empty result. Every downstream consumer already honors
+`has_values: false`.
 
-Where this node was reached from decides which terminal follows, and nothing else does:
-
-- From **Decision?**'s `image` edge — the item's own design source is an image, which is what it
-  always was. Go to **Report pass**.
-- From **Fallback available?** — the item named a design-tool reference and this stage could not
-  retrieve it. Go to **Report warn**.
+This node is reached only from **Decision?**'s `image` edge, which is the item's own design source
+being an image. Go to **Report pass**.
 
 ### Report skip
 
@@ -326,39 +283,6 @@ See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what ea
 - `next_action: none`
 - `metrics: has_values=true|false`
 
-### Report warn
-
-The reference this item named was not retrieved, and the item's own attached image was used in its
-place. Reporting `pass` here would tell the run's status line that the named design reference was
-read, when it was not; the run still continues, because a visual-only reference is a reference.
-
-Write the envelope with the emitter, never by hand:
-
-```
-bash ${CLAUDE_PLUGIN_ROOT}/core/lib/emit-envelope.sh \
-  .ai/run-context/envelope-extract.txt \
-  --verdict <verdict> --summary "<one sentence>" [--artifact <path>]…
-```
-
-See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what each field means. The script owns the block's spelling and refuses a field the contract does not allow on this verdict, so this stage never formats it and never has to carry it in its own final message. Values to pass:
-
-- `verdict: warn`
-- `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) naming **both** halves — the provider failure that
-  happened, with its class, and the attachment used instead. One without the other hides which of
-  the two this run actually did.
-- `artifacts`:
-  - `.ai/run-context/design-reference.json`
-  - `.ai/run-context/design-reference.<extension>`
-- `next_action: none`
-- `metrics: has_values=false fallback=attachment`
-
-`fallback=attachment` is what distinguishes an item that always was image-only from one that was
-demoted to image-only. `has_values=false` alone cannot: both cases carry it.
-
-This node reports no `error_class`. The failure was classified and then recovered from; an
-`error_class` on anything but a `fail` or a `question` is a contract violation the envelope
-validator rejects.
-
 ### Report question
 
 Write the envelope with the emitter, never by hand:
@@ -373,27 +297,21 @@ See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what ea
 
 - `verdict: question`
 - `summary`: one sentence, 200 characters or fewer (the envelope's hard cap — an oversized summary fails validation and takes the whole run to `failed`) — one of: "the item's images name no design
-  reference" (the `ambiguous` decision); the design provider's own question summary, relayed
-  unchanged (the provider-question path); or the provider's transient failure with no attachment to
-  fall back to (the **Fallback available?** path).
+  reference" (the `ambiguous` decision); or the design provider's own question summary, relayed
+  unchanged (the provider-question path).
 - `artifacts: []`
 - `next_action: none`
 - `question`: for `ambiguous`, ask which of the attachments (naming each by filename from
   `filenames=`) is the design reference; for a relayed provider question, that provider's own
-  `question` text unchanged; from **Fallback available?**, whether to wait for the provider or to
-  attach the design reference to the work item.
+  `question` text unchanged.
 - `blocker`: **the literal action that unblocks it** — never "investigate the provider failure": a
   blocker names a thing a reader can do, not a thing to look into. For `ambiguous`: attach the
   design reference to the work item named `design-reference.png` (or `design-reference.jpg` or
   `design-reference.jpeg`), or rename the attachment that already is one — an image under any other
   name is not read as the reference, however few of them there are. For a relayed provider
-  question, that provider's own `blocker` text unchanged. From **Fallback available?**: wait out
-  the named quota or rate-limit window, or attach the design reference to the work item named
-  `design-reference.png` (or `design-reference.jpg` or `design-reference.jpeg`).
-- `error_class`: on the **Fallback available?** path only, `TRANSIENT` — the class that brought the
-  flow here, carried through so the run's own record shows why this became a question. The
-  `ambiguous` and relayed-provider-question paths carry no class: the first classifies nothing, and
-  the second relays a question the provider already chose to raise.
+  question, that provider's own `blocker` text unchanged.
+- `error_class`: none. The `ambiguous` path classifies nothing, and the relayed provider question is
+  one the provider already chose to raise.
 
 ### Report fail
 
@@ -415,11 +333,10 @@ See `${CLAUDE_PLUGIN_ROOT}/core/result-envelope.md` for every option and what ea
   something more general.
 - `artifacts: []`
 - `next_action: none`
-- `error_class`: on the **Fallback available?** path, the class the provider's envelope carried —
-  `VALIDATION` where the reference itself was wrong, or `PERMANENT` where no attachment was
-  available to substitute. On every other path into this node, the class this stage determined for
-  its own failure: `VALIDATION` for the `missing` decision and for an envelope that does not
-  validate, `PERMANENT` for an unconfigured `packs.design` and for a failed attachment download.
+- `error_class`: on the provider `fail` path, the class the provider's envelope carried, relayed
+  unchanged. On every other path into this node, the class this stage determined for its own
+  failure: `VALIDATION` for the `missing` decision and for an envelope that does not validate,
+  `PERMANENT` for an unconfigured `packs.design` and for a failed attachment download.
 
 ## Known limitations
 
