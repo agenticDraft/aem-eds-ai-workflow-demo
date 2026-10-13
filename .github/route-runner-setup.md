@@ -87,7 +87,9 @@ to the tag in both places, in one pull request.
 
 A runner has no installed copy of any pack. Whether a session with none installed also tries to install
 what `enabledPlugins` names is not known until a run shows it; the runner's log is the evidence
-(`loaded plugins:` names each pack once; `plugins in both` is `none`).
+(`loaded plugins:` names each pack once; `plugins by path` lists the six packs; `plugins in both`
+lists the same six, because the runner compares names and `enabledPlugins` names those six. That is
+expected here and is not a second copy: only the path copy exists on the runner).
 
 ## 6. Verifying the setup
 
