@@ -464,6 +464,35 @@ jobs:
             echo "::endgroup::"
           done
 
+      # What the checkout looked like when the run ended, for a run refused on its
+      # tree: the workspace root, its git state, the whole untracked list. Only
+      # this file and the two result files, which the job already prints, are
+      # uploaded; nothing else from .ai/run-context/.
+      - name: Record the checkout state
+        if: failure() && steps.runner.outcome != 'skipped'
+        run: |
+          {
+            echo "pwd: $(pwd)"
+            echo "toplevel: $(git rev-parse --show-toplevel 2>&1)"
+            echo "HOME: $HOME"
+            echo "--- git status --porcelain --untracked-files=all"
+            git status --porcelain --untracked-files=all 2>&1 | head -200
+            echo "--- ls -la workspace root"
+            ls -la
+          } > .ai/run-context/diagnostics.txt 2>&1 || true
+
+      - name: Upload the diagnostics
+        if: failure() && steps.runner.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-diagnostics-${{ github.run_id }}
+          path: |
+            .ai/run-context/diagnostics.txt
+            .ai/run-context/runner-result.txt
+            .ai/run-context/terminal-state.txt
+          if-no-files-found: warn
+          retention-days: 7
+
       # No secret value on disk, no .env-like file. Values are compared, never
       # printed: only match counts reach the log.
       - name: Check that no credential reached the disk
