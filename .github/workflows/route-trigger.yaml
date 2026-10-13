@@ -58,6 +58,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # The packs live in agenticDraft/plugins, pinned to the tag the project's
+      # settings pin. They load by path from the _plugins checkout (ROUTE_PLUGIN_DIR below).
+      - name: Check out the plugins
+        uses: actions/checkout@v7
+        with:
+          repository: agenticDraft/plugins
+          ref: v0.2.0
+          path: _plugins
+          persist-credentials: false
+
       # Gate 1 — shape. A malformed dispatch is a defect in the tracker-side
       # rule, not a refusal, so this one fails the run loudly.
       - name: Validate payload shape
@@ -98,7 +108,7 @@ jobs:
       # than refusing.
       - name: Validate project config
         run: |
-          bash plugins/agentic-core/shared/lib/validate-project-config.sh .ai/project-config.yaml
+          bash _plugins/plugins/agentic-core/shared/lib/validate-project-config.sh .ai/project-config.yaml
 
       # Gate 2 — identity. A refusal is a correct outcome: record it and end
       # the run green. See shared/trigger-contract.md.
@@ -111,7 +121,7 @@ jobs:
             echo "verdict=allowed" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if bash plugins/agentic-core/shared/lib/check-trigger-identity.sh \
+          if bash _plugins/plugins/agentic-core/shared/lib/check-trigger-identity.sh \
                .ai/project-config.yaml "$AUTHOR_ID"; then
             echo "verdict=allowed" >> "$GITHUB_OUTPUT"
           else
@@ -184,7 +194,7 @@ jobs:
       - name: Check the route policy
         if: steps.gate.outputs.proceed == 'true'
         run: |
-          bash plugins/agentic-core/shared/lib/check-route-policy.sh .ai/route-policy.yaml
+          bash _plugins/plugins/agentic-core/shared/lib/check-route-policy.sh .ai/route-policy.yaml
 
       - name: Name what cannot authenticate headlessly
         if: steps.gate.outputs.proceed == 'true'
@@ -216,13 +226,18 @@ jobs:
 
       # The SDK ships its binary through optional dependencies: a plain
       # `npm ci` keeps them. The project's own dependencies and the browser
-      # are what a whole route's serve and verify stages need.
+      # are what a whole route's serve and verify stages need. The browser
+      # package comes from the playwright pack, not the project's root.
       - name: Install the runner, the project and the browser
         if: steps.gate.outputs.proceed == 'true'
         run: |
-          npm ci --prefix plugins/agentic-core/shared/runner
+          npm ci --prefix _plugins/plugins/agentic-core/shared/runner
+          npm ci --prefix _plugins/plugins/agentic-playwright
           npm ci
-          npx playwright install --with-deps chromium
+          (cd _plugins/plugins/agentic-playwright && npx playwright install --with-deps chromium)
+          # The pack validator scans the whole pack directory; move the pack's
+          # dependencies above it. Node still finds them by walking up.
+          mv _plugins/plugins/agentic-playwright/node_modules _plugins/node_modules
 
       # The session's sandbox (D108) needs bubblewrap and socat on Linux, and
       # an AppArmor profile for bwrap where the kernel restricts unprivileged
@@ -291,7 +306,7 @@ jobs:
           GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
         run: |
           set +e
-          OUT=$(bash plugins/agentic-core/shared/lib/check-run-limits.sh .ai/route-policy.yaml "$AUTHOR_ID" "$OVERRIDE")
+          OUT=$(bash _plugins/plugins/agentic-core/shared/lib/check-run-limits.sh .ai/route-policy.yaml "$AUTHOR_ID" "$OVERRIDE")
           STATUS=$?
           set -e
           echo "$OUT"
@@ -318,7 +333,7 @@ jobs:
           CLAIM_OVERRIDE: ${{ github.event.client_payload.override || (inputs.override && '1') || '0' }}
         run: |
           set +e
-          OUT=$(bash plugins/agentic-core/shared/lib/claim-run.sh "$ITEM_ID" "$COMMENT_ID")
+          OUT=$(bash _plugins/plugins/agentic-core/shared/lib/claim-run.sh "$ITEM_ID" "$COMMENT_ID")
           STATUS=$?
           set -e
           echo "$OUT"
@@ -357,13 +372,13 @@ jobs:
             echo "commands.serve or paths.preview is empty; no server started" >&2
             exit 1
           fi
-          bash plugins/eds/skills/eds-serve/scripts/start-serve.sh "$SERVE" \
+          bash _plugins/plugins/agentic-eds/skills/eds-serve/scripts/start-serve.sh "$SERVE" \
             "$RUNNER_TEMP/preview-server.log" "$RUNNER_TEMP/preview-server.pid"
-          if ! bash plugins/eds/skills/eds-serve/scripts/poll-preview.sh "$PREVIEW"; then
+          if ! bash _plugins/plugins/agentic-eds/skills/eds-serve/scripts/poll-preview.sh "$PREVIEW"; then
             tail -40 "$RUNNER_TEMP/preview-server.log"
             exit 1
           fi
-          if ! bash plugins/eds/shared/scripts/start-draft-server.sh "$PREVIEW" \
+          if ! bash _plugins/plugins/agentic-eds/shared/scripts/start-draft-server.sh "$PREVIEW" \
                  "$RUNNER_TEMP/draft-server.log" "$RUNNER_TEMP/draft-server.pid"; then
             tail -40 "$RUNNER_TEMP/draft-server.log" 2>/dev/null
             exit 1
@@ -382,26 +397,26 @@ jobs:
           JIRA_SITE: ${{ vars.JIRA_SITE }}
           JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
           GH_TOKEN: ${{ secrets.ROUTE_GH_TOKEN }}
-          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
+          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/agentic-jira:fetch-item item_id: {item_id}' }}"
           # The route's allow rules (D106, D109), never bare Bash. Taken from the
           # commands a delivered route actually ran: the packs' own scripts, read and
           # write within the checkout, the commit, lint, the preview server and the
           # change's checks. Pushing happens only inside the scm scripts. The runner
           # keeps the plugins, settings and policy unwritable, so an allowed edit can
           # never become an allowed command.
-          ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Edit(./**),Bash(bash plugins/*),Bash(plugins/*),Bash(bash {workspace}/plugins/*),Bash({workspace}/plugins/*),Bash(python3 plugins/*),Bash(python3 {workspace}/plugins/*),Bash(node plugins/*),Bash(node {workspace}/plugins/*),Bash(cd {workspace}),Bash(echo *),Bash(cat *),Bash(mkdir -p .ai/*),Bash(touch .ai/*),Bash(sed -i *),Bash(git add -A),Bash(git commit *),Bash(git diff *),Bash(git log *),Bash(git merge-base *),Bash(git symbolic-ref *),Bash(git ls-files *),Bash(npm run lint*),Bash(npm run up*),Bash(gh pr checks *),Bash(gh pr view *),Bash(jq *)' }}"
+          ROUTE_ALLOWED_TOOLS_TEMPLATE: "${{ vars.ROUTE_ALLOWED_TOOLS || 'Skill,Read,Glob,Grep,Edit(./**),Bash(bash _plugins/plugins/*),Bash(_plugins/plugins/*),Bash(bash {workspace}/_plugins/plugins/*),Bash({workspace}/_plugins/plugins/*),Bash(python3 _plugins/plugins/*),Bash(python3 {workspace}/_plugins/plugins/*),Bash(node _plugins/plugins/*),Bash(node {workspace}/_plugins/plugins/*),Bash(cd {workspace}),Bash(echo *),Bash(cat *),Bash(mkdir -p .ai/*),Bash(touch .ai/*),Bash(sed -i *),Bash(git add -A),Bash(git commit *),Bash(git diff *),Bash(git log *),Bash(git merge-base *),Bash(git symbolic-ref *),Bash(git ls-files *),Bash(npm run lint*),Bash(npm run up*),Bash(gh pr checks *),Bash(gh pr view *),Bash(jq *)' }}"
           # Caps come from the route policy; these variables may only lower them.
           ROUTE_MAX_TURNS: ${{ vars.ROUTE_MAX_TURNS }}
           ROUTE_TIMEOUT_MINUTES: ${{ vars.ROUTE_TIMEOUT_MINUTES }}
           ROUTE_RESULT_FILE: .ai/run-context/runner-result.txt
           # The runner has no default plugin directory; the packs load by path
-          # from this checkout.
-          ROUTE_PLUGIN_DIR: plugins
+          # from the _plugins checkout. No installed copy exists on this machine.
+          ROUTE_PLUGIN_DIR: _plugins/plugins
         run: |
           set -u
           PROMPT="${ROUTE_PROMPT_TEMPLATE//\{item_id\}/$ITEM_ID}"
           export ROUTE_ALLOWED_TOOLS="${ROUTE_ALLOWED_TOOLS_TEMPLATE//\{workspace\}/$GITHUB_WORKSPACE}"
-          node plugins/agentic-core/shared/runner/route-agent.mjs "$PROMPT"
+          node _plugins/plugins/agentic-core/shared/runner/route-agent.mjs "$PROMPT"
 
       # The verdict is the envelope, validated — not the runner's exit code
       # alone and never a regex over prose. Runs even when the runner failed,
@@ -413,7 +428,7 @@ jobs:
       - name: Validate the result envelope
         if: always() && steps.runner.outcome != 'skipped'
         env:
-          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/jira:fetch-item item_id: {item_id}' }}"
+          ROUTE_PROMPT_TEMPLATE: "${{ vars.ROUTE_PROMPT || '/agentic-jira:fetch-item item_id: {item_id}' }}"
         run: |
           FILE=.ai/run-context/runner-result.txt
           TERMINAL=.ai/run-context/terminal-state.txt
@@ -426,13 +441,13 @@ jobs:
               echo "### Terminal state" >> "$GITHUB_STEP_SUMMARY"
               echo '```' >> "$GITHUB_STEP_SUMMARY"
               set +e
-              bash plugins/agentic-core/shared/lib/check-terminal-state.sh "$TERMINAL" | tee -a "$GITHUB_STEP_SUMMARY"
+              bash _plugins/plugins/agentic-core/shared/lib/check-terminal-state.sh "$TERMINAL" | tee -a "$GITHUB_STEP_SUMMARY"
               STATUS=${PIPESTATUS[0]}
               set -e
               echo '```' >> "$GITHUB_STEP_SUMMARY"
               exit "$STATUS" ;;
             *)
-              bash plugins/agentic-core/shared/lib/validate-result-envelope.sh "$FILE" ;;
+              bash _plugins/plugins/agentic-core/shared/lib/validate-result-envelope.sh "$FILE" ;;
           esac
 
       # A failed stage leaves its own logs and reports in the run context, and

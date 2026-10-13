@@ -11,16 +11,16 @@ holds a credential value. This page is the checklist a person works through once
 | name | what it is | where it comes from |
 | ---- | ---------- | ------------------- |
 | `CLAUDE_CODE_OAUTH_TOKEN` | the model credential the runner's SDK session uses; runs count against the plan's usage limits | run `claude setup-token` on a machine logged in to a Pro, Max, Team or Enterprise plan and paste the token it prints (valid one year). A run without it stops at *Check the model credential*, before anything is claimed |
-| `JIRA_API_TOKEN` | the tracker pack's credential (`plugins/jira`) | an Atlassian API token for the account in `JIRA_EMAIL` |
-| `ROUTE_GH_TOKEN` | the SCM pack's credential (`plugins/github`), used as `GH_TOKEN` by `gh` and, through `gh auth setup-git`, by `git push` | a **fine-grained personal access token** — see §3 |
+| `JIRA_API_TOKEN` | the tracker pack's credential (`agentic-jira`) | an Atlassian API token for the account in `JIRA_EMAIL` |
+| `ROUTE_GH_TOKEN` | the SCM pack's credential (`agentic-github`), used as `GH_TOKEN` by `gh` and, through `gh auth setup-git`, by `git push` | a **fine-grained personal access token** — see §3 |
 
 ## 2. Variables (plain values, visible in the settings)
 
 | name | what it is |
 | ---- | ---------- |
-| `JIRA_SITE` | the tracker site the pack talks to, e.g. `https://<your-site>.atlassian.net` — the same value `plugins/jira/README.md` describes for a local shell |
+| `JIRA_SITE` | the tracker site the pack talks to, e.g. `https://<your-site>.atlassian.net` — the same value the `agentic-jira` pack's README describes for a local shell |
 | `JIRA_EMAIL` | the account the token in `JIRA_API_TOKEN` belongs to |
-| `ROUTE_PROMPT` *(optional)* | the prompt the runner executes; `{item_id}` is replaced with the work item id. Default when unset: `/jira:fetch-item item_id: {item_id}` — the single-stage check. The whole route is `/agentic-core:run-route {item_id} autonomous` (Phase 9 / Task 5 switches to it) |
+| `ROUTE_PROMPT` *(optional)* | the prompt the runner executes; `{item_id}` is replaced with the work item id. Default when unset: `/agentic-jira:fetch-item item_id: {item_id}` — the single-stage check. The whole route is `/agentic-core:run-route {item_id} autonomous` (Phase 9 / Task 5 switches to it) |
 | `ROUTE_ALLOWED_TOOLS` *(optional)* | the allow rules the session runs under; `{workspace}` is replaced with the checkout path. Default: the tracker's `fetch-item` script only |
 | `ROUTE_MAX_TURNS`, `ROUTE_TIMEOUT_MINUTES` *(optional)* | may only **lower** the caps in `.ai/route-policy.yaml`; a larger value is ignored |
 
@@ -48,7 +48,7 @@ token* with `gh auth status` naming the problem.
 ## 4. The route policy
 
 `.ai/route-policy.yaml` is committed, and changed only through a pull request. Its shape and rules
-are `plugins/agentic-core/shared/route-policy.md`. It holds the tool rules a run may never execute,
+are `shared/route-policy.md` in the `agentic-core` pack. It holds the tool rules a run may never execute,
 the daily run limits, the per-run budget, the turn and time caps, and the break-glass approvers. If
 it is missing or invalid, every run stops at *Check the route policy* and nothing is started.
 
@@ -62,7 +62,7 @@ it is missing or invalid, every run stops at *Check the route policy* and nothin
 
 Every session the runner starts is locked to the hosts in `.claude/settings.json`'s
 `sandbox.network.allowedDomains`. That list is the only one; the runner copies it into the session
-at launch (`plugins/agentic-core/shared/runner/README.md`). The workflow installs the sandbox's
+at launch (`shared/runner/README.md` in the `agentic-core` pack). The workflow installs the sandbox's
 Linux dependencies (`bubblewrap`, `socat`, and an AppArmor profile for `bwrap` when the kernel
 restricts user namespaces) in *Install the sandbox's dependencies*.
 
@@ -75,6 +75,21 @@ restricts user namespaces) in *Install the sandbox's dependencies*.
 - **The sandbox cannot start** shows as an error at the start of *Run*; the session does not fall
   back to running commands unsandboxed. The *Install the sandbox's dependencies* step logs whether
   `bwrap` can create its namespaces.
+
+## 5b. Where the packs come from
+
+The packs are not in this repository. *Check out the plugins* clones `agenticDraft/plugins` at tag
+`v0.2.0` — the tag `.claude/settings.json` pins — into `_plugins/` (gitignored). The runner loads them
+by path (`ROUTE_PLUGIN_DIR=_plugins/plugins`), and every script path in the workflow and in the default
+`ROUTE_ALLOWED_TOOLS` is under `_plugins/plugins/`. *Install the runner, the project and the browser*
+runs `npm ci` for the runner and for the `agentic-playwright` pack. Moving to a new release is a change
+to the tag in both places, in one pull request.
+
+A runner has no installed copy of any pack. Whether a session with none installed also tries to install
+what `enabledPlugins` names is not known until a run shows it; the runner's log is the evidence
+(`loaded plugins:` names each pack once; `plugins by path` lists the six packs; `plugins in both`
+lists the same six, because the runner compares names and `enabledPlugins` names those six. That is
+expected here and is not a second copy: only the path copy exists on the runner).
 
 ## 6. Verifying the setup
 
@@ -96,7 +111,7 @@ nothing started.
 
 ## 7. What is not covered
 
-- The `design` role (`plugins/figma`) authenticates through a session-bound login that has no
+- The `design` role (`agentic-figma`) authenticates through a session-bound login that has no
   environment-variable form. A work item whose design source is a URL fails at `extract` until
   Phase 10 lands. An image attached to the item works.
 - The daily limits are soft: two events counted at the same moment can both start.

@@ -64,3 +64,6 @@ drafts/
 # converge binding — names gitignored planning documents, stays local.
 .claude/converge.config.json
 .claude/skills/converge/
+
+# Plugin checkout made by the route workflow (agenticDraft/plugins at the pinned tag).
+_plugins/
