@@ -384,6 +384,20 @@ jobs:
             exit 1
           fi
 
+      # The fresh-start tree check, made here, outside the session. Inside the
+      # session a command lists 16 paths that are not in this checkout (run 34's
+      # diagnostics: the same tree is clean from here), so the session's own
+      # check refused every run. This step runs the same script on the real
+      # checkout and writes the HEAD it checked; the script honours that marker.
+      # A dirty tree stops the job here, naming the paths. Needs the core at
+      # v0.2.2 or later; an earlier core ignores the marker.
+      - name: Check the tree before the session
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          bash _plugins/plugins/agentic-core/shared/lib/check-tree-clean.sh "$GITHUB_WORKSPACE"
+          mkdir -p .ai/run-context
+          git rev-parse HEAD > .ai/run-context/tree-prechecked
+
       # The prompt is a repository variable so the whole route is switched on
       # in the settings, not here ("/agentic-core:run-route {item_id}
       # autonomous"). The default is the single credentialed stage.
