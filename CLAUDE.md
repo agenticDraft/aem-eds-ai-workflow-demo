@@ -29,5 +29,15 @@ proves conformance with its own checker before anything is pasted in.
      Reference material — how EDS works, how a tool behaves — belongs in the referenced
      file, never here: every line loads into every session. Keep it under 200 lines. -->
 
+**Plugin pin check.** First reply of every interactive session, before other work, run
+`bash .claude/scripts/update-plugin-pin.sh --check` with `dangerouslyDisableSandbox: true`
+(SSH remote). Skip it in route-runner, `-p` and other headless sessions.
+- Exit 0: say nothing.
+- Exit 10: ask with `AskUserQuestion` — current pin, newest tag, options "update now" /
+  "skip this session". On "update now", give `! bash .claude/scripts/update-plugin-pin.sh`
+  and stop; afterwards the human commits the two edited files and restarts the session.
+- Any other exit: report it in one line and continue.
+- Never edit the plugin `ref` in `.claude/settings.json` or `.github/workflows/route-trigger.yaml` by hand.
+
 This project also serves as a learning project, so for every task in implementation provide details and documentation to cover and explain what is done. Use official docs, like Claude Skills.
 Also after every step create summary what is done and explain architecture and write task-1-done.md for example.
