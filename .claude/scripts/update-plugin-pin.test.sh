@@ -56,5 +56,45 @@ check "workflow keeps the other lines" 4 "$(grep -c -E 'name:|uses:|repository:|
 
 bash "$SCRIPT" --check >/dev/null; check "second check is current (exit 0)" 0 $?
 
+# settings.json reformatted over several lines (an editor or the CLI can do this)
+cat > "$W/settings-multi.json" <<'EOF'
+{
+  "extraKnownMarketplaces": {
+    "agenticdraft": {
+      "source": {
+        "source": "github",
+        "repo": "agenticDraft/plugins",
+        "ref": "v0.2.0"
+      }
+    }
+  },
+  "enabledPlugins": { "agentic-core@agenticdraft": true }
+}
+EOF
+sed 's/v0.10.0/v0.2.0/' "$W/route-trigger.yaml" > "$W/wf-multi.yaml"
+PIN_SETTINGS="$W/settings-multi.json" PIN_WORKFLOW="$W/wf-multi.yaml" bash "$SCRIPT" >/dev/null; check "multi-line settings: apply succeeds" 0 $?
+check "multi-line settings: ref moved" v0.10.0 "$(jq -r '.extraKnownMarketplaces.agenticdraft.source.ref' "$W/settings-multi.json")"
+check "multi-line settings: keeps the layout" 12 "$(wc -l < "$W/settings-multi.json" | tr -d ' ')"
+check "multi-line settings: workflow moved too" "          ref: v0.10.0" "$(grep 'ref:' "$W/wf-multi.yaml")"
+
+# neither file is written unless both edits took: the ref sits before the repo, so the settings edit cannot find it
+cat > "$W/settings-odd.json" <<'EOF'
+{
+  "extraKnownMarketplaces": {
+    "agenticdraft": {
+      "source": {
+        "ref": "v0.2.0",
+        "source": "github",
+        "repo": "agenticDraft/plugins"
+      }
+    }
+  }
+}
+EOF
+sed 's/v0.10.0/v0.2.0/' "$W/route-trigger.yaml" > "$W/wf-odd.yaml"
+PIN_SETTINGS="$W/settings-odd.json" PIN_WORKFLOW="$W/wf-odd.yaml" bash "$SCRIPT" >/dev/null 2>&1; check "unreadable layout: exit 2" 2 $?
+check "unreadable layout: workflow left untouched" "          ref: v0.2.0" "$(grep 'ref:' "$W/wf-odd.yaml")"
+check "unreadable layout: settings left untouched" v0.2.0 "$(jq -r '.extraKnownMarketplaces.agenticdraft.source.ref' "$W/settings-odd.json")"
+
 echo "fail=$fail"
 [ "$fail" -eq 0 ]

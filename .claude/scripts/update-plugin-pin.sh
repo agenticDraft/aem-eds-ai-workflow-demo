@@ -60,24 +60,27 @@ if [ -n "$USER_CURRENT" ] && [ "$USER_CURRENT" != "$TAG" ]; then
   exit 3
 fi
 
-# Line-level edits keep the files' formatting; each is verified after writing.
-edit() { # edit <file>: replace the file with stdin, read in full first so the file can be its own source
-  local file="$1" tmp
-  tmp="$(mktemp "${TMPDIR:?TMPDIR must be set}/pin.XXXXXX")"
-  cat > "$tmp"
-  cat "$tmp" > "$file"
-  rm -f "$tmp"
-}
+# Line-level edits keep the files' formatting. Both new contents are built and checked before
+# either file is written, so a layout the edit cannot read leaves both files as they were.
+NEW_SETTINGS="$(mktemp "${TMPDIR:?TMPDIR must be set}/pin-settings.XXXXXX")"
+NEW_WORKFLOW="$(mktemp "${TMPDIR:?TMPDIR must be set}/pin-workflow.XXXXXX")"
+trap 'rm -f "$NEW_SETTINGS" "$NEW_WORKFLOW"' EXIT
 
-sed -E "s|(\"repo\": \"agenticDraft/plugins\", \"ref\": \")[^\"]*(\")|\1$TAG\2|" "$SETTINGS" | edit "$SETTINGS"
+# The ref sits on the repo's own line or on a later line of the same object.
+awk -v tag="$TAG" '
+  /"repo": *"agenticDraft\/plugins"/ {f=1}
+  f && /"ref": *"[^"]*"/ {sub(/"ref": *"[^"]*"/, "\"ref\": \"" tag "\""); f=0}
+  {print}' "$SETTINGS" > "$NEW_SETTINGS"
 awk -v tag="$TAG" '
   /repository: agenticDraft\/plugins/ {f=1}
   f && /ref:/ {sub(/ref:.*/, "ref: " tag); f=0}
-  {print}' "$WORKFLOW" | edit "$WORKFLOW"
+  {print}' "$WORKFLOW" > "$NEW_WORKFLOW"
 
-[ "$(jq -r --arg m "$MARKETPLACE" '.extraKnownMarketplaces[$m].source.ref' "$SETTINGS")" = "$TAG" ] \
-  || die "settings.json was not updated to $TAG"
-grep -q "ref: $TAG\$" "$WORKFLOW" || die "route-trigger.yaml was not updated to $TAG"
+[ "$(jq -r --arg m "$MARKETPLACE" '.extraKnownMarketplaces[$m].source.ref' "$NEW_SETTINGS" 2>/dev/null)" = "$TAG" ] \
+  || die "could not set the ref in $SETTINGS to $TAG; nothing was written"
+grep -q "ref: $TAG\$" "$NEW_WORKFLOW" || die "could not set the ref in $WORKFLOW to $TAG; nothing was written"
+cat "$NEW_SETTINGS" > "$SETTINGS"
+cat "$NEW_WORKFLOW" > "$WORKFLOW"
 echo "pin moved to $TAG"
 
 if [ "${PIN_SKIP_CLI:-0}" != "1" ]; then
