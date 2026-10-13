@@ -1,6 +1,3 @@
 helix-importer-ui
 *.min.js
-# Upstream block collection, vendored byte-identical (D528); linted once copied into blocks/.
-plugins/eds/shared/block-collection
-
 _plugins/

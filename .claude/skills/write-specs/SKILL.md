@@ -277,7 +277,7 @@ outcome or quietly dictates the implementation.
 A criterion that rests on how the platform behaves — what a size includes, how a layout resolves —
 and that no project rule settles is checked against the platform's official reference first: the
 `reference_docs` URL in the configured platform pack's `pack.yaml`. Follow
-`plugins/agentic-core/shared/official-reference.md`, and put its `reference:` line under the
+`shared/official-reference.md` in the installed `agentic-core` plugin, and put its `reference:` line under the
 criterion in the draft. A reference that does not answer is written down as not answered, never
 filled from memory.
 

@@ -1,5 +1,0 @@
-kind: platform
-stages:
-  - id: serve
-    skill: serve
-    fix_attempts: 5

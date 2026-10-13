@@ -1,4 +1,0 @@
-kind: provider
-role: design
-operations: {}
-unsupported: [fetch_reference]

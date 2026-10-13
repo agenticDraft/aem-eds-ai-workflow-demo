@@ -1,5 +1,0 @@
-kind: platform
-stages:
-  - id: lint
-    skill: lint
-    fix_attempts: 3

@@ -1,6 +1,0 @@
-intake
-plan
-plan-gate: skipped
-implement
-publish-gate: skipped
-deliver

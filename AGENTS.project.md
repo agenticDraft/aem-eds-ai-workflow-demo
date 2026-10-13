@@ -164,7 +164,7 @@ For other environments get owner/repo (`gh repo view --json nameWithOwner`) and 
 1. Push to a feature branch. AEM Code Sync publishes it to the feature preview.
    **Name it so the preview exists:** at most 23 characters, only lower-case `a-z`, `0-9`, `-`
    and `/`. Check before creating it:
-   `bash plugins/agentic-core/shared/lib/check-branch-name.sh <name>` → `ok`, `too-long` or
+   `bash <agentic-core plugin>/shared/lib/check-branch-name.sh <name>` → `ok`, `too-long` or
    `bad-chars`. A name that fails gets no preview URL, and its PR fails `aem-psi-check`. With the
    `agentic-core` plugin enabled, its hook blocks a `git` command that would create such a branch.
 2. Run PageSpeed Insights against the feature preview URL. Target 100.
@@ -177,9 +177,9 @@ For other environments get owner/repo (`gh repo view --json nameWithOwner`) and 
 **`aem-psi-check` by PR type (G31).** A PR that changes a served path (`blocks/`, `styles/`,
 `scripts/`, `fonts/`, `icons/`, `tools/`, `head.html`, `404.html`, `favicon.ico`; not `*.md`)
 carries its feature preview URL, on a branch named per step 1, so the check measures it.
-An automation-only PR (`plugins/`, `.claude/`, `.github/`, `docs/`, Markdown) carries no preview
+An automation-only PR (`.claude/`, `.github/`, `docs/`, Markdown) carries no preview
 URL and **is expected to fail `aem-psi-check`**. The check is not a required check; do not make it
-one. `plugins/eds/shared/scripts/preview-url.sh` decides the type.
+one. `shared/scripts/preview-url.sh` in the `agentic-eds` plugin decides the type.
 
 ## Security
 

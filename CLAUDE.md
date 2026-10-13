@@ -6,8 +6,8 @@ packs — this platform is one consumer, not the subject. Interfaces are in
 `docs/implementation-plan/01-core-contracts.md` (the authority when documents
 disagree); the standing rules and the full document index are in
 `docs/implementation-plan/00-instructions.md`
-(local-only, gitignored). Read both before changing anything under `.claude/` or `plugins/`, or
-before starting any automation or tooling work.
+(local-only, gitignored). Read both before changing anything under `.claude/`, or before starting any
+automation or tooling work. The plugins live in `agenticDraft/plugins` and are edited only there.
 
 **Load `AGENTS.md` and `AGENTS.project.md` only when the work is EDS.** Writing or changing
 blocks, styles, `scripts/` or anything served to the site? Read both, in that order.
@@ -15,7 +15,7 @@ blocks, styles, `scripts/` or anything served to the site? Read both, in that or
 mergeable — never edit it except the `## This project` pointer at the end; upstream changes come
 in via `git fetch upstream`. `AGENTS.project.md` is our house style, commands and deployment
 process, and holds only what upstream does not already say. Working on the delivery automation
-(`.claude/`, `plugins/`, `docs/implementation-plan/`)? Do **not** read either: the core must name
+(`.claude/`, `docs/implementation-plan/`)? Do **not** read either: the core must name
 no platform (D28, D34), and loading Edge Delivery vocabulary into a session that must not use it
 works against that rule.
 

@@ -83,14 +83,14 @@ backgrounded — which is what a `run-route` invocation needs, since it runs det
 and skill in the pipeline reads these variables from the environment, never as a command-line
 argument, so they never appear in `ps -ef`, shell history, or a log.
 
-**The `scm` pack (`plugins/github/`) authenticates through the `gh` CLI, which reads `GH_TOKEN`
+**The `scm` pack (`agentic-github`) authenticates through the `gh` CLI, which reads `GH_TOKEN`
 from the environment before it ever needs its own keychain-backed login.** `gh`'s own local
 credential store (`gh auth login`) still works for your own interactive use of `gh` elsewhere on
 this machine, but the pipeline's stages run as sandboxed subprocesses that cannot read that
 keychain — so `GH_TOKEN` above is required for the pipeline specifically, not optional the way
 `gh auth login` alone might suggest.
 
-**The `design` pack (`plugins/figma/`) also needs no entry here.** It calls the Figma MCP server
+**The `design` pack (`agentic-figma`) also needs no entry here.** It calls the Figma MCP server
 through the official `figma` Claude Code plugin instead. Install it once
 (`claude plugin install figma@claude-plugins-official` or via `/plugin`) and complete its OAuth
 flow in a Claude Code session — the plugin's own `authenticate` tool opens a browser link for you
@@ -99,32 +99,20 @@ and already authenticated, unlike the `tracker`/`scm` packs, which run unattende
 
 ## Claude Code setup
 
-This project's agent instructions (`AGENTS.md`, `CLAUDE.md`) delegate all Edge Delivery *platform*
-reference to Adobe's first-party skills rather than restating it. Install them once, or the
-agent will hit instructions pointing at skills that do not resolve.
+The delivery plugins are not in this repository. They are the six `agentic-*` packs of the
+`agenticdraft` marketplace (`agenticDraft/plugins`), pinned to one release tag in
+[`.claude/settings.json`](.claude/settings.json) (`extraKnownMarketplaces.agenticdraft.source.ref` and
+`enabledPlugins`). Trust the folder when Claude Code asks and it installs them at that tag. To move the pin,
+run `bash .claude/scripts/update-plugin-pin.sh`; it edits the pin, refreshes the install and stops before any commit.
+Plugin changes are made in `agenticDraft/plugins`, never here.
+
+Setup for a new project: the plugins repository's
+[README](https://github.com/agenticDraft/plugins/blob/v0.2.2/README.md) and its
+[`example-project/`](https://github.com/agenticDraft/plugins/tree/v0.2.2/example-project) (a `settings.json` to copy).
+
+This project's agent instructions also delegate Edge Delivery *platform* reference to Adobe's skills:
 
 ```sh
 claude plugin marketplace add adobe/skills
 claude plugin install aem-edge-delivery-services@adobe-skills
 ```
-
-Or from inside a Claude Code session, using the slash command and the interactive picker:
-
-```
-/plugin marketplace add adobe/skills
-/plugin
-```
-
-Verify — the plugin should be listed, and skills should resolve as
-`aem-edge-delivery-services:<name>`:
-
-```sh
-claude plugin list | grep aem-edge-delivery-services
-```
-
-The plugin installs as one unit: **25 skills**, Apache-2.0, © Adobe. The ones this project's
-instructions name are `content-driven-development` (the process every code change starts from),
-plus `aem-cli`, `building-blocks`, `content-modeling`, `block-collection-and-party`,
-`docs-search`, `testing-blocks`, `analyze-and-plan`, `find-test-content` and `da-content`. The
-rest install alongside them and are available, but are not part of this project's documented
-workflow.

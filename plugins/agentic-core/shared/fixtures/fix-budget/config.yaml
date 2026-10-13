@@ -1,5 +1,0 @@
-version: 1
-
-limits:
-  questions_per_run: 3
-  fix_attempts_default: 4

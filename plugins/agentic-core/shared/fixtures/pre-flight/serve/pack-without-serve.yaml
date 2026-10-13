@@ -1,6 +1,0 @@
-kind: platform
-stages:
-  - id: intake
-    skill: example-intake
-  - id: implement
-    skill: example-implement
