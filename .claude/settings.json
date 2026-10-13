@@ -15,11 +15,6 @@
       "WebFetch(domain:main--aem-block-collection--adobe.aem.page)"
     ]
   },
-  "extraKnownMarketplaces": {
-    "agenticdraft": {
-      "source": { "source": "github", "repo": "agenticDraft/plugins", "ref": "v0.2.0" }
-    }
-  },
   "enabledPlugins": {
     "agentic-core@agenticdraft": true,
     "agentic-eds@agenticdraft": true,
@@ -27,6 +22,15 @@
     "agentic-github@agenticdraft": true,
     "agentic-figma@agenticdraft": true,
     "agentic-playwright@agenticdraft": true
+  },
+  "extraKnownMarketplaces": {
+    "agenticdraft": {
+      "source": {
+        "source": "github",
+        "repo": "agenticDraft/plugins",
+        "ref": "v0.2.1"
+      }
+    }
   },
   "sandbox": {
     "enabled": true,
