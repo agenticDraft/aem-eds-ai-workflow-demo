@@ -1,11 +1,11 @@
 version: 1
 
 packs:
-  platform: eds
-  tracker: jira
-  scm: github
-  design: figma
-  browser: playwright
+  platform: agentic-eds
+  tracker: agentic-jira
+  scm: agentic-github
+  design: agentic-figma
+  browser: agentic-playwright
 
 commands:
   lint: "npm run lint"

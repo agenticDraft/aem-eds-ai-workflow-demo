@@ -15,13 +15,18 @@
       "WebFetch(domain:main--aem-block-collection--adobe.aem.page)"
     ]
   },
+  "extraKnownMarketplaces": {
+    "agenticdraft": {
+      "source": { "source": "github", "repo": "agenticDraft/plugins", "ref": "v0.2.0" }
+    }
+  },
   "enabledPlugins": {
-    "agentic-core@aem-eds-ai-workflow-demo": true,
-    "eds@aem-eds-ai-workflow-demo": true,
-    "jira@aem-eds-ai-workflow-demo": true,
-    "github@aem-eds-ai-workflow-demo": true,
-    "figma@aem-eds-ai-workflow-demo": true,
-    "playwright@aem-eds-ai-workflow-demo": true
+    "agentic-core@agenticdraft": true,
+    "agentic-eds@agenticdraft": true,
+    "agentic-jira@agenticdraft": true,
+    "agentic-github@agenticdraft": true,
+    "agentic-figma@agenticdraft": true,
+    "agentic-playwright@agenticdraft": true
   },
   "sandbox": {
     "enabled": true,
