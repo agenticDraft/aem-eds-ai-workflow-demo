@@ -235,6 +235,9 @@ jobs:
           npm ci --prefix _plugins/plugins/agentic-playwright
           npm ci
           (cd _plugins/plugins/agentic-playwright && npx playwright install --with-deps chromium)
+          # The pack validator scans the whole pack directory; move the pack's
+          # dependencies above it. Node still finds them by walking up.
+          mv _plugins/plugins/agentic-playwright/node_modules _plugins/node_modules
 
       # The session's sandbox (D108) needs bubblewrap and socat on Linux, and
       # an AppArmor profile for bwrap where the kernel restricts unprivileged
