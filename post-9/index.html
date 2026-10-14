@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The Playwright Plugin, Step by Step</title>
+<title>Conventions, Serve and Baseline, Step by Step</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
@@ -163,12 +163,11 @@ pre.envelope .k { color: var(--cyan); }
 <header class="site-header">
   <a class="brand" href="../"><span class="brand-mark" aria-hidden="true"></span>Delivery Factory · Part 4</a>
   <nav class="site-nav" aria-label="Sections">
-    <a href="#picture">The picture</a>
-    <a href="#parts">The parts</a>
-    <a href="#operations">The operations</a>
-    <a href="#settle">The settle</a>
-    <a href="#outcomes">Pass and stop</a>
-    <a href="#run">Run it</a>
+    <a href="#picture">The route</a>
+    <a href="#conventions">Conventions</a>
+    <a href="#serve">Serve</a>
+    <a href="#baseline">Baseline</a>
+    <a href="#outcomes">Pass, warn, stop</a>
     <a href="#limits">What it doesn't cover</a>
   </nav>
 </header>
@@ -176,233 +175,207 @@ pre.envelope .k { color: var(--cyan); }
 <main id="top">
   <section class="hero">
     <div class="hero-glow" aria-hidden="true"></div>
-    <p class="eyebrow">Delivery Factory · Part 4 · Playwright Browser</p>
-    <h1>The <em>Playwright</em> plugin, from URL to observed page</h1>
-    <p class="lede">The verification stages need a page's load state, a screenshot at a given width, the computed styles of named elements, and the state of those elements after a click or a key press. This plugin provides them from a real headless Chromium, as data at fixed paths. This page follows it from the URL to the verdict.</p>
+    <p class="eyebrow">Delivery Factory · Part 4 · Conventions, Serve and Baseline</p>
+    <h1><em>Conventions</em>, serve and baseline: the project before the build</h1>
+    <p class="lede">Three stages run before the pipeline builds or designs anything. <code>conventions</code> researches how this project does things. <code>serve</code> makes sure a preview answers. <code>baseline</code> captures what a component looks like now, so the end of the run has something to compare against.</p>
     <div class="proof">
       <p class="proof-label">Checked in <b>README + code</b></p>
-      <p>Read in the plugin's README, manifest, skills and scripts. Source: <code>agenticDraft/plugins</code>, folder <code>plugins/agentic-playwright/</code>, version <code>0.2.2</code>. Paths are relative to that folder unless said otherwise.</p>
+      <p>Read in the <code>agentic-eds</code> README, <code>pack.yaml</code>, and the skills and scripts of these three stages. Source: <code>agenticDraft/plugins</code>, folder <code>plugins/agentic-eds/</code>. Paths are relative to that folder unless said otherwise.</p>
     </div>
   </section>
 
   <section class="section" id="picture">
     <figure class="shot">
-      <div class="shot-label"><span>From URL to verdict</span><span>1200 × 627</span></div>
+      <div class="shot-label"><span>The whole route, and where we are</span><span>1200 × 627</span></div>
       <div class="shot-frame">
-      <svg viewBox="0 0 1200 627" role="img" aria-label="A target URL goes through the requires check for playwright and chromium, a headless Chromium launch and a page load of at most 15 seconds. Then one of four operations runs: render, capture, measure or interact. Measure settles the page first. The result is a pass with a result block and a file under .ai/playwright, where a 404 or 500 is still a pass, or a fail when a tool is missing, the browser cannot launch, the page does not load, the page never settles, an action matches nothing, or the 30 second watchdog runs out." style="font-family:Manrope, Arial, sans-serif">
+      <svg viewBox="0 0 1200 627" role="img" aria-label="The fifteen steps of the route: intake, readiness, extract, conventions, serve, baseline, prototype, verify-design, plan, plan-gate, implement, verify, lint, publish-gate, deliver. Conventions, serve and baseline are highlighted as this post. Conventions runs three subagents and writes design-conventions.md. Serve leaves a server answering. Baseline captures a component at three widths and measures it into baseline-capture.json." style="font-family:Manrope, Arial, sans-serif">
         <defs>
-          <linearGradient id="p-sp" x1="0" x2="1"><stop offset="0" stop-color="#55e8ff"/><stop offset=".58" stop-color="#75a0ff"/><stop offset="1" stop-color="#c588ff"/></linearGradient>
-          <radialGradient id="p-glow" cx="0" cy="0" r="1"><stop offset="0" stop-color="#3787ff" stop-opacity=".16"/><stop offset="1" stop-color="#3787ff" stop-opacity="0"/></radialGradient>
-          <marker id="p-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9ba7bd"/></marker>
+          <linearGradient id="r-sp" x1="0" x2="1"><stop offset="0" stop-color="#55e8ff"/><stop offset=".58" stop-color="#75a0ff"/><stop offset="1" stop-color="#c588ff"/></linearGradient>
+          <radialGradient id="r-glow" cx="0" cy="0" r="1"><stop offset="0" stop-color="#3787ff" stop-opacity=".16"/><stop offset="1" stop-color="#3787ff" stop-opacity="0"/></radialGradient>
         </defs>
         <rect width="1200" height="627" fill="#071020"/>
-        <rect width="760" height="627" fill="url(#p-glow)"/>
+        <rect width="760" height="627" fill="url(#r-glow)"/>
 
-        <rect x="56" y="46" width="36" height="2" fill="url(#p-sp)"/>
+        <rect x="56" y="46" width="36" height="2" fill="url(#r-sp)"/>
         <text x="104" y="52" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13" letter-spacing="2.2">DELIVERY FACTORY · PART 4</text>
-        <text x="56" y="104" fill="#f7f8fb" font-size="38" font-weight="700" letter-spacing="-1.4">The Playwright plugin,</text>
-        <text x="56" y="148" fill="#55e8ff" font-size="38" font-weight="700" letter-spacing="-1.4">from URL to observed page.</text>
+        <text x="56" y="104" fill="#f7f8fb" font-size="38" font-weight="700" letter-spacing="-1.4">Fifteen steps. We are at</text>
+        <text x="56" y="148" fill="#55e8ff" font-size="38" font-weight="700" letter-spacing="-1.4">conventions, serve and baseline.</text>
 
         <g font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6" fill="#8391a8">
-          <text x="56" y="188">EVERY OPERATION STARTS THE SAME WAY</text>
+          <text x="56" y="188">BEFORE</text>
+          <text x="470" y="188" fill="#55e8ff">THIS POST</text>
+          <text x="746" y="188">NEXT</text>
         </g>
 
-        <rect x="56" y="204" width="240" height="84" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
-        <text x="76" y="236" fill="#f7f8fb" font-size="17" font-weight="700">target</text>
-        <text x="76" y="262" fill="#cdd6e4" font-size="13">an http(s) URL</text>
+        <!-- row 1 -->
+        <g font-family="DM Mono, monospace" font-size="13">
+          <rect x="56" y="198" width="124" height="48" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.2"/><text x="72" y="228" fill="#9fb0cc">intake</text>
+          <rect x="194" y="198" width="124" height="48" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.2"/><text x="210" y="228" fill="#9fb0cc">readiness</text>
+          <rect x="332" y="198" width="124" height="48" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.2"/><text x="348" y="228" fill="#9fb0cc">extract</text>
+          <rect x="470" y="198" width="124" height="48" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.8"/><text x="484" y="228" fill="#55e8ff" font-weight="500">conventions</text>
+          <rect x="608" y="198" width="124" height="48" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.8"/><text x="624" y="228" fill="#55e8ff" font-weight="500">serve</text>
+          <rect x="746" y="198" width="124" height="48" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.8"/><text x="762" y="228" fill="#55e8ff" font-weight="500">baseline</text>
+          <rect x="884" y="198" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="900" y="228" fill="#9ba7bd">prototype</text>
+          <rect x="1022" y="198" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="1030" y="228" fill="#9ba7bd">verify-design</text>
+        </g>
+        <!-- row 2 -->
+        <g font-family="DM Mono, monospace" font-size="13">
+          <rect x="56" y="262" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="72" y="292" fill="#9ba7bd">plan</text>
+          <rect x="194" y="262" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="210" y="292" fill="#9ba7bd">plan-gate</text>
+          <rect x="332" y="262" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="348" y="292" fill="#9ba7bd">implement</text>
+          <rect x="470" y="262" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="486" y="292" fill="#9ba7bd">verify</text>
+          <rect x="608" y="262" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="624" y="292" fill="#9ba7bd">lint</text>
+          <rect x="746" y="262" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="756" y="292" fill="#9ba7bd">publish-gate</text>
+          <rect x="884" y="262" width="124" height="48" fill="none" stroke="rgba(156,182,226,.4)" stroke-dasharray="4 4"/><text x="900" y="292" fill="#9ba7bd">deliver</text>
+        </g>
 
-        <rect x="336" y="204" width="240" height="84" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
-        <text x="356" y="236" fill="#f7f8fb" font-size="17" font-weight="700">requires check</text>
-        <text x="356" y="262" fill="#cdd6e4" font-size="13">playwright · chromium</text>
+        <!-- detail boxes -->
+        <rect x="56" y="350" width="350" height="190" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="76" y="380" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">conventions</text>
+        <text x="76" y="410" fill="#cdd6e4" font-size="13.5">three subagents, run together:</text>
+        <text x="76" y="434" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="12.5">styles · markup · component reuse</text>
+        <text x="76" y="466" fill="#cdd6e4" font-size="13.5">writes one file, and the plan reads</text>
+        <text x="76" y="486" fill="#cdd6e4" font-size="13.5">it as its only source of conventions:</text>
+        <text x="76" y="516" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="12.5">design-conventions.md</text>
 
-        <rect x="616" y="204" width="240" height="84" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
-        <text x="636" y="236" fill="#f7f8fb" font-size="17" font-weight="700">launch</text>
-        <text x="636" y="262" fill="#cdd6e4" font-size="13">headless Chromium</text>
+        <rect x="426" y="350" width="350" height="190" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="446" y="380" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">serve</text>
+        <text x="446" y="410" fill="#cdd6e4" font-size="13.5">cleans up old drafts, then polls the</text>
+        <text x="446" y="430" fill="#cdd6e4" font-size="13.5">preview URL before starting anything</text>
+        <text x="446" y="462" fill="#cdd6e4" font-size="13.5">polls at 0 · 2 · 4 · 8 · 16 s</text>
+        <text x="446" y="486" fill="#cdd6e4" font-size="13.5">any HTTP status is an answer</text>
+        <text x="446" y="516" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="12.5">serve-report.md</text>
 
-        <rect x="896" y="204" width="248" height="84" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
-        <text x="916" y="236" fill="#f7f8fb" font-size="17" font-weight="700">load</text>
-        <text x="916" y="262" fill="#cdd6e4" font-size="13">waits up to 15 s</text>
+        <rect x="796" y="350" width="348" height="190" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="816" y="380" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">baseline</text>
+        <text x="816" y="410" fill="#cdd6e4" font-size="13.5">a script finds a page holding the</text>
+        <text x="816" y="430" fill="#cdd6e4" font-size="13.5">component, never in drafts/</text>
+        <text x="816" y="462" fill="#cdd6e4" font-size="13.5">browser: render · capture 375, 768,</text>
+        <text x="816" y="482" fill="#cdd6e4" font-size="13.5">1440 · measure the component</text>
+        <text x="816" y="516" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="12.5">baseline-capture.json</text>
 
-        <line x1="298" y1="246" x2="332" y2="246" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#p-arr)"/>
-        <line x1="578" y1="246" x2="612" y2="246" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#p-arr)"/>
-        <line x1="858" y1="246" x2="892" y2="246" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#p-arr)"/>
-
-        <text x="56" y="330" fill="#8391a8" font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6">THEN ONE OF FOUR OPERATIONS</text>
-
-        <rect x="56" y="344" width="240" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
-        <text x="76" y="376" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">render</text>
-        <text x="76" y="402" fill="#cdd6e4" font-size="13">status · title · console errors</text>
-
-        <rect x="336" y="344" width="240" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
-        <text x="356" y="376" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">capture</text>
-        <text x="356" y="402" fill="#cdd6e4" font-size="13">full-page PNG at a width</text>
-
-        <rect x="616" y="344" width="240" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
-        <text x="636" y="376" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">measure</text>
-        <text x="636" y="402" fill="#cdd6e4" font-size="13">settles, then reads styles</text>
-
-        <rect x="896" y="344" width="248" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
-        <text x="916" y="376" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">interact</text>
-        <text x="916" y="402" fill="#cdd6e4" font-size="13">acts, state before and after</text>
-
-        <text x="56" y="470" fill="#8391a8" font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6">ONE VERDICT, ALWAYS A RESULT BLOCK</text>
-
-        <rect x="56" y="484" width="520" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
-        <text x="76" y="512" fill="#55e8ff" font-family="DM Mono, monospace" font-size="12" letter-spacing="1.6">PASS</text>
-        <text x="76" y="536" fill="#f7f8fb" font-size="15" font-weight="700">the page was loaded and read</text>
-        <text x="76" y="556" fill="#cdd6e4" font-size="13">a 404 or a 500 is a pass · file under .ai/playwright/</text>
-
-        <rect x="616" y="484" width="528" height="84" fill="#0a1427" stroke="#ff9a8f" stroke-width="1.6"/>
-        <text x="636" y="512" fill="#ff9a8f" font-family="DM Mono, monospace" font-size="12" letter-spacing="1.6">FAIL</text>
-        <text x="636" y="536" fill="#f7f8fb" font-size="15" font-weight="700">tool missing · cannot launch · no load</text>
-        <text x="636" y="556" fill="#cdd6e4" font-size="13">never settles · action matches nothing · 30 s watchdog</text>
-
-        <text x="56" y="600" fill="#9ba7bd" font-size="15">Pass means the page was observed. It does not mean the page is healthy.</text>
+        <text x="56" y="584" fill="#9ba7bd" font-size="15">None of the three builds anything. They leave the project understood, answering and photographed.</text>
       </svg>
       </div>
-      <figcaption>Every operation checks its tools, launches Chromium and loads the page before it does anything else. Which operation runs decides what is read. The script, not the model, decides pass or fail.</figcaption>
+      <figcaption>The route has fifteen steps. The first three are behind us: the ticket was fetched, checked and its design read. These three look at the project itself. Four of the fifteen run only when the ticket asks for them. Baseline is one of them: it runs only when a component is named.</figcaption>
     </figure>
+    <div class="prose" style="margin-top:2rem">
+      <p>Each step runs as its own isolated agent and returns a short result block. The next post covers the browser plugin that baseline uses. This post covers what the three steps themselves do.</p>
+    </div>
   </section>
 
-  <section class="section alt" id="parts">
+  <section class="section alt" id="conventions">
     <div class="section-head">
-      <p class="eyebrow">The parts</p>
-      <h2>A plugin of its <em>own</em></h2>
-      <p>The Playwright pack plays one role in the pipeline: browser. It has its own manifest, skills, scripts and tests, and no MCP server is involved.</p>
+      <p class="eyebrow">Conventions</p>
+      <h2>How this project <em>does things</em></h2>
+      <p>The stage <code>eds-conventions</code> always runs. It needs no tracker, design or browser: everything it reads was already written by the stages before it.</p>
     </div>
     <ul class="rows">
-      <li class="row key"><div><h3><code>pack.yaml</code> declares the role and what it needs</h3><p><code>kind: provider</code>, <code>role: browser</code>, four operations mapped to four skills, <code>unsupported: []</code>. It names <code>skills/render/scripts/render.cjs</code> under <code>scripts:</code> for a caller that needs a load check without a model step. A <code>requires:</code> block lists the two tools the pack depends on.</p></div></li>
-      <li class="row"><div><h3><code>.claude-plugin/plugin.json</code> names it</h3><p>Name <code>agentic-playwright</code>, version <code>0.2.2</code>, one dependency: <code>agentic-core</code>. The project picks it as its browser with <code>packs.browser: playwright</code> in <code>.ai/project-config.yaml</code>.</p></div></li>
-      <li class="row key"><div><h3>Four skills, one script each</h3><p>Each <code>skills/&lt;name&gt;/SKILL.md</code> runs <code>skills/&lt;name&gt;/scripts/&lt;name&gt;.cjs</code> and outputs its stdout as the whole response, ending with the <code>## Result</code> block. The skill has no branch of its own: the script alone decides pass or fail.</p></div></li>
-      <li class="row"><div><h3>Helpers shared by the operations</h3><p><code>probe-tool.cjs</code> checks a tool by exit status. <code>requires.cjs</code> reads the manifest's <code>requires:</code> block. <code>settle.cjs</code> decides when a page has stopped moving. <code>next-artifact-path.cjs</code> picks a file name nothing has used. <code>operation-guard.cjs</code> keeps a log and a watchdog. <code>launch-options.cjs</code> sets headless launch and the time limit.</p></div></li>
-      <li class="row"><div><h3>Offline tests for the helpers and <code>measure</code></h3><p>Four test files, run with no browser: <code>declared-dependency</code> (11), <code>next-artifact-path</code> (13), <code>settle</code> (30) and <code>measure</code> (15), 69 assertions in total. <code>render</code>, <code>capture</code> and <code>interact</code> have no offline test.</p></div></li>
-    </ul>
-  </section>
-
-  <section class="section" id="operations">
-    <div class="section-head">
-      <p class="eyebrow">The operations</p>
-      <h2>Four operations, one <em>shape</em></h2>
-      <p>Each takes input lines, runs against the real browser, writes one file under <code>.ai/playwright/</code> and returns a result block.</p>
-    </div>
-    <ul class="rows">
-      <li class="row key"><div><h3><code>render</code>: the load state</h3><p>Input: <code>target</code>. Returns the final URL, HTTP status, page title and console errors. It also reports a load time and writes a JSON file.</p></div></li>
-      <li class="row"><div><h3><code>capture</code>: a picture at a width</h3><p>Input: <code>target</code>, <code>width</code>. Writes a full-page PNG. The viewport is the given width, 800 pixels tall.</p></div></li>
-      <li class="row key"><div><h3><code>measure</code>: numbers for named elements</h3><p>Input: <code>target</code>, an optional <code>width</code>, one or more <code>selector</code>. Per selector it returns the geometry and a fixed set of values: <code>color</code>, <code>background-color</code>, <code>font-family</code>, <code>font-size</code>, <code>font-weight</code>, <code>line-height</code>, the four <code>padding-*</code> values, <code>gap</code>, <code>border-radius</code> and <code>min-width</code>. It adds <code>holds_text</code>, <code>broken_words</code> and <code>hidden</code>. The measurement records the width it was read at. A selector that matches nothing is reported <code>found: false</code> and does not fail the operation.</p></div></li>
-      <li class="row"><div><h3><code>interact</code>: state after acting</h3><p>Input: <code>target</code>, one or more of <code>click</code>, <code>press</code>, <code>type</code>, and one or more <code>read</code>. Every <code>read</code> selector is captured once before the first action and once after the last: geometry, the style values, every <code>aria-*</code> attribute and <code>class</code>. <code>press</code> focuses the element first, like a keyboard user tabbing to it. An action that matches nothing, or cannot be carried out, fails the whole operation.</p></div></li>
+      <li class="row key"><div><h3><code>styles</code>: design values against the design system</h3><p>Grades each design value the extract stage retrieved against the project's adopted design system, <code>styles/design-system.md</code>. A value either matches the system's token for that role, or drifts. When it drifts, the design wins, as an override scoped to the block the ticket touches. It also names font families the design uses that the project declares no <code>@font-face</code> for. It never adds, downloads or substitutes a font. Runs only when a design reference is present or was requested.</p></div></li>
+      <li class="row"><div><h3><code>markup</code>: how existing blocks scope their CSS</h3><p>Classifies every existing block's CSS by form: the <code>.blockname .child</code> form, the bare tag form a header or footer block uses, an <code>@scope</code> rule, or a <code>main .</code> prefix. It reports which files drift from the form most blocks use, and which could not be classified at all. Always runs.</p></div></li>
+      <li class="row key"><div><h3><code>component reuse</code>: create or extend</h3><p>For every component the ticket names, a script checks in a fixed order: the project's own <code>blocks/</code> first, then the pack's pinned copy of the upstream block collection, and only then marks it new. When the upstream manifest cannot be read, the block is reported as <em>unknown upstream</em>, which is not the same as not there. It always names example blocks a new unit should follow, even when no component is named. Always runs.</p></div></li>
     </ul>
     <div class="envelope-grid" style="margin-top:2rem">
       <div class="prose">
-        <p><strong>Files get the next free name.</strong> Each artifact is named <code>&lt;operation&gt;-&lt;target slug&gt;[-&lt;width&gt;]-&lt;n&gt;</code>, so a re-run never overwrites an earlier capture.</p>
-        <p><strong>Only the script's words.</strong> The skill returns the script's stdout unchanged. It adds no commentary and does not summarise it.</p>
+        <p><strong>Dispatched together.</strong> The three subagents are called in the same turn, because none of them depends on another's result. The stage waits for every dispatched one before it decides its own verdict.</p>
+        <p><strong>One file for the plan.</strong> The stage writes <code>design-conventions.md</code>: one section per dispatched subagent, with its summary, and a final <code>## Exemplars</code> section that is never empty. The plan stage reads this file as its only source of project conventions and does no research of its own. A finding that is not written here is lost to the rest of the run.</p>
+        <p><strong>Its own words.</strong> Each subagent ends with a small outcome block (success, warning or failure). The stage writes its own result from them and never returns a subagent's outcome unchanged.</p>
       </div>
-<pre class="envelope"><span class="k">$ measure.cjs --width 720 &lt;url&gt; ".logo" ".logo-row"</span>
-<span class="k">## Result</span>
-<span class="k">verdict:</span> pass
-<span class="k">summary:</span> &lt;counts of found and hidden selectors&gt;
-<span class="k">artifacts:</span>
-  - .ai/playwright/measure-&lt;slug&gt;-720-1.json
-<span class="k">next_action:</span> none</pre>
+<pre class="envelope"><span class="k"># design-conventions.md</span>
+## styles
+&lt;the subagent's summary, verbatim&gt;
+## markup
+&lt;the subagent's summary, verbatim&gt;
+## component reuse
+&lt;the subagent's summary, verbatim&gt;
+## Exemplars
+blocks/&lt;name&gt;/
+blocks/&lt;name&gt;/</pre>
     </div>
   </section>
 
-  <section class="section alt" id="settle">
+  <section class="section" id="serve">
     <div class="section-head">
-      <p class="eyebrow">The settle</p>
-      <h2>A page that has <em>stopped moving</em></h2>
-      <p><code>measure</code> reads only after the page settles. <code>settle.cjs</code> decides when that is.</p>
+      <p class="eyebrow">Serve</p>
+      <h2>Poll first, <em>then</em> start</h2>
+      <p>The job of <code>eds-serve</code> is that something answers at the project's preview URL by the time it returns. It runs on every ticket.</p>
     </div>
     <ol class="steps">
-      <li><span>Wait for the document's fonts to finish loading.</span></li>
-      <li><span>Take a snapshot of every selector. Take another 250 ms later.</span></li>
-      <li><span>If a selector's state still changes, or something blocks the read, discard the snapshot and try again.</span></li>
-      <li class="read"><span>Two snapshots in a row are identical: the page has settled, and the second one is the reading.</span></li>
-      <li><span>Everything above has an upper bound of 10 seconds. A page that does not settle fails, with the reason in the summary, and no file is written.</span></li>
+      <li><span>Clean up earlier runs' drafts: delete the drafts of items whose change is merged or closed, and stop the draft server once no recorded change is open. The result is written into the report but never changes this stage's verdict.</span></li>
+      <li><span>Read <code>commands.serve</code> and <code>paths.preview</code> from <code>.ai/project-config.yaml</code>. No preview URL configured: fail. The stage never guesses one.</span></li>
+      <li><span><code>poll-preview.sh</code> against the URL. If something already answers, pass. Nothing is started, and the report says this stage did not start what is running.</span></li>
+      <li><span>Nothing answered and a serve command is configured: <code>start-serve.sh</code> starts it, writing a log and the process id.</span></li>
+      <li><span>Poll again on the ladder: five polls, at 0, 2, 4, 8 and 16 seconds, about thirty seconds in all.</span></li>
+      <li class="read"><span>An answer before the ladder ends: pass. No answer: fail, naming this as a transient failure, with the process id and the log in the report.</span></li>
     </ol>
     <div class="envelope-grid" style="margin-top:2rem">
       <div class="prose">
-        <p><strong>Hidden is a reading, not a wait.</strong> A page can hide part of a block at some widths. A selector with no visible match is reported at once with <code>hidden: true</code>. Its values are the first match's, as read, and a consumer never grades them. The other selectors keep their values.</p>
-        <p><strong>A fixed interval.</strong> The snapshot includes <code>hidden</code>, so an element on its way to visible still changes the snapshot and the wait goes on, until the bound.</p>
+        <p><strong>Any HTTP status is an answer.</strong> A 404 or a 500 included. The question is whether the origin is bound, not whether one path exists. A preview path is configuration, and a poll that demanded a particular status would fail forever on a project whose configured path is not a served one.</p>
+        <p><strong>Poll before starting.</strong> A server may already be up from an earlier run. Starting a second one against a bound port makes a process that dies on startup while the poll still succeeds against the first.</p>
       </div>
       <div class="prose">
-        <p><strong>Inputs are injected.</strong> The probe, the fonts wait and the clock are passed in, so the condition runs in tests without a browser. That is why <code>settle</code> has 30 offline assertions.</p>
-        <p><strong>Only <code>measure</code> settles.</strong> In the code, <code>settle.cjs</code> is used by <code>measure.cjs</code> alone. The README's flow shows it for every operation.</p>
+        <p><strong>The server outlives the stage.</strong> It has to: every later stage that renders a page runs in a different isolated agent. The stage cleans up drafts, but nothing in the route stops the preview server. The report is the only record of the process that is left running, and the process id in it is the only handle.</p>
+        <p><strong>Loopback needs the sandbox off.</strong> The default command sandbox denies connections to localhost every time, so the stage runs its three commands with the sandbox disabled, as the skill states, rather than trying sandboxed first.</p>
       </div>
+    </div>
+  </section>
+
+  <section class="section alt" id="baseline">
+    <div class="section-head">
+      <p class="eyebrow">Baseline</p>
+      <h2>The <em>before</em> picture</h2>
+      <p><code>eds-baseline</code> runs only when the fact record names at least one component. It captures what each component looks like now, so the verify stage can compare before against after, not only after against the design.</p>
+    </div>
+    <ol class="steps">
+      <li><span>Resolve the browser plugin from the project config and read its operations: <code>render</code>, <code>capture</code> and <code>measure</code>. Any of them missing: fail.</span></li>
+      <li><span>Take the component names from the fact record, or from the <code>blocks/&lt;name&gt;/</code> paths the ticket names.</span></li>
+      <li><span><code>find-baseline-target.py</code> lists the pages git knows about and prints the first one that holds the component, as a page path and a URL. It never searches <code>drafts/</code>. The model adds no page the script did not print.</span></li>
+      <li><span><code>render</code> the page. <code>capture</code> it at 375, 768 and 1440 pixels. <code>measure</code> the selector <code>.&lt;component&gt;</code>.</span></li>
+      <li class="read"><span>Write <code>baseline-capture.json</code>: the URL, the components, each width's screenshot path (or that width's failure) and the measurements as the browser plugin reported them.</span></li>
+    </ol>
+    <div class="envelope-grid" style="margin-top:2rem">
+      <div class="prose">
+        <p><strong>Same widths later.</strong> 375, 768 and 1440 are the widths the verify stage uses for its own capture, so the two runs line up.</p>
+        <p><strong>Content outside the checkout.</strong> If a project's authored content is mounted from an external source, the search can see nothing even when a page genuinely exists live. The stage does not reach outside the checkout, and says that nothing was found.</p>
+      </div>
+<pre class="envelope"><span class="k"># baseline-capture.json, the fields</span>
+target URL
+components captured
+per width: screenshot path, or that width's failure
+per selector: the browser plugin's measurement,
+  unchanged, including found: false</pre>
     </div>
   </section>
 
   <section class="section" id="outcomes">
     <div class="section-head">
-      <p class="eyebrow">Pass and stop</p>
-      <h2><em>Observed</em>, not healthy</h2>
-      <p>A verdict is about the check. Was the page seen, or could it not be?</p>
+      <p class="eyebrow">Pass, warn, stop</p>
+      <h2>Three stages, <em>three</em> sets of verdicts</h2>
+      <p>Each stage ends with a result block: pass, warn or fail. Warn does not stop the route.</p>
     </div>
     <ul class="chapters">
-      <li class="chapter"><p class="chapter-marker">Pass</p><p>The page was loaded and its state read. An HTTP 404 or 500 is a pass too, because that state was observed. A hidden selector and a selector that matches nothing in <code>measure</code> are readings, not failures.</p></li>
-      <li class="chapter warn"><p class="chapter-marker">Fail · tool missing</p><p>A declared tool is not there. The result carries the manifest's own remedy text. Nothing is installed.</p></li>
-      <li class="chapter warn"><p class="chapter-marker">Fail · browser</p><p>Chromium could not launch, or the page did not finish loading within 15 seconds.</p></li>
-      <li class="chapter warn"><p class="chapter-marker">Fail · the read</p><p>The page did not settle within 10 seconds (<code>measure</code>), or an action matched nothing or did not take effect (<code>interact</code>). An interaction that did not happen is never reported as one that did.</p></li>
-      <li class="chapter warn"><p class="chapter-marker">Fail · watchdog</p><p>An operation that runs past 30 seconds is ended. The result names the last step, lists the log and exits 0. A page that blocks its own main thread gets the same ending instead of a silent hang.</p></li>
-      <li class="chapter"><p class="chapter-marker">Usage error</p><p>A missing or malformed argument prints a usage line and exits 2. This is the only exit that is not 0.</p></li>
+      <li class="chapter"><p class="chapter-marker">Conventions · pass</p><p>Every dispatched subagent succeeded.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Conventions · warn</p><p>At least one subagent warned. For example, the project has no blocks yet, or no design system is adopted, so there is nothing to grade against. The stage does not rank one warning above another.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Conventions · fail</p><p>The fact record is missing or empty, or a subagent failed. For example, the design reference file the extract stage should have written is missing. A subagent that cannot be resolved counts as a failure, not a gap to route around.</p></li>
+      <li class="chapter"><p class="chapter-marker">Serve · pass</p><p>The preview answered, whether it was already up or this stage started it.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Serve · fail</p><p>No preview URL configured. Or nothing answered and no serve command is configured. Or the command exited on startup. Or nothing answered before the ladder ran out.</p></li>
+      <li class="chapter"><p class="chapter-marker">Baseline · pass</p><p>All three widths were captured and every component's selector was found.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Baseline · warn</p><p>A width failed or a selector was not found, so the baseline is partial and says so. Or no page in the checkout holds the component, and nothing is written. That is a gap in the fixture content, not evidence the change broke anything. Verify treats a missing baseline as one of its own downgrade conditions.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Baseline · fail</p><p>The browser plugin or one of its operations is missing, no component can be identified, the search script errors, or the render fails.</p></li>
     </ul>
-    <div class="envelope-grid" style="margin-top:2rem">
-<pre class="envelope"><span class="k">$ render.cjs http://127.0.0.1:1/</span>
-<span class="k">## Result</span>
-<span class="k">verdict:</span> fail
-<span class="k">summary:</span> could not launch Chromium:
-  browserType.launch: Target page, context
-  or browser has been closed
-<span class="k">artifacts:</span> []
-<span class="k">next_action:</span> none</pre>
-      <div class="prose">
-        <p>A browser that could not launch, from the README. The command ran in a sandbox that blocks the browser process. The operation still returned a result block and exit status 0.</p>
-        <p>Every console error and uncaught page exception is also appended to a log under <code>.ai/playwright/</code> the moment it happens, so a run that is killed still leaves what it saw.</p>
-      </div>
-    </div>
   </section>
 
-  <section class="section alt" id="run">
-    <div class="section-head">
-      <p class="eyebrow">One declaration</p>
-      <h2>What it needs is <em>data</em></h2>
-      <p>The manifest states what the pack needs and how to fix its absence. Every reader reports that one text.</p>
-    </div>
-    <div class="envelope-grid">
-<pre class="envelope"><span class="k"># pack.yaml</span>
-requires:
-  - tool: playwright
-    probe: [node, &lt;pack&gt;/scripts/probe-tool.cjs, module]
-    remedy: "reinstall or update this plugin so the host
-      installs the playwright version its package.json
-      pins; loaded by path, run npm ci in this plugin's root"
-  - tool: chromium
-    probe: [node, &lt;pack&gt;/scripts/probe-tool.cjs, browser]
-    remedy: "npx playwright@1.63.0 install chromium"</pre>
-      <div class="prose">
-        <p><code>probe-tool.cjs</code> answers by exit status alone and installs nothing. <code>requires.cjs</code> reads the same block, so an operation that refuses to run reports the same remedy the core's <code>health</code> diagnostic prints.</p>
-        <p>Two hand-written copies of a remedy agree only until one is edited. This is the one provider pack here that depends on a binary outside the session, which is why the declaration exists at all.</p>
-      </div>
-    </div>
-    <ol class="steps" style="margin-top:2rem">
-      <li><span>Install from the marketplace: <code>/plugin marketplace add agenticDraft/plugins</code>, then <code>/plugin install agentic-playwright@agenticdraft</code>. The host installs the pinned <code>playwright</code> into the plugin's own directory.</span></li>
-      <li><span>Install the browser: <code>npx playwright@1.63.0 install chromium</code>. Loaded by path instead, run <code>npm ci</code> in the plugin's folder first.</span></li>
-      <li><span>Check the preconditions the way the core does: <code>check-requires.sh</code> on <code>pack.yaml</code>, or <code>/agentic-core:health</code> in a configured session.</span></li>
-      <li class="read"><span>Invoke an operation: <code>Skill(agentic-playwright:render)</code> with the input lines as the argument, or <code>/agentic-playwright:render</code> followed by <code>target: &lt;URL&gt;</code>.</span></li>
-    </ol>
-  </section>
-
-  <section class="section" id="limits">
+  <section class="section alt" id="limits">
     <div class="section-head">
       <p class="eyebrow">What it doesn't cover</p>
       <h2>The limits, <em>as stated</em></h2>
-      <p>From the README's own list.</p>
+      <p>From the skills and the pack's README.</p>
     </div>
     <ul class="chapters">
-      <li class="chapter warn"><p class="chapter-marker">Engine</p><p>Chromium only. No other browser is declared or probed.</p></li>
-      <li class="chapter warn"><p class="chapter-marker">Sandbox</p><p>A sandbox that blocks the browser process turns every operation into a fail, indistinguishable from a missing binary except by its summary. Each operation skill therefore runs its script with the command sandbox off. A local preview also needs loopback connections.</p></li>
-      <li class="chapter warn"><p class="chapter-marker">Late elements</p><p>An element that appears after the page settles (an animation, a deferred reveal) is read as hidden. A behaviour that needs it visible is a job for <code>interact</code>.</p></li>
-      <li class="chapter warn"><p class="chapter-marker">Fixed values</p><p>The style set is fixed: a value outside the <code>measure</code> list is not returned. <code>broken_words</code> reads one text node at a time, so a word an inline element splits in two is read as two words.</p></li>
-      <li class="chapter"><p class="chapter-marker">Next</p><p>The plan: how it is written, and the gate that checks it before any code.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">No teardown</p><p>The route has no step that stops the preview server. It runs until a human ends it.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Fonts</p><p>Conventions names missing font families and never adds one. Fonts are added by a human, once, with their license.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Drafts</p><p>Baseline never renders <code>drafts/</code>. A ticket that compares against the current state is refused at readiness when a named component has no page outside <code>drafts/</code>.</p></li>
+      <li class="chapter"><p class="chapter-marker">Next</p><p>The browser plugin behind baseline: four operations against a real Chromium.</p></li>
     </ul>
   </section>
 </main>

@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Playwright Plugin, Step by Step</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Delivery Factory companion page, same world as the agentic-core page. One dark look on purpose:
+   navy ground, spectrum accents, square edges. The figure is drawn at 1200x627 so a screenshot is the post image. */
+:root {
+  color-scheme: dark;
+  --ink: #f7f8fb;
+  --muted: #9ba7bd;
+  --dim: #8391a8;
+  --navy: #071020;
+  --navy-2: #0a1427;
+  --navy-3: #081225;
+  --footer: #050c18;
+  --line: rgba(156, 182, 226, .16);
+  --line-strong: rgba(156, 182, 226, .26);
+  --cyan: #55e8ff;
+  --violet: #a96eff;
+  --red: #ff9a8f;
+  --spectrum: linear-gradient(110deg, var(--cyan), #75a0ff 58%, #c588ff);
+  --sans: "Manrope", Arial, sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  --space-page: clamp(1.25rem, 5vw, 4.5rem);
+  --space-section: clamp(3.5rem, 7vw, 6rem);
+  --measure: 62ch;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --code-fg: #cdd6e4;
+  --code-bg: rgba(156, 182, 226, .1);
+  --code-line: rgba(156, 182, 226, .18);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--navy); color: var(--ink); font: 400 17px/1.65 var(--sans); }
+main, section, div, nav, ul, ol, li, p, h1, h2, h3, figure { min-width: 0; }
+p, h1, h2, h3, a, span, li { overflow-wrap: break-word; }
+a { color: inherit; }
+::selection { background: var(--cyan); color: var(--navy); }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
+h1, h2, h3, p { margin-top: 0; }
+h1, h2, h3 { text-wrap: balance; }
+section[id] { scroll-margin-top: 90px; }
+code { font: .86em/1.4 var(--mono); color: var(--code-fg); background: var(--code-bg);
+  border: 1px solid var(--code-line); padding: .05em .35em; }
+strong { font-weight: 700; color: var(--ink); }
+
+.site-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center;
+  justify-content: space-between; gap: 1rem 2rem; flex-wrap: wrap; padding: 1.1rem var(--space-page);
+  background: rgba(7, 16, 32, .9); backdrop-filter: blur(18px); border-bottom: 1px solid var(--line); }
+.brand { display: inline-flex; align-items: center; gap: .7rem; font-weight: 700; font-size: 1.15rem;
+  letter-spacing: -.035em; text-decoration: none; }
+.brand-mark { width: 14px; height: 14px; background: var(--spectrum); transform: rotate(45deg); }
+.site-nav { display: flex; gap: 1.6rem; font-size: .98rem; overflow-x: auto; scrollbar-width: none; }
+.site-nav a { color: var(--muted); text-decoration: none; white-space: nowrap; transition: color .2s; }
+.site-nav a:hover { color: var(--ink); }
+
+.hero { position: relative; padding: clamp(3.5rem, 8vw, 6.5rem) var(--space-page) 0; isolation: isolate;
+  border-bottom: 1px solid rgba(156, 182, 226, .28); overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -2;
+  background: linear-gradient(180deg, rgba(85, 140, 255, .045), transparent 42%); }
+.hero-glow { position: absolute; z-index: -1; width: 50vw; max-width: 100%; aspect-ratio: 1; left: -20vw; top: 2rem;
+  border-radius: 50%; background: radial-gradient(circle, rgba(55, 135, 255, .16), transparent 65%); filter: blur(16px); }
+.eyebrow { display: flex; align-items: center; gap: .8rem; margin: 0 0 1.2rem; font: 500 .8rem/1.45 var(--mono);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink); }
+.eyebrow::before { content: ""; flex: none; width: 36px; height: 2px; background: var(--spectrum); }
+h1 { margin-bottom: 1.4rem; font-size: clamp(2.6rem, 6.5vw, 5rem); line-height: 1.02; letter-spacing: -.045em; font-weight: 600; }
+h1 em, h2 em { font-style: normal; color: var(--cyan); }
+.lede { max-width: var(--measure); color: var(--muted); font-size: clamp(1.15rem, 1.6vw, 1.4rem); line-height: 1.6;
+  letter-spacing: -.012em; margin-bottom: clamp(1.4rem, 3vw, 2rem); }
+.proof { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .6rem 2rem; align-items: baseline;
+  margin-inline: calc(var(--space-page) * -1); margin-top: clamp(2rem, 4vw, 3rem); padding: 1.35rem var(--space-page);
+  border-top: 1px solid rgba(156, 182, 226, .25); background: var(--navy-2); }
+.proof-label { margin: 0; color: var(--muted); font: .78rem/1.5 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.proof-label b { display: inline-block; margin-left: .5rem; padding: .25rem .5rem; color: var(--navy); background: var(--cyan);
+  font-weight: 500; letter-spacing: .08em; }
+.proof p:last-child { margin: 0; max-width: 78ch; color: var(--muted); font-size: .98rem; line-height: 1.6; }
+
+.section { padding: var(--space-section) var(--space-page); border-top: 1px solid var(--line); }
+.section.alt { background: var(--navy-3); }
+.section-head { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); column-gap: clamp(2rem, 6vw, 6rem);
+  margin-bottom: clamp(2rem, 4vw, 3rem); }
+.section-head .eyebrow { grid-column: 1 / -1; }
+h2 { margin-bottom: 0; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.05; letter-spacing: -.04em; font-weight: 600; }
+.section-head > p:last-child { align-self: end; max-width: 46ch; margin: 0; color: var(--muted); font-size: 1.1rem; line-height: 1.65; }
+.prose { max-width: var(--measure); }
+.prose p { color: var(--muted); }
+.claim { margin: clamp(1.8rem, 3vw, 2.4rem) 0 0; padding: 1.1rem 1.3rem; border-left: 3px solid var(--cyan);
+  background: rgba(85, 232, 255, .06); font-size: clamp(1.1rem, 1.8vw, 1.35rem); font-weight: 600; letter-spacing: -.02em; line-height: 1.4; max-width: 56ch; }
+
+.shot { margin: 0; }
+.shot-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem 2rem; margin-bottom: .8rem;
+  color: var(--dim); font: .74rem/1.5 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.shot-frame { overflow-x: auto; border: 1px solid rgba(156, 182, 226, .22); }
+.shot svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.shot figcaption { margin-top: .9rem; max-width: 72ch; color: var(--muted); font-size: .95rem; }
+
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.compare > div { background: var(--navy); padding: 1.5rem 1.4rem; }
+.compare h3 { margin: 0 0 .2rem; font-size: 1.2rem; font-weight: 700; letter-spacing: -.02em; }
+.compare .tag { display: block; margin-bottom: 1rem; font: .74rem/1.5 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.compare .bad .tag { color: var(--red); }
+.compare .good .tag { color: var(--cyan); }
+.compare ul { margin: 0; padding-left: 1.1rem; color: var(--muted); display: grid; gap: .45rem; }
+
+pre.envelope { margin: 0; padding: 1.3rem 1.4rem; background: var(--navy-2); border: 1px solid rgba(85, 232, 255, .3);
+  color: var(--code-fg); font: .95rem/1.7 var(--mono); overflow-x: auto; }
+pre.envelope .k { color: var(--cyan); }
+.envelope-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3rem); align-items: start; }
+
+.rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 1.1rem; padding: 1.3rem .5rem;
+  border-bottom: 1px solid rgba(156, 182, 226, .2); transition: background .25s var(--ease-out); }
+.row:hover { background: linear-gradient(90deg, rgba(85, 232, 255, .07), rgba(169, 110, 255, .04)); }
+.row::before { content: ""; width: 12px; height: 12px; margin: .45rem 0 0 4px; border: 1.5px solid rgba(156, 182, 226, .6);
+  background: var(--navy); transform: rotate(45deg); }
+.row.key::before { border-color: var(--ink); background: var(--ink); }
+.row h3 { margin: 0 0 .3rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; }
+.row p { margin: 0; max-width: 72ch; color: var(--muted); font-size: 1rem; line-height: 1.62; }
+
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 1rem; padding: .95rem .5rem;
+  border-bottom: 1px solid rgba(156, 182, 226, .2); color: var(--muted); }
+.steps li::before { content: counter(s, decimal-leading-zero); color: var(--cyan); font: .85rem/1.9 var(--mono); }
+.steps li.read { color: var(--ink); }
+
+.chapters { margin: 0; padding: 0; list-style: none; }
+.chapter { display: grid; grid-template-columns: minmax(150px, .28fr) minmax(0, 1fr); gap: clamp(1rem, 4vw, 3rem);
+  padding: 1.3rem 0; border-top: 1px solid var(--line); }
+.chapter-marker { margin: .2rem 0 0; color: var(--cyan); font: .8rem/1.5 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.chapter.warn .chapter-marker { color: #ffcf6e; }
+.chapter p:last-child { margin: 0; max-width: var(--measure); color: var(--muted); font-size: 1.02rem; line-height: 1.7; }
+
+.site-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem 2rem;
+  padding: 2.2rem var(--space-page); color: var(--muted); background: var(--footer); border-top: 1px solid var(--line-strong);
+  font-size: .95rem; }
+.site-footer p { margin: 0; }
+
+@media (max-width: 860px) {
+  .section-head, .envelope-grid { grid-template-columns: minmax(0, 1fr); }
+  .section-head > p:last-child { margin-top: 1.2rem; }
+  .proof { grid-template-columns: minmax(0, 1fr); }
+  .chapter { grid-template-columns: minmax(0, 1fr); gap: .4rem; }
+}
+@media (max-width: 640px) {
+  .site-header { flex-direction: column; align-items: flex-start; gap: .7rem; }
+  .site-nav { width: 100%; gap: 1.2rem; font-size: .92rem; }
+  .row, .steps li { padding-inline: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .row, .site-nav a { transition-duration: 0s; }
+}
+
+</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="../"><span class="brand-mark" aria-hidden="true"></span>Delivery Factory · Part 5</a>
+  <nav class="site-nav" aria-label="Sections">
+    <a href="#picture">The picture</a>
+    <a href="#parts">The parts</a>
+    <a href="#operations">The operations</a>
+    <a href="#settle">The settle</a>
+    <a href="#outcomes">Pass and stop</a>
+    <a href="#run">Run it</a>
+    <a href="#limits">What it doesn't cover</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <p class="eyebrow">Delivery Factory · Part 5 · Playwright Browser</p>
+    <h1>The <em>Playwright</em> plugin, from URL to observed page</h1>
+    <p class="lede">The verification stages need a page's load state, a screenshot at a given width, the computed styles of named elements, and the state of those elements after a click or a key press. This plugin provides them from a real headless Chromium, as data at fixed paths. This page follows it from the URL to the verdict.</p>
+    <div class="proof">
+      <p class="proof-label">Checked in <b>README + code</b></p>
+      <p>Read in the plugin's README, manifest, skills and scripts. Source: <code>agenticDraft/plugins</code>, folder <code>plugins/agentic-playwright/</code>, version <code>0.2.2</code>. Paths are relative to that folder unless said otherwise.</p>
+    </div>
+  </section>
+
+  <section class="section" id="picture">
+    <figure class="shot">
+      <div class="shot-label"><span>From URL to verdict</span><span>1200 × 627</span></div>
+      <div class="shot-frame">
+      <svg viewBox="0 0 1200 627" role="img" aria-label="A target URL goes through the requires check for playwright and chromium, a headless Chromium launch and a page load of at most 15 seconds. Then one of four operations runs: render, capture, measure or interact. Measure settles the page first. The result is a pass with a result block and a file under .ai/playwright, where a 404 or 500 is still a pass, or a fail when a tool is missing, the browser cannot launch, the page does not load, the page never settles, an action matches nothing, or the 30 second watchdog runs out." style="font-family:Manrope, Arial, sans-serif">
+        <defs>
+          <linearGradient id="p-sp" x1="0" x2="1"><stop offset="0" stop-color="#55e8ff"/><stop offset=".58" stop-color="#75a0ff"/><stop offset="1" stop-color="#c588ff"/></linearGradient>
+          <radialGradient id="p-glow" cx="0" cy="0" r="1"><stop offset="0" stop-color="#3787ff" stop-opacity=".16"/><stop offset="1" stop-color="#3787ff" stop-opacity="0"/></radialGradient>
+          <marker id="p-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9ba7bd"/></marker>
+        </defs>
+        <rect width="1200" height="627" fill="#071020"/>
+        <rect width="760" height="627" fill="url(#p-glow)"/>
+
+        <rect x="56" y="46" width="36" height="2" fill="url(#p-sp)"/>
+        <text x="104" y="52" fill="#f7f8fb" font-family="DM Mono, monospace" font-size="13" letter-spacing="2.2">DELIVERY FACTORY · PART 5</text>
+        <text x="56" y="104" fill="#f7f8fb" font-size="38" font-weight="700" letter-spacing="-1.4">The Playwright plugin,</text>
+        <text x="56" y="148" fill="#55e8ff" font-size="38" font-weight="700" letter-spacing="-1.4">from URL to observed page.</text>
+
+        <g font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6" fill="#8391a8">
+          <text x="56" y="188">EVERY OPERATION STARTS THE SAME WAY</text>
+        </g>
+
+        <rect x="56" y="204" width="240" height="84" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
+        <text x="76" y="236" fill="#f7f8fb" font-size="17" font-weight="700">target</text>
+        <text x="76" y="262" fill="#cdd6e4" font-size="13">an http(s) URL</text>
+
+        <rect x="336" y="204" width="240" height="84" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
+        <text x="356" y="236" fill="#f7f8fb" font-size="17" font-weight="700">requires check</text>
+        <text x="356" y="262" fill="#cdd6e4" font-size="13">playwright · chromium</text>
+
+        <rect x="616" y="204" width="240" height="84" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
+        <text x="636" y="236" fill="#f7f8fb" font-size="17" font-weight="700">launch</text>
+        <text x="636" y="262" fill="#cdd6e4" font-size="13">headless Chromium</text>
+
+        <rect x="896" y="204" width="248" height="84" fill="#0a1427" stroke="rgba(156,182,226,.45)" stroke-width="1.4"/>
+        <text x="916" y="236" fill="#f7f8fb" font-size="17" font-weight="700">load</text>
+        <text x="916" y="262" fill="#cdd6e4" font-size="13">waits up to 15 s</text>
+
+        <line x1="298" y1="246" x2="332" y2="246" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#p-arr)"/>
+        <line x1="578" y1="246" x2="612" y2="246" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#p-arr)"/>
+        <line x1="858" y1="246" x2="892" y2="246" stroke="#9ba7bd" stroke-width="1.6" marker-end="url(#p-arr)"/>
+
+        <text x="56" y="330" fill="#8391a8" font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6">THEN ONE OF FOUR OPERATIONS</text>
+
+        <rect x="56" y="344" width="240" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="76" y="376" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">render</text>
+        <text x="76" y="402" fill="#cdd6e4" font-size="13">status · title · console errors</text>
+
+        <rect x="336" y="344" width="240" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="356" y="376" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">capture</text>
+        <text x="356" y="402" fill="#cdd6e4" font-size="13">full-page PNG at a width</text>
+
+        <rect x="616" y="344" width="240" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="636" y="376" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">measure</text>
+        <text x="636" y="402" fill="#cdd6e4" font-size="13">settles, then reads styles</text>
+
+        <rect x="896" y="344" width="248" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="916" y="376" fill="#55e8ff" font-family="DM Mono, monospace" font-size="14" font-weight="500">interact</text>
+        <text x="916" y="402" fill="#cdd6e4" font-size="13">acts, state before and after</text>
+
+        <text x="56" y="470" fill="#8391a8" font-family="DM Mono, monospace" font-size="11" letter-spacing="1.6">ONE VERDICT, ALWAYS A RESULT BLOCK</text>
+
+        <rect x="56" y="484" width="520" height="84" fill="#0c1a33" stroke="#55e8ff" stroke-width="1.6"/>
+        <text x="76" y="512" fill="#55e8ff" font-family="DM Mono, monospace" font-size="12" letter-spacing="1.6">PASS</text>
+        <text x="76" y="536" fill="#f7f8fb" font-size="15" font-weight="700">the page was loaded and read</text>
+        <text x="76" y="556" fill="#cdd6e4" font-size="13">a 404 or a 500 is a pass · file under .ai/playwright/</text>
+
+        <rect x="616" y="484" width="528" height="84" fill="#0a1427" stroke="#ff9a8f" stroke-width="1.6"/>
+        <text x="636" y="512" fill="#ff9a8f" font-family="DM Mono, monospace" font-size="12" letter-spacing="1.6">FAIL</text>
+        <text x="636" y="536" fill="#f7f8fb" font-size="15" font-weight="700">tool missing · cannot launch · no load</text>
+        <text x="636" y="556" fill="#cdd6e4" font-size="13">never settles · action matches nothing · 30 s watchdog</text>
+
+        <text x="56" y="600" fill="#9ba7bd" font-size="15">Pass means the page was observed. It does not mean the page is healthy.</text>
+      </svg>
+      </div>
+      <figcaption>Every operation checks its tools, launches Chromium and loads the page before it does anything else. Which operation runs decides what is read. The script, not the model, decides pass or fail.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section alt" id="parts">
+    <div class="section-head">
+      <p class="eyebrow">The parts</p>
+      <h2>A plugin of its <em>own</em></h2>
+      <p>The Playwright pack plays one role in the pipeline: browser. It has its own manifest, skills, scripts and tests, and no MCP server is involved.</p>
+    </div>
+    <ul class="rows">
+      <li class="row key"><div><h3><code>pack.yaml</code> declares the role and what it needs</h3><p><code>kind: provider</code>, <code>role: browser</code>, four operations mapped to four skills, <code>unsupported: []</code>. It names <code>skills/render/scripts/render.cjs</code> under <code>scripts:</code> for a caller that needs a load check without a model step. A <code>requires:</code> block lists the two tools the pack depends on.</p></div></li>
+      <li class="row"><div><h3><code>.claude-plugin/plugin.json</code> names it</h3><p>Name <code>agentic-playwright</code>, version <code>0.2.2</code>, one dependency: <code>agentic-core</code>. The project picks it as its browser with <code>packs.browser: playwright</code> in <code>.ai/project-config.yaml</code>.</p></div></li>
+      <li class="row key"><div><h3>Four skills, one script each</h3><p>Each <code>skills/&lt;name&gt;/SKILL.md</code> runs <code>skills/&lt;name&gt;/scripts/&lt;name&gt;.cjs</code> and outputs its stdout as the whole response, ending with the <code>## Result</code> block. The skill has no branch of its own: the script alone decides pass or fail.</p></div></li>
+      <li class="row"><div><h3>Helpers shared by the operations</h3><p><code>probe-tool.cjs</code> checks a tool by exit status. <code>requires.cjs</code> reads the manifest's <code>requires:</code> block. <code>settle.cjs</code> decides when a page has stopped moving. <code>next-artifact-path.cjs</code> picks a file name nothing has used. <code>operation-guard.cjs</code> keeps a log and a watchdog. <code>launch-options.cjs</code> sets headless launch and the time limit.</p></div></li>
+      <li class="row"><div><h3>Offline tests for the helpers and <code>measure</code></h3><p>Four test files, run with no browser: <code>declared-dependency</code> (11), <code>next-artifact-path</code> (13), <code>settle</code> (30) and <code>measure</code> (15), 69 assertions in total. <code>render</code>, <code>capture</code> and <code>interact</code> have no offline test.</p></div></li>
+    </ul>
+  </section>
+
+  <section class="section" id="operations">
+    <div class="section-head">
+      <p class="eyebrow">The operations</p>
+      <h2>Four operations, one <em>shape</em></h2>
+      <p>Each takes input lines, runs against the real browser, writes one file under <code>.ai/playwright/</code> and returns a result block.</p>
+    </div>
+    <ul class="rows">
+      <li class="row key"><div><h3><code>render</code>: the load state</h3><p>Input: <code>target</code>. Returns the final URL, HTTP status, page title and console errors. It also reports a load time and writes a JSON file.</p></div></li>
+      <li class="row"><div><h3><code>capture</code>: a picture at a width</h3><p>Input: <code>target</code>, <code>width</code>. Writes a full-page PNG. The viewport is the given width, 800 pixels tall.</p></div></li>
+      <li class="row key"><div><h3><code>measure</code>: numbers for named elements</h3><p>Input: <code>target</code>, an optional <code>width</code>, one or more <code>selector</code>. Per selector it returns the geometry and a fixed set of values: <code>color</code>, <code>background-color</code>, <code>font-family</code>, <code>font-size</code>, <code>font-weight</code>, <code>line-height</code>, the four <code>padding-*</code> values, <code>gap</code>, <code>border-radius</code> and <code>min-width</code>. It adds <code>holds_text</code>, <code>broken_words</code> and <code>hidden</code>. The measurement records the width it was read at. A selector that matches nothing is reported <code>found: false</code> and does not fail the operation.</p></div></li>
+      <li class="row"><div><h3><code>interact</code>: state after acting</h3><p>Input: <code>target</code>, one or more of <code>click</code>, <code>press</code>, <code>type</code>, and one or more <code>read</code>. Every <code>read</code> selector is captured once before the first action and once after the last: geometry, the style values, every <code>aria-*</code> attribute and <code>class</code>. <code>press</code> focuses the element first, like a keyboard user tabbing to it. An action that matches nothing, or cannot be carried out, fails the whole operation.</p></div></li>
+    </ul>
+    <div class="envelope-grid" style="margin-top:2rem">
+      <div class="prose">
+        <p><strong>Files get the next free name.</strong> Each artifact is named <code>&lt;operation&gt;-&lt;target slug&gt;[-&lt;width&gt;]-&lt;n&gt;</code>, so a re-run never overwrites an earlier capture.</p>
+        <p><strong>Only the script's words.</strong> The skill returns the script's stdout unchanged. It adds no commentary and does not summarise it.</p>
+      </div>
+<pre class="envelope"><span class="k">$ measure.cjs --width 720 &lt;url&gt; ".logo" ".logo-row"</span>
+<span class="k">## Result</span>
+<span class="k">verdict:</span> pass
+<span class="k">summary:</span> &lt;counts of found and hidden selectors&gt;
+<span class="k">artifacts:</span>
+  - .ai/playwright/measure-&lt;slug&gt;-720-1.json
+<span class="k">next_action:</span> none</pre>
+    </div>
+  </section>
+
+  <section class="section alt" id="settle">
+    <div class="section-head">
+      <p class="eyebrow">The settle</p>
+      <h2>A page that has <em>stopped moving</em></h2>
+      <p><code>measure</code> reads only after the page settles. <code>settle.cjs</code> decides when that is.</p>
+    </div>
+    <ol class="steps">
+      <li><span>Wait for the document's fonts to finish loading.</span></li>
+      <li><span>Take a snapshot of every selector. Take another 250 ms later.</span></li>
+      <li><span>If a selector's state still changes, or something blocks the read, discard the snapshot and try again.</span></li>
+      <li class="read"><span>Two snapshots in a row are identical: the page has settled, and the second one is the reading.</span></li>
+      <li><span>Everything above has an upper bound of 10 seconds. A page that does not settle fails, with the reason in the summary, and no file is written.</span></li>
+    </ol>
+    <div class="envelope-grid" style="margin-top:2rem">
+      <div class="prose">
+        <p><strong>Hidden is a reading, not a wait.</strong> A page can hide part of a block at some widths. A selector with no visible match is reported at once with <code>hidden: true</code>. Its values are the first match's, as read, and a consumer never grades them. The other selectors keep their values.</p>
+        <p><strong>A fixed interval.</strong> The snapshot includes <code>hidden</code>, so an element on its way to visible still changes the snapshot and the wait goes on, until the bound.</p>
+      </div>
+      <div class="prose">
+        <p><strong>Inputs are injected.</strong> The probe, the fonts wait and the clock are passed in, so the condition runs in tests without a browser. That is why <code>settle</code> has 30 offline assertions.</p>
+        <p><strong>Only <code>measure</code> settles.</strong> In the code, <code>settle.cjs</code> is used by <code>measure.cjs</code> alone. The README's flow shows it for every operation.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="outcomes">
+    <div class="section-head">
+      <p class="eyebrow">Pass and stop</p>
+      <h2><em>Observed</em>, not healthy</h2>
+      <p>A verdict is about the check. Was the page seen, or could it not be?</p>
+    </div>
+    <ul class="chapters">
+      <li class="chapter"><p class="chapter-marker">Pass</p><p>The page was loaded and its state read. An HTTP 404 or 500 is a pass too, because that state was observed. A hidden selector and a selector that matches nothing in <code>measure</code> are readings, not failures.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Fail · tool missing</p><p>A declared tool is not there. The result carries the manifest's own remedy text. Nothing is installed.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Fail · browser</p><p>Chromium could not launch, or the page did not finish loading within 15 seconds.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Fail · the read</p><p>The page did not settle within 10 seconds (<code>measure</code>), or an action matched nothing or did not take effect (<code>interact</code>). An interaction that did not happen is never reported as one that did.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Fail · watchdog</p><p>An operation that runs past 30 seconds is ended. The result names the last step, lists the log and exits 0. A page that blocks its own main thread gets the same ending instead of a silent hang.</p></li>
+      <li class="chapter"><p class="chapter-marker">Usage error</p><p>A missing or malformed argument prints a usage line and exits 2. This is the only exit that is not 0.</p></li>
+    </ul>
+    <div class="envelope-grid" style="margin-top:2rem">
+<pre class="envelope"><span class="k">$ render.cjs http://127.0.0.1:1/</span>
+<span class="k">## Result</span>
+<span class="k">verdict:</span> fail
+<span class="k">summary:</span> could not launch Chromium:
+  browserType.launch: Target page, context
+  or browser has been closed
+<span class="k">artifacts:</span> []
+<span class="k">next_action:</span> none</pre>
+      <div class="prose">
+        <p>A browser that could not launch, from the README. The command ran in a sandbox that blocks the browser process. The operation still returned a result block and exit status 0.</p>
+        <p>Every console error and uncaught page exception is also appended to a log under <code>.ai/playwright/</code> the moment it happens, so a run that is killed still leaves what it saw.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" id="run">
+    <div class="section-head">
+      <p class="eyebrow">One declaration</p>
+      <h2>What it needs is <em>data</em></h2>
+      <p>The manifest states what the pack needs and how to fix its absence. Every reader reports that one text.</p>
+    </div>
+    <div class="envelope-grid">
+<pre class="envelope"><span class="k"># pack.yaml</span>
+requires:
+  - tool: playwright
+    probe: [node, &lt;pack&gt;/scripts/probe-tool.cjs, module]
+    remedy: "reinstall or update this plugin so the host
+      installs the playwright version its package.json
+      pins; loaded by path, run npm ci in this plugin's root"
+  - tool: chromium
+    probe: [node, &lt;pack&gt;/scripts/probe-tool.cjs, browser]
+    remedy: "npx playwright@1.63.0 install chromium"</pre>
+      <div class="prose">
+        <p><code>probe-tool.cjs</code> answers by exit status alone and installs nothing. <code>requires.cjs</code> reads the same block, so an operation that refuses to run reports the same remedy the core's <code>health</code> diagnostic prints.</p>
+        <p>Two hand-written copies of a remedy agree only until one is edited. This is the one provider pack here that depends on a binary outside the session, which is why the declaration exists at all.</p>
+      </div>
+    </div>
+    <ol class="steps" style="margin-top:2rem">
+      <li><span>Install from the marketplace: <code>/plugin marketplace add agenticDraft/plugins</code>, then <code>/plugin install agentic-playwright@agenticdraft</code>. The host installs the pinned <code>playwright</code> into the plugin's own directory.</span></li>
+      <li><span>Install the browser: <code>npx playwright@1.63.0 install chromium</code>. Loaded by path instead, run <code>npm ci</code> in the plugin's folder first.</span></li>
+      <li><span>Check the preconditions the way the core does: <code>check-requires.sh</code> on <code>pack.yaml</code>, or <code>/agentic-core:health</code> in a configured session.</span></li>
+      <li class="read"><span>Invoke an operation: <code>Skill(agentic-playwright:render)</code> with the input lines as the argument, or <code>/agentic-playwright:render</code> followed by <code>target: &lt;URL&gt;</code>.</span></li>
+    </ol>
+  </section>
+
+  <section class="section" id="limits">
+    <div class="section-head">
+      <p class="eyebrow">What it doesn't cover</p>
+      <h2>The limits, <em>as stated</em></h2>
+      <p>From the README's own list.</p>
+    </div>
+    <ul class="chapters">
+      <li class="chapter warn"><p class="chapter-marker">Engine</p><p>Chromium only. No other browser is declared or probed.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Sandbox</p><p>A sandbox that blocks the browser process turns every operation into a fail, indistinguishable from a missing binary except by its summary. Each operation skill therefore runs its script with the command sandbox off. A local preview also needs loopback connections.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Late elements</p><p>An element that appears after the page settles (an animation, a deferred reveal) is read as hidden. A behaviour that needs it visible is a job for <code>interact</code>.</p></li>
+      <li class="chapter warn"><p class="chapter-marker">Fixed values</p><p>The style set is fixed: a value outside the <code>measure</code> list is not returned. <code>broken_words</code> reads one text node at a time, so a word an inline element splits in two is read as two words.</p></li>
+      <li class="chapter"><p class="chapter-marker">Next</p><p>The prototype, and the check that measures it in this browser.</p></li>
+    </ul>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <span class="brand"><span class="brand-mark" aria-hidden="true"></span>Zoran Markovic · Delivery Factory</span>
+  <p>Companion to LinkedIn post 10</p>
+</footer>
+
+</body>
+</html>
