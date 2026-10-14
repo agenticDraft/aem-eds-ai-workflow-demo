@@ -1,2 +1,0 @@
-trusted-context-files.txt
-house-style.md

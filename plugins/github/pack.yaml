@@ -1,9 +1,0 @@
-kind: provider
-role: scm
-operations:
-  create_branch: create-branch
-  publish_change: publish-change
-  check_status: check-status
-unsupported: []
-scripts:
-  check_status: "skills/check-status/scripts/check-status.sh"

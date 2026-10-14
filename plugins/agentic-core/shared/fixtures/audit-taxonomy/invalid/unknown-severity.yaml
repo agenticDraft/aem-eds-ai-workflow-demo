@@ -1,8 +1,0 @@
-- id: "F1"
-  class: mechanical
-  severity: severe
-  file: "styles/fonts.css"
-  finding: "an unknown severity literal"
-  diff: |
-    - old
-    + new

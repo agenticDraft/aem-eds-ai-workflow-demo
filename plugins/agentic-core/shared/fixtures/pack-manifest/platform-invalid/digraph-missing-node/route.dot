@@ -1,6 +1,0 @@
-digraph route {
-    "intake"  [shape=box];
-    "deliver" [shape=box];
-
-    "intake" -> "deliver";
-}

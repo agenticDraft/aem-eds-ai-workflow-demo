@@ -3,7 +3,7 @@
 `route-trigger.rule.json` is the Jira automation rule that turns a token comment into a
 `repository_dispatch` for this repository, exported from the Jira console unchanged. It is a
 **derived copy**: the source of truth for the token is `trigger.token` in `.ai/project-config.yaml`,
-and `plugins/agentic-core/shared/lib/check-trigger-config.sh` fails CI if the two disagree.
+and `shared/lib/check-trigger-config.sh` in the `agentic-core` plugin (`agenticDraft/plugins`) reports a disagreement when it is run against both files.
 
 The export exists because a rule that lives only in the Jira console is invisible to anyone reading
 this repository. Re-export after every change to the rule, and commit the export as Jira produces it.
@@ -45,7 +45,7 @@ The body's `client_payload` carries six fields: `item_id` (`{{issue.key}}`), `co
 (`{{comment.id}}`), `author_id` (`{{comment.author.accountId}}`), `author_name`
 (`{{comment.author.displayName}}`), `item_type` (`{{issue.issueType.name}}`) and `rule_version`
 (`"1"`). Their meanings and the order the receiving side gates them in are defined once, in
-`plugins/agentic-core/shared/trigger-contract.md`, which from rule version 2 adds the seventh,
+`shared/trigger-contract.md` in the `agentic-core` plugin (`agenticDraft/plugins`), which from rule version 2 adds the seventh,
 `override`, as above. Do not add the comment body, which carries the literal token.
 
 **`item_type` is carried, never filtered on.** It rides along for the run title and for the
