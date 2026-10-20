@@ -21,8 +21,8 @@ works against that rule.
 
 Neither is auto-imported, so nothing loads them for you.
 
-**Writing, reviewing or rewriting a Jira work item?** Invoke the `write-specs` skill
-(`.claude/skills/write-specs/`) rather than writing it by hand — it owns the ticket shape and
+**Writing, reviewing or rewriting a Jira work item?** Invoke the `agentic-core:write-specs` skill
+(from the `agentic-core` plugin) rather than writing it by hand — it owns the ticket shape and
 proves conformance with its own checker before anything is pasted in.
 
 <!-- This file carries project POLICY plus an INDEX of documents to read on a trigger.
