@@ -41,6 +41,7 @@ body { margin: 0; background: var(--navy); color: var(--ink); font: 400 17px/1.6
 main, section, div, nav, ul, ol, li, p, h1, h2, h3, figure { min-width: 0; }
 p, h1, h2, h3, a, span, li { overflow-wrap: break-word; }
 a { color: inherit; }
+a.pl { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 ::selection { background: var(--cyan); color: var(--navy); }
 :focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
 h1, h2, h3, p { margin-top: 0; }
@@ -283,7 +284,7 @@ pre.envelope .k { color: var(--cyan); }
     </div>
     <ul class="rows">
       <li class="row key"><div><h3><code>pack.yaml</code> declares the role</h3><p><code>kind: provider</code>, <code>role: design</code>, one operation: <code>fetch_reference → fetch-reference</code>. It also lists the four tools only the session can provide, each with a remedy for when one is missing, so the run can check them before it does any work.</p></div></li>
-      <li class="row"><div><h3><code>.claude-plugin/plugin.json</code> names it</h3><p>Name <code>figma</code>, version <code>0.1.0</code>, one dependency: <code>agentic-core</code>. The project picks it as its design source with <code>packs.design: figma</code> in <code>.ai/project-config.yaml</code>.</p></div></li>
+      <li class="row"><div><h3><code>.claude-plugin/plugin.json</code> names it</h3><p>Name <code>figma</code>, version <code>0.1.0</code>, one dependency: <a class="pl" href="https://github.com/agenticDraft/plugins/tree/main/plugins/agentic-core"><code>agentic-core</code></a>. The project picks it as its design source with <code>packs.design: figma</code> in <code>.ai/project-config.yaml</code>.</p></div></li>
       <li class="row key"><div><h3><code>skills/fetch-reference/SKILL.md</code> is the flow</h3><p>A decision graph from the link to a verdict, with one section per node. Its allowed tools are exactly the four Figma tools plus <code>ToolSearch</code> and <code>Skill</code>.</p></div></li>
       <li class="row"><div><h3>Five scripts decide</h3><p><code>classify-node.py</code> sorts the node. <code>viewports.py</code> plans the targets. <code>fetch-assets.py</code> downloads images and icons. <code>sniff-asset.py</code> names a file's format. <code>screenshot-size.py</code> sizes the screenshot request and records what came back.</p></div></li>
       <li class="row"><div><h3>Five offline test suites</h3><p>One per script, 221 assertions in total, no network. They cover the scripts. The MCP calls themselves are not exercised by them.</p></div></li>
